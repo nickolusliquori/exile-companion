@@ -75,12 +75,7 @@ npm run check      # syntax, security-policy and parser checks
 npm run dist:local # build an installer on your own PC (skips exe signing tools)
 ```
 
-**Releasing a new version:** bump `version` in `package.json`, commit, then push a matching tag:
-
-```
-git tag v1.0.1
-git push origin v1.0.1
-```
+**Releasing a new version:** bump `version` in `package.json` (e.g. `1.0.0` → `1.0.1`) and push to `main`. You can even do it in the GitHub website's editor.
 
 GitHub Actions builds the Windows installer and publishes the release; installed apps pick it up automatically.
 
