@@ -196,6 +196,37 @@ dialog{background:linear-gradient(#21180f,#120d09);border:1px solid var(--gold-d
 #tvWrap{background:radial-gradient(circle at 50% 45%,#16110b,#080605 75%)!important;border-color:#3a2d1f!important;box-shadow:inset 0 0 40px rgba(0,0,0,.8)}
 #tvTip{background:linear-gradient(#211810,#120d09)!important;box-shadow:0 8px 24px rgba(0,0,0,.7)}
 @media (prefers-reduced-motion:reduce){nav button,.btn,.item{transition:none}}
+/* grouped navigation + search palette */
+#groups{padding-top:2px;gap:2px}
+#groups button{font-size:.95rem;padding:9px 14px}
+#groups button[aria-current="true"]{color:var(--gold);border-bottom-color:var(--gold);text-shadow:0 0 12px rgba(212,174,98,.35)}
+#groups .kbtn{margin-left:auto;font-family:var(--body);font-size:.85rem;display:flex;gap:6px;align-items:center;color:var(--muted)}
+#groups .kbtn:hover{color:var(--gold)}
+kbd{font-family:var(--body);font-size:.72rem;border:1px solid var(--line);border-bottom-width:2px;border-radius:3px;padding:0 5px;color:var(--muted);background:#0b0806}
+#tabs{border-top:1px solid #2a2118;background:rgba(0,0,0,.18)}
+#tabs button{font-size:.82rem;padding:7px 12px}
+#tabs button.gx{display:none}
+#tabs.solo{display:none}
+section.tab .card{scroll-margin-top:140px}
+#cmdk{width:min(620px,94vw);margin-top:12vh}
+.cmdk-in{padding:12px;border-bottom:1px solid var(--line)}
+#cmdkQ{width:100%;background:#0b0806;border:1px solid var(--gold-dim);border-radius:3px;padding:10px 12px;font-size:1.05rem}
+#cmdkList{list-style:none;margin:0;padding:6px;max-height:min(420px,55vh);overflow:auto}
+#cmdkList li{display:flex;justify-content:space-between;gap:12px;align-items:center;padding:8px 10px;border-radius:3px;cursor:pointer}
+#cmdkList li[aria-selected="true"]{background:linear-gradient(90deg,rgba(212,174,98,.18),rgba(212,174,98,.04));box-shadow:inset 2px 0 0 var(--gold)}
+#cmdkList .k{font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);white-space:nowrap}
+#cmdkList mark{background:none;color:var(--gold);font-weight:700}
+#cmdkList .empty{color:var(--muted);cursor:default}
+.cmdk-foot{margin:0;padding:8px 14px;border-top:1px solid var(--line)}
+.card.flash{animation:flash 1.6s ease-out}
+@keyframes flash{0%{box-shadow:0 0 0 2px var(--gold),0 0 30px rgba(212,174,98,.5)}100%{box-shadow:none}}
+.hgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px}
+.hgrid .btn{text-align:left;display:flex;flex-direction:column;gap:2px}
+.hgrid .btn small{color:var(--muted);font-size:.78rem}
+.steps.tight li{margin-bottom:4px}
+@media (prefers-reduced-motion:reduce){.card.flash{animation:none}}
+[hidden]{display:none!important}
+@media (max-width:600px){#groups button{padding:9px 10px;font-size:.88rem}#groups .kbtn kbd,#groups .kbtn .lbl{display:none}#groups .kbtn{font-size:1.1rem}}
 </style>
 </head>
 <body>
@@ -205,18 +236,27 @@ dialog{background:linear-gradient(#21180f,#120d09);border:1px solid var(--gold-d
     <div class="buildchip chips" id="buildchip">No build loaded</div>
     <button class="btn primary" id="openImport">Import PoB</button>
   </div>
-  <nav role="tablist" id="tabs">
-    <button role="tab" data-tab="build" aria-selected="true">Build</button>
-    <button role="tab" data-tab="progress" aria-selected="false">Progress</button>
-    <button role="tab" data-tab="shop" aria-selected="false">Shopping list</button>
-    <button role="tab" data-tab="campaign" aria-selected="false">Campaign</button>
-    <button role="tab" data-tab="maps" aria-selected="false">Maps</button>
-    <button role="tab" data-tab="trees" aria-selected="false">Trees</button>
-    <button role="tab" data-tab="atlas" aria-selected="false">Atlas</button>
-    <button role="tab" data-tab="craft" aria-selected="false">Crafting</button>
-    <button role="tab" data-tab="session" aria-selected="false">Session</button>
-    <button role="tab" data-tab="account" aria-selected="false" id="acctTabBtn" hidden>Account</button>
-    <button role="tab" data-tab="desktop" aria-selected="false" id="deskTabBtn" hidden>Desktop</button>
+  <nav id="groups" aria-label="Sections">
+    <button data-group="home">Home</button>
+    <button data-group="char">Character</button>
+    <button data-group="play">Play</button>
+    <button data-group="trade">Economy</button>
+    <button data-group="app" id="appGroupBtn" hidden>Desktop</button>
+    <button class="kbtn" id="openSearch" title="Search everything (Ctrl+K)"><span aria-hidden="true">&#x2315;</span> <span class="lbl">Search</span> <kbd>Ctrl K</kbd></button>
+  </nav>
+  <nav role="tablist" id="tabs" aria-label="Pages">
+    <button role="tab" data-tab="home" data-g="home" aria-selected="true">Home</button>
+    <button role="tab" data-tab="build" data-g="char" aria-selected="false">Build</button>
+    <button role="tab" data-tab="progress" data-g="char" aria-selected="false">Progress</button>
+    <button role="tab" data-tab="shop" data-g="char" aria-selected="false">Shopping list</button>
+    <button role="tab" data-tab="trees" data-g="char" aria-selected="false">Trees</button>
+    <button role="tab" data-tab="campaign" data-g="play" aria-selected="false">Campaign</button>
+    <button role="tab" data-tab="maps" data-g="play" aria-selected="false">Maps</button>
+    <button role="tab" data-tab="atlas" data-g="play" aria-selected="false">Atlas</button>
+    <button role="tab" data-tab="session" data-g="play" aria-selected="false">Session</button>
+    <button role="tab" data-tab="craft" data-g="trade" aria-selected="false">Crafting</button>
+    <button role="tab" data-tab="account" data-g="trade" aria-selected="false" id="acctTabBtn" hidden>Account</button>
+    <button role="tab" data-tab="desktop" data-g="app" aria-selected="false" id="deskTabBtn" hidden>Desktop</button>
   </nav>
 </header>
 
@@ -227,8 +267,21 @@ dialog{background:linear-gradient(#21180f,#120d09);border:1px solid var(--gold-d
     <button class="btn primary" id="openImport2">Import my build</button>
   </div>
 
+  <!-- HOME -->
+  <section class="tab on" id="tab-home" role="tabpanel">
+    <div class="grid">
+      <div class="card hl" id="homeChar"></div>
+      <div class="card" id="homeNext"></div>
+    </div>
+    <div class="grid">
+      <div class="card" id="homeSession"></div>
+      <div class="card" id="homeLive"></div>
+    </div>
+    <div class="card" id="homeQuick"></div>
+  </section>
+
   <!-- BUILD -->
-  <section class="tab on" id="tab-build" role="tabpanel">
+  <section class="tab" id="tab-build" role="tabpanel">
     <div class="grid">
       <div class="card hl" id="buildSummary"></div>
       <div class="card" id="buildDefence"></div>
@@ -378,6 +431,11 @@ dialog{background:linear-gradient(#21180f,#120d09);border:1px solid var(--gold-d
   </section>
 </main>
 
+<dialog id="cmdk" aria-label="Search">
+  <div class="cmdk-in"><input type="search" id="cmdkQ" placeholder="Search pages, cards, items and actions…" autocomplete="off" spellcheck="false" aria-controls="cmdkList"></div>
+  <ul id="cmdkList" role="listbox"></ul>
+  <p class="cmdk-foot small muted">↑ ↓ to move · Enter to open · Esc to close</p>
+</dialog>
 <dialog id="importDlg">
   <form class="dlg" id="importForm" method="dialog">
     <h2>Import Path of Building</h2>
@@ -1889,7 +1947,7 @@ function renderDesktop(){
 }
 async function initDesktop(){
   if(!DESK) return;
-  $("deskTabBtn").hidden=false;
+  $("deskTabBtn").hidden=false;syncNav();
   LIVE.cfg=await DESK.getConfig();
   LIVE.overlayVisible=LIVE.cfg.overlayVisible!==false;
   if(LIVE.cfg.league){S.league=LIVE.cfg.league;save()}
@@ -2355,7 +2413,7 @@ function publishGear(){
 }
 async function initAccount(){
   if(!DESK) return;
-  $("acctTabBtn").hidden=false;
+  $("acctTabBtn").hidden=false;syncNav();
   ACCT.status=await DESK.acctStatus();
   try{const raw=localStorage.getItem("ec330.liveChar");if(raw&&S.syncChar){const ch=JSON.parse(raw);const prev=C&&C!==G?C:null;C=buildFromCharacter(ch,prev);C.live.at=S.syncAt||Date.now();exC=false;reanalyze()}}catch(e){}
   try{const it=await idbGet("stashItems");if(it)ACCT.stashItems=it}catch(e){}
@@ -3044,23 +3102,175 @@ function renderUpdates(){
 }
 
 /* ---------------- wiring ---------------- */
-function renderAll(){if(window.exileDesktop){publishOverlay();setTimeout(()=>{renderDesktop();renderAccount();publishGear();publishDiscord()},0)}renderHeader();renderBuild();renderProgress();renderShop();renderCampaign();renderMaps();renderAtlas();renderCraft();renderSession();bindItems()}
+function renderAll(){if(window.exileDesktop){publishOverlay();setTimeout(()=>{renderDesktop();renderAccount();publishGear();publishDiscord()},0)}renderHeader();renderBuild();renderProgress();renderShop();renderCampaign();renderMaps();renderAtlas();renderCraft();renderSession();bindItems();try{renderHome()}catch(e){console.error(e)}}
 {const wrap=(f,pick)=>function(){return withBuild(pick(),()=>f.apply(this,arguments))};
  renderBuild=wrap(renderBuild,viewB);renderShop=wrap(renderShop,()=>G);renderCraft=wrap(renderCraft,()=>G);renderCampaign=wrap(renderCampaign,()=>G);
  renderMaps=wrap(renderMaps,liveB);renderAtlas=wrap(renderAtlas,liveB);renderSession=wrap(renderSession,liveB);
  bindItems=wrap(bindItems,viewB);}
 function bindItems(){document.querySelectorAll("[data-item]").forEach(b=>b.onclick=()=>{selectedItem=b.dataset.item;selectedSlot=b.dataset.slot;renderBuild();renderCraft();bindItems();showTab("craft")})}
+let CUR_TAB="home";
+const TAB_LIST=()=>[...document.querySelectorAll("#tabs [data-tab]")].map(b=>b.dataset.tab);
+const tabBtn=t=>document.querySelector(`#tabs [data-tab="${t}"]`);
+const tabVisible=t=>{const b=tabBtn(t);return !!b&&!b.hidden};
+const groupOf=t=>{const b=tabBtn(t);return b?b.dataset.g:"home"};
+function syncNav(){
+  const g=groupOf(CUR_TAB);
+  $("appGroupBtn").hidden=!tabVisible("desktop");
+  document.querySelectorAll("#groups [data-group]").forEach(b=>b.setAttribute("aria-current",String(b.dataset.group===g)));
+  let vis=0;document.querySelectorAll("#tabs button").forEach(b=>{const on=b.dataset.g===g;b.classList.toggle("gx",!on);if(on&&!b.hidden)vis++});
+  $("tabs").classList.toggle("solo",vis<=1);
+}
 function showTab(name){
+  if(!tabVisible(name)) name="home";
+  CUR_TAB=name;
   document.querySelectorAll("#tabs button").forEach(b=>b.setAttribute("aria-selected",b.dataset.tab===name));
   document.querySelectorAll("section.tab").forEach(s=>s.classList.toggle("on",s.id==="tab-"+name));
-  try{store.set("tab",name)}catch(e){}
+  try{store.set("tab",name);const L=store.get("navLast",{})||{};L[groupOf(name)]=name;store.set("navLast",L)}catch(e){}
+  syncNav();
+  if(name==="home") setTimeout(renderHome,0);
   if(name==="trees") setTimeout(renderTrees,0);
   if(name==="maps"&&!$("mapsCards").dataset.loaded){$("mapsCards").dataset.loaded="1";setTimeout(()=>renderCards(false),0)}
   if(location.hash!=="#"+name) history.replaceState(null,"","#"+name);
   window.scrollTo({top:0});
 }
 $("tabs").onclick=e=>{const t=e.target.closest("button");if(t)showTab(t.dataset.tab)};
-window.addEventListener("hashchange",()=>{const h=location.hash.slice(1);if(["build","progress","shop","campaign","maps","trees","atlas","craft","session","account","desktop"].includes(h))showTab(h)});
+$("groups").onclick=e=>{
+  if(e.target.closest("#openSearch")){openSearch();return}
+  const b=e.target.closest("[data-group]");if(!b)return;const g=b.dataset.group;
+  let last=null;try{last=(store.get("navLast",{})||{})[g]}catch(_){}
+  const first=[...document.querySelectorAll(`#tabs [data-g="${g}"]`)].find(x=>!x.hidden);
+  showTab(last&&tabVisible(last)&&groupOf(last)===g?last:first?first.dataset.tab:"home");
+};
+window.addEventListener("hashchange",()=>{const h=location.hash.slice(1);if(TAB_LIST().includes(h)&&h!==CUR_TAB)showTab(h)});
+
+/* ---------------- home dashboard ---------------- */
+function homeBtns(el){el.querySelectorAll("[data-hgo]").forEach(b=>b.onclick=()=>{if(b.dataset.slot){selectedSlot=b.dataset.slot;renderCraft()}showTab(b.dataset.hgo)})}
+function renderHome(){
+  if(!$("homeChar")) return;
+  const name=S.logInfo&&S.logInfo.name, lvl=(S.logInfo&&S.logInfo.level)||(C||G||{}).level||1;
+  let r=null;if(C&&G){try{r=compareAll()}catch(e){r=null}}
+  const eta=(()=>{try{return nextLevelEta()}catch(e){return null}})();
+  const who=C||G;
+  $("homeChar").innerHTML=`<div class="row" style="justify-content:space-between;align-items:flex-end">
+      <div><h2>${esc(name||"Your character")}</h2><p class="small muted" style="margin:0">${who?esc(who.ascend||who.className||""):""} · Level ${lvl}${eta&&lvl<100?` · next level in about ${hms(eta.left)}`:""}</p></div>
+      ${r?`<div class="big num">${r.overall}%</div>`:""}</div>
+    ${r?`<div><div class="small muted">Progress toward your goal build</div><div class="meter"><i style="width:${r.overall}%"></i></div></div>`:
+      `<p class="small" style="margin:0">${exG?"Import the build guide you're following as your <b>goal</b>, then your <b>current</b> character, and this shows how close you are.":"Import your <b>current</b> character to see how close you are to the goal build."}</p>`}
+    ${(exG||exC)?'<p class="note" style="margin:0">Showing example builds until you import your own.</p>':""}
+    <div class="row">${exG?'<button class="btn primary" id="hImpG">Import goal build</button>':""}${!C||exC?`<button class="btn${exG?"":" primary"}" id="hImpC">Import current character</button>`:""}${r?'<button class="btn ghost" data-hgo="progress">See full progress</button>':""}</div>`;
+  const ig=$("hImpG");if(ig)ig.onclick=()=>openImport("goal");const ic=$("hImpC");if(ic)ic.onclick=()=>openImport("current");
+  homeBtns($("homeChar"));
+
+  // what to do next
+  let nx="";
+  if(!S.progress.p1){
+    const act=(LIVE.zone&&LIVE.zone.act&&LIVE.zone.act<=10)?LIVE.zone.act:(S.campAct||1);
+    const A=CAMPAIGN[act-1];
+    const left=A.steps.map((x,i)=>({t:x.t,done:!!(S.camp||{})[act+"-"+i]})).filter(x=>!x.done).slice(0,3);
+    nx+=`<h3>Campaign · Act ${act}</h3>${left.length?`<ol class="steps tight small">${left.map(x=>`<li>${esc(x.t)}</li>`).join("")}</ol>`:`<p class="small muted" style="margin:0">Act ${act} is done.</p>`}
+      <div class="row"><span class="pill">Target level ${A.lvl.join("–")}</span><button class="btn ghost small" data-hgo="campaign">Open campaign</button></div>`;
+  } else {
+    const p=PROGRESS.find(x=>!S.progress[x.id]);
+    nx+=`<h3>Atlas</h3>${p?`<p class="small" style="margin:0">${esc(p.t)}</p><p class="small muted" style="margin:0">${esc(p.tip)}</p>`:'<p class="small" style="margin:0">Every atlas milestone is done.</p>'}
+      <div class="row"><button class="btn ghost small" data-hgo="maps">Open maps</button><button class="btn ghost small" data-hgo="atlas">Atlas strategy</button></div>`;
+  }
+  if(r){const st=nextSteps(r).slice(0,3);
+    if(st.length) nx+=`<h3>Build upgrades</h3><ol class="steps tight small">${st.map(x=>`<li><div class="row" style="justify-content:space-between"><span>${esc(x.t)}</span>${x.tab?`<button class="btn ghost small" data-hgo="${x.tab}" data-slot="${esc(x.slot||"")}">${esc(x.btn)}</button>`:""}</div></li>`).join("")}</ol>`;}
+  $("homeNext").innerHTML=`<h2>What to do next</h2>${nx}`;
+  homeBtns($("homeNext"));
+
+  // session
+  const s=S.session, ms=elapsed(), maps=s.maps, timed=maps.filter(m=>m.dur);
+  const mapMs=timed.reduce((a,m)=>a+m.dur,0), profit=maps.reduce((a,m)=>a+(+m.profit||0),0), basis=Math.max(ms,mapMs);
+  const perHr=basis>60000&&profit?profit/(basis/3.6e6):0;
+  $("homeSession").innerHTML=`<h2>This session</h2>
+    <div class="stats"><div class="stat"><div class="k">Time</div><div class="v num">${hms(ms)}</div></div>
+      <div class="stat"><div class="k">Maps</div><div class="v num">${maps.length}</div></div>
+      <div class="stat"><div class="k">Avg map</div><div class="v num">${timed.length?hms(mapMs/timed.length):"–"}</div></div>
+      <div class="stat"><div class="k">Per hour</div><div class="v num">${perHr?(S.divine?(perHr/S.divine).toFixed(1)+" div":fmt(perHr)+"c"):"–"}</div></div></div>
+    <div class="row"><button class="btn" id="hSess">${s.start?"Pause timer":"Start timer"}</button><button class="btn ghost" data-hgo="session">Open session</button></div>`;
+  $("hSess").onclick=()=>{const t=$("sessToggle");if(t){t.click();renderHome()}};
+  homeBtns($("homeSession"));
+
+  // live status
+  if(DESK){
+    const st=LIVE.status, u=LIVE.update||{}, L=S.netLatest, tr=TRADES.filter(t=>Date.now()-t.t<20*60e3).length;
+    const li=(ok,label,detail)=>`<li class="row" style="justify-content:space-between"><span><span class="pill ${ok===true?"good":ok===false?"warn":""}">${label}</span></span><span class="small muted" style="text-align:right">${detail}</span></li>`;
+    $("homeLive").innerHTML=`<h2>Live status</h2><ul class="clean" style="display:grid;gap:6px">
+      ${li(!!(st&&st.ok),st&&st.ok?"Game log connected":"Game log not found",LIVE.zone?`In ${esc(LIVE.zone.name)} (level ${LIVE.zone.lvl})`:st&&st.ok?"Waiting for a zone change":'<a href="#desktop">Find Client.txt</a>')}
+      ${li(LIVE.overlayVisible?true:null,LIVE.overlayVisible?"Overlay on":"Overlay hidden",esc(keyName((LIVE.cfg||{}).overlayHotkey||"Ctrl+Shift+O"))+" to toggle")}
+      ${li(tr?true:null,tr?`${tr} trade request${tr>1?"s":""}`:"No trade requests",tr?'<a href="#desktop">Open</a>':"")}
+      ${L?li(null,"Net worth",`${L.div?(L.total/L.div).toFixed(1)+" div":fmt(L.total)+"c"} · ${new Date(L.t).toLocaleDateString()}`):""}
+      ${li(u.state==="ready"?true:u.state==="error"?false:null,u.state==="ready"?`Update ${esc(u.version||"")} ready`:`Version ${esc(u.current||(LIVE.cfg&&LIVE.cfg.version)||"?")}`,u.state==="ready"?'<button class="btn primary small" id="hUp">Restart & update</button>':u.state==="current"?"Up to date":"")}
+    </ul>`;
+    const hu=$("hUp");if(hu)hu.onclick=()=>DESK.installUpdate();
+  } else {
+    $("homeLive").innerHTML=`<h2>Desktop app</h2><p class="small" style="margin:0">The Windows app adds a live game log, an in-game overlay, Ctrl+C price checks, stash net worth and trade alerts, and updates itself.</p>
+      <div class="row"><a class="btn" href="https://github.com/nickolusliquori/exile-companion/releases/latest" target="_blank" rel="noopener">Download for Windows</a></div>`;
+  }
+
+  // quick actions
+  const q=[["Import a build","Paste a PoB code or pobb.in link",()=>openImport()],["Search","Find any page or card · Ctrl+K",()=>openSearch()]];
+  if(DESK){q.push([LIVE.overlayVisible?"Hide overlay":"Show overlay","Shows on top of the game",()=>{DESK.toggleOverlay(!LIVE.overlayVisible);setTimeout(renderHome,300)}]);
+    if($("nwSnap"))q.push(["Net worth snapshot","Price your chosen stash tabs",()=>{showTab("account");$("nwSnap").click()}]);
+    if($("csNow"))q.push(["Sync character","Pull gear and tree from your account",()=>{showTab("account");$("csNow").click()}]);
+    q.push(["Settings & hotkeys","Log file, overlay, price check",()=>showTab("desktop")]);}
+  q.push(["Shopping list","Gems and items to pick up",()=>showTab("shop")],["Crafting","Plan upgrades and money crafts",()=>showTab("craft")]);
+  $("homeQuick").innerHTML=`<h2>Quick actions</h2><div class="hgrid">${q.map((x,i)=>`<button class="btn ghost" data-hq="${i}"><b>${esc(x[0])}</b><small>${esc(x[1])}</small></button>`).join("")}</div>`;
+  $("homeQuick").querySelectorAll("[data-hq]").forEach(b=>b.onclick=()=>q[+b.dataset.hq][2]());
+}
+setInterval(()=>{if(CUR_TAB==="home"&&!document.hidden)renderHome()},10000);
+
+/* ---------------- Ctrl+K search ---------------- */
+const cmdk=$("cmdk");let CMDK=[],CMDK_SEL=0,CMDK_ITEMS=[];
+function cmdkIndex(){
+  const out=[], names={};document.querySelectorAll("#tabs [data-tab]").forEach(b=>names[b.dataset.tab]=b.textContent.trim());
+  const acts=[["Import goal build",()=>openImport("goal")],["Import current character",()=>openImport("current")]];
+  if($("sessToggle"))acts.push([S.session.start?"Pause session timer":"Start session timer",()=>$("sessToggle").click()]);
+  if(DESK){acts.push([LIVE.overlayVisible?"Hide overlay":"Show overlay",()=>DESK.toggleOverlay(!LIVE.overlayVisible)]);
+    if($("upCheck"))acts.push(["Check for app updates",()=>{showTab("desktop");$("upCheck").click()}]);
+    if($("nwSnap"))acts.push(["Take net worth snapshot",()=>{showTab("account");$("nwSnap").click()}]);
+    if($("csNow"))acts.push(["Sync character now",()=>{showTab("account");$("csNow").click()}]);
+    if($("bkSave"))acts.push(["Save a backup",()=>{showTab("desktop");$("bkSave").click()}]);}
+  acts.forEach(([t,run])=>out.push({k:"Action",t,run,top:1}));
+  document.querySelectorAll("#tabs [data-tab]").forEach(b=>{if(!b.hidden)out.push({k:"Page",t:b.textContent.trim(),run:()=>showTab(b.dataset.tab),top:1})});
+  document.querySelectorAll("section.tab").forEach(sec=>{const tab=sec.id.slice(4);if(!tabVisible(tab))return;
+    sec.querySelectorAll(".card").forEach(c=>{if(c.hidden)return;const h=c.querySelector("h2");const t=h&&h.textContent.trim();if(!t)return;
+      out.push({k:names[tab],t,run:()=>{showTab(tab);setTimeout(()=>{c.scrollIntoView({block:"start",behavior:"smooth"});c.classList.remove("flash");void c.offsetWidth;c.classList.add("flash")},40)}})})});
+  const seen=new Set();document.querySelectorAll("#tab-build [data-item]").forEach(b=>{const ln=(b.innerText||b.textContent).split(/\n+/).map(x=>x.trim()).filter(Boolean);const t=(ln.length>=2?ln[1]+" · "+ln[0]:ln[0]||"").slice(0,80);if(!t||seen.has(t))return;seen.add(t);out.push({k:"Item",t,run:()=>b.click()})});
+  return out;
+}
+function fuzzy(q,t){
+  const s=t.toLowerCase();const i=s.indexOf(q);
+  if(i>=0) return {sc:200-i+(i===0||/\W/.test(s[i-1])?60:0)-s.length*.2,h:esc(t.slice(0,i))+"<mark>"+esc(t.slice(i,i+q.length))+"</mark>"+esc(t.slice(i+q.length))};
+  let j=0,sc=0,h="",prev=-2;
+  for(let k=0;k<t.length;k++){if(j<q.length&&s[k]===q[j]){sc+=(k===prev+1?6:1)+(k===0||/\W/.test(s[k-1])?8:0);prev=k;j++;h+="<mark>"+esc(t[k])+"</mark>"}else h+=esc(t[k])}
+  return j===q.length?{sc:sc-s.length*.2,h}:null;
+}
+function cmdkRender(){
+  const q=$("cmdkQ").value.trim().toLowerCase();let res;
+  if(!q) res=CMDK.filter(x=>x.top).map(x=>({x,h:esc(x.t),sc:0}));
+  else res=CMDK.map(x=>{let m=fuzzy(q,x.t);if(!m&&q.includes(" ")){const hay=(x.t+" "+x.k).toLowerCase();if(q.split(/\s+/).every(w=>hay.includes(w)))m={sc:20,h:esc(x.t)}}
+      if(!m&&x.k&&x.k.toLowerCase().startsWith(q))m={sc:5,h:esc(x.t)};return m?{x,h:m.h,sc:m.sc+(x.k==="Page"?30:0)}:null}).filter(Boolean).sort((a,b)=>b.sc-a.sc);
+  CMDK_ITEMS=res.slice(0,40);CMDK_SEL=Math.min(CMDK_SEL,Math.max(0,CMDK_ITEMS.length-1));
+  $("cmdkList").innerHTML=CMDK_ITEMS.length?CMDK_ITEMS.map((r,i)=>`<li role="option" data-i="${i}" aria-selected="${i===CMDK_SEL}"><span>${r.h}</span><span class="k">${esc(r.x.k||"")}</span></li>`).join(""):'<li class="empty">Nothing matches. Try a page name like "maps" or a card like "net worth".</li>';
+  const sel=$("cmdkList").querySelector('[aria-selected="true"]');if(sel)sel.scrollIntoView({block:"nearest"});
+}
+function cmdkRun(i){const r=CMDK_ITEMS[i];if(!r)return;cmdk.close();r.x.run()}
+function openSearch(){if(cmdk.open)return;CMDK=cmdkIndex();CMDK_SEL=0;$("cmdkQ").value="";cmdkRender();try{cmdk.showModal()}catch(e){cmdk.setAttribute("open","")}setTimeout(()=>$("cmdkQ").focus(),20)}
+$("cmdkQ").oninput=()=>{CMDK_SEL=0;cmdkRender()};
+$("cmdkQ").onkeydown=e=>{
+  if(e.key==="ArrowDown"){e.preventDefault();CMDK_SEL=Math.min(CMDK_SEL+1,CMDK_ITEMS.length-1);cmdkRender()}
+  else if(e.key==="ArrowUp"){e.preventDefault();CMDK_SEL=Math.max(CMDK_SEL-1,0);cmdkRender()}
+  else if(e.key==="Enter"){e.preventDefault();cmdkRun(CMDK_SEL)}
+};
+$("cmdkList").onclick=e=>{const li=e.target.closest("[data-i]");if(li)cmdkRun(+li.dataset.i)};
+cmdk.onclick=e=>{if(e.target===cmdk)cmdk.close()};
+document.addEventListener("keydown",e=>{
+  if((e.ctrlKey||e.metaKey)&&!e.altKey&&!e.shiftKey&&e.key.toLowerCase()==="k"){e.preventDefault();cmdk.open?cmdk.close():openSearch();return}
+  const typing=/^(INPUT|TEXTAREA|SELECT)$/.test((e.target||{}).tagName||"")||(e.target&&e.target.isContentEditable);
+  if(e.key==="/"&&!typing&&!document.querySelector("dialog[open]")){e.preventDefault();openSearch()}
+});
 const dlg=$("importDlg");
 const openImport=slot=>{if(typeof slot!=="string")slot=exG?"goal":"current";$(slot==="current"?"slotCur":"slotGoal").checked=true;$("pobCode").value="";$("pobFile").value="";$("importStatus").textContent="";$("importStatus").className="status";try{dlg.showModal()}catch(e){dlg.setAttribute("open","")}setTimeout(()=>$("pobCode").focus(),50)};
 $("openImport").onclick=openImport;$("openImport2").onclick=openImport;
@@ -3098,7 +3308,7 @@ const EXAMPLE_CURRENT=EXAMPLE_XML
   recapFromState();save();
   initDesktop().then(initAccount);
   const h=location.hash.slice(1);
-  showTab(["build","progress","shop","campaign","maps","trees","atlas","craft","session","account","desktop"].includes(h)?h:store.get("tab","build"));
+  showTab(TAB_LIST().includes(h)?h:store.get("tab","home"));
 })();
 </script>
 </body>
