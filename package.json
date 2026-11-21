@@ -1,7 +1,7 @@
 {
   "name": "exile-companion",
   "productName": "Exile Companion",
-  "version": "1.4.0",
+  "version": "1.5.0-beta.1",
   "description": "Path of Exile 3.30 companion: build tracking, campaign and atlas guide, in-game overlay, live log and price checks.",
   "main": "main.js",
   "license": "MIT",
@@ -21,8 +21,8 @@
     "electron-updater": "^6.3.4"
   },
   "devDependencies": {
-    "electron": "33.2.1",
-    "electron-builder": "25.1.8"
+    "electron": "45.3.4",
+    "electron-builder": "26.18.0"
   },
   "build": {
     "appId": "app.exilecompanion.desktop",
@@ -55,7 +55,7 @@
         "provider": "github",
         "owner": "nickolusliquori",
         "repo": "exile-companion",
-        "releaseType": "release"
+        "releaseType": "prerelease"
       }
     ]
   }

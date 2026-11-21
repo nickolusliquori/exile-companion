@@ -82,7 +82,7 @@ function externalLinks(win) {
 const APP_ICON = path.join(__dirname, "app", "icon.png");
 let splashWin = null;
 function createSplash() {
-  splashWin = new BrowserWindow({ width: 420, height: 300, frame: false, transparent: true, resizable: false, movable: true, alwaysOnTop: true,
+  splashWin = new BrowserWindow({ width: 420, height: 300, frame: false, transparent: true, roundedCorners: false, resizable: false, movable: true, alwaysOnTop: true,
     skipTaskbar: true, show: false, icon: APP_ICON, webPreferences: prefs() });
   splashWin.loadFile(path.join(__dirname, "app", "splash.html"), { query: { v: VERSION } });
   splashWin.once("ready-to-show", () => splashWin && splashWin.show());
@@ -113,7 +113,7 @@ function createOverlay() {
   const disp = screen.getDisplayMatching(b);
   if (!disp || b.x > disp.bounds.x + disp.bounds.width || b.y > disp.bounds.y + disp.bounds.height) b = defaultOverlayBounds();
   overlayWin = new BrowserWindow({
-    ...b, frame: false, transparent: true, resizable: true, alwaysOnTop: true, skipTaskbar: true,
+    ...b, frame: false, transparent: true, roundedCorners: false, resizable: true, alwaysOnTop: true, skipTaskbar: true,
     hasShadow: false, show: false, focusable: false, minWidth: 260, minHeight: 160, webPreferences: prefs(),
   });
   overlayWin.setAlwaysOnTop(true, "screen-saver");
@@ -184,17 +184,18 @@ function registerHotkeys() {
   bind(cfg.interactHotkey, () => setOverlayInteractive(!overlayInteractive), "overlay interact");
   bind(cfg.copyHotkey, () => {
     const s = lastOverlayData && lastOverlayData.regex;
-    if (s) { ignoreClipboard = s; clipboard.writeText(s); overlayWin && overlayWin.webContents.send("overlay:toast", "Search copied: paste it with Ctrl+V"); }
+    if (s) { ignoreClipboard = s; clipWrite(s); overlayWin && overlayWin.webContents.send("overlay:toast", "Search copied: paste it with Ctrl+V"); }
   }, "copy search");
-  bind(cfg.wikiHotkey, () => {
-    const txt = isItemText(clipboard.readText()) ? clipboard.readText() : lastPriceText;
+  bind(cfg.wikiHotkey, async () => {
+    const cur = await clipRead();
+    const txt = isItemText(cur) ? cur : lastPriceText;
     const u = txt && wikiUrlFor(txt);
     if (u) shell.openExternal(u); else overlayWin && overlayWin.webContents.send("overlay:toast", "Copy an item in game first (Ctrl+C)");
   }, "wiki lookup");
   bind(cfg.pageHotkey, () => { if (!overlayWin) return; if (!overlayWin.isVisible()) toggleOverlay(true); overlayWin.webContents.send("overlay:page", "next"); }, "overlay page");
   bind(cfg.cheatHotkey, () => cycleCheat(), "cheat sheets");
-  bind(cfg.priceHotkey, () => {
-    const txt = clipboard.readText();
+  bind(cfg.priceHotkey, async () => {
+    const txt = await clipRead();
     if (isItemText(txt)) showPrice(txt); else if (lastPriceText) showPrice(lastPriceText);
     else overlayWin && overlayWin.webContents.send("overlay:toast", "Hover an item in game and press Ctrl+C first");
   }, "price check");
@@ -225,24 +226,35 @@ function startStream() {
   streamServer.listen(+cfg.streamPort || 47777, "127.0.0.1", () => sendMain("stream:status", { ok: true, url: `http://127.0.0.1:${+cfg.streamPort || 47777}/` }));
 }
 
+/* ---------------- clipboard helpers ----------------
+   Electron 44+ made clipboard reads/writes return Promises; older versions return values directly.
+   These work on both. */
+const clipRead = async () => { try { const r = clipboard.readText(); return (r && typeof r.then === "function" ? await r : r) || ""; } catch (e) { return ""; } };
+const clipWrite = async (t) => { try { const r = clipboard.writeText(String(t || "")); if (r && typeof r.then === "function") await r; } catch (e) { /* ignore */ } };
+
 /* ---------------- clipboard watcher (price check on Ctrl+C) ---------------- */
 // Reads the clipboard only. It never sends input to the game.
 let lastClip = "", ignoreClipboard = null, clipTimer = null;
 const isItemText = (t) => typeof t === "string" && /^Item Class: /m.test(t) && t.includes("--------") && /^Rarity: /m.test(t);
-function startClipboardWatch() {
-  lastClip = clipboard.readText();
-  clipTimer = setInterval(() => {
-    const t = clipboard.readText();
-    if (t === lastClip) return;
-    lastClip = t;
-    if (t === ignoreClipboard) return;
-    if (cfg.priceOnCopy && isItemText(t)) {
-      showPrice(t);
-      // let the same item be checked again with another Ctrl+C
-      const marked = markItemText(t);
-      ignoreClipboard = marked; lastClip = marked;
-      clipboard.writeText(marked);
-    }
+async function startClipboardWatch() {
+  lastClip = await clipRead();
+  let busy = false;
+  clipTimer = setInterval(async () => {
+    if (busy) return;
+    busy = true;
+    try {
+      const t = await clipRead();
+      if (t === lastClip) return;
+      lastClip = t;
+      if (t === ignoreClipboard) return;
+      if (cfg.priceOnCopy && isItemText(t)) {
+        showPrice(t);
+        // let the same item be checked again with another Ctrl+C
+        const marked = markItemText(t);
+        ignoreClipboard = marked; lastClip = marked;
+        await clipWrite(marked);
+      }
+    } finally { busy = false; }
   }, 250);
 }
 
@@ -272,13 +284,44 @@ function startLog() {
 
 /* ---------------- encrypted secrets (OAuth tokens, POESESSID) ---------------- */
 const secretPath = () => path.join(app.getPath("userData"), "secrets.json");
-let secrets = {};
-function loadSecrets() { try { secrets = JSON.parse(fs.readFileSync(secretPath(), "utf8")); } catch (e) { secrets = {}; } }
+let secrets = {};       // what's on disk (encrypted when possible)
+let secretCache = {};   // decrypted values, in memory only
+let encOK = false;
+// safeStorage: Electron 45 adds async methods and deprecates the sync ones (removed in 46). Use whichever exists.
+const SS = {
+  async available() {
+    try { if (typeof safeStorage.isAsyncEncryptionAvailable === "function") return !!(await safeStorage.isAsyncEncryptionAvailable()); return safeStorage.isEncryptionAvailable(); }
+    catch (e) { return false; }
+  },
+  async encrypt(text) { return Buffer.from(typeof safeStorage.encryptStringAsync === "function" ? await safeStorage.encryptStringAsync(text) : safeStorage.encryptString(text)); },
+  async decrypt(buf) {
+    if (typeof safeStorage.decryptStringAsync === "function") { const r = await safeStorage.decryptStringAsync(buf); return typeof r === "string" ? r : r && r.result; }
+    return safeStorage.decryptString(buf);
+  },
+};
+async function loadSecrets() {
+  try { secrets = JSON.parse(fs.readFileSync(secretPath(), "utf8")); } catch (e) { secrets = {}; }
+  encOK = await SS.available();
+  secretCache = {};
+  for (const [k, v] of Object.entries(secrets)) {
+    try { secretCache[k] = JSON.parse(v.enc ? await SS.decrypt(Buffer.from(v.data, "base64")) : v.data); } catch (e) { /* unreadable: treat as missing */ }
+  }
+}
 function saveSecrets() { try { fs.writeFileSync(secretPath(), JSON.stringify(secrets)); } catch (e) { console.error(e); } }
-const canEncrypt = () => { try { return safeStorage.isEncryptionAvailable(); } catch (e) { return false; } };
+let secretWrites = Promise.resolve();
+const canEncrypt = () => encOK;
 const secretStore = {
-  get(k) { const v = secrets[k]; if (!v) return null; try { return JSON.parse(v.enc ? safeStorage.decryptString(Buffer.from(v.data, "base64")) : v.data); } catch (e) { return null; } },
-  set(k, val) { if (val == null) { delete secrets[k]; } else { const s = JSON.stringify(val); secrets[k] = canEncrypt() ? { enc: true, data: safeStorage.encryptString(s).toString("base64") } : { enc: false, data: s }; } saveSecrets(); },
+  get(k) { return secretCache[k] == null ? null : secretCache[k]; },
+  set(k, val) {
+    if (val == null) delete secretCache[k]; else secretCache[k] = val;
+    // persist in order; the in-memory value is usable immediately
+    secretWrites = secretWrites.then(async () => {
+      const cur = secretCache[k];
+      if (cur == null) delete secrets[k];
+      else { const s = JSON.stringify(cur); secrets[k] = encOK ? { enc: true, data: (await SS.encrypt(s)).toString("base64") } : { enc: false, data: s }; }
+      saveSecrets();
+    }).catch((e) => console.error(e));
+  },
 };
 const gggUA = () => `OAuth ${cfg.oauthClientId || "exilecompanion"}/${VERSION} (contact: ${cfg.contact || "not provided"}) ExileCompanion`;
 let ggg = null;
@@ -345,7 +388,7 @@ function cycleCheat() {
   const scale = Math.min(1, (wa.width * 0.85) / sz.width, (wa.height * 0.85) / sz.height);
   const w = Math.round(sz.width * scale), h = Math.round(sz.height * scale);
   if (!cheatWin) {
-    cheatWin = new BrowserWindow({ width: w, height: h, frame: false, transparent: true, alwaysOnTop: true, skipTaskbar: true, focusable: false, show: false, resizable: false, webPreferences: prefs() });
+    cheatWin = new BrowserWindow({ width: w, height: h, frame: false, transparent: true, roundedCorners: false, alwaysOnTop: true, skipTaskbar: true, focusable: false, show: false, resizable: false, webPreferences: prefs() });
     cheatWin.setAlwaysOnTop(true, "screen-saver"); cheatWin.setIgnoreMouseEvents(true);
     cheatWin.on("closed", () => { cheatWin = null; });
   }
@@ -423,7 +466,7 @@ ipcMain.handle("http", (e, req) => http(req));
 ipcMain.handle("league:detect", () => detectLeague());
 ipcMain.on("overlay:publish", (e, data) => { lastOverlayData = data; if (overlayWin) overlayWin.webContents.send("overlay:data", data); });
 ipcMain.on("overlay:action", (e, a) => {
-  if (a && a.type === "copy" && a.text) { ignoreClipboard = a.text; clipboard.writeText(a.text); overlayWin && overlayWin.webContents.send("overlay:toast", "Copied: paste it with Ctrl+V"); return; }
+  if (a && a.type === "copy" && a.text) { ignoreClipboard = a.text; clipWrite(a.text); overlayWin && overlayWin.webContents.send("overlay:toast", "Copied: paste it with Ctrl+V"); return; }
   if (a && a.type === "interactive") { setOverlayInteractive(a.value); return; }
   sendMain("overlay:action", a);
 });
@@ -432,7 +475,7 @@ ipcMain.on("overlay:interactive", (e, v) => setOverlayInteractive(v));
 ipcMain.on("overlay:reset", () => { cfg.overlayBounds = null; saveCfg(); if (overlayWin) overlayWin.setBounds(defaultOverlayBounds()); });
 ipcMain.on("price:close", () => priceWin && priceWin.hide());
 ipcMain.on("price:test", (e, text) => showPrice(text));
-ipcMain.on("clip:write", (e, t) => { ignoreClipboard = t; clipboard.writeText(String(t || "")); });
+ipcMain.on("clip:write", (e, t) => { ignoreClipboard = t; clipWrite(t); });
 ipcMain.handle("diag:get", () => {
   const ctx = { home: os.homedir(), user: (() => { try { return os.userInfo().username; } catch (e) { return ""; } })() };
   const displays = screen.getAllDisplays().map((d) => `${d.size.width}x${d.size.height}@${d.scaleFactor}x`);
@@ -552,7 +595,7 @@ else {
   if (process.platform === "win32") app.setAppUserModelId("app.exilecompanion.desktop");
   app.whenReady().then(async () => {
     loadCfg();
-    loadSecrets();
+    await loadSecrets();
     const { session } = require("electron");
     // deny camera, microphone, location, etc. for every page
     session.defaultSession.setPermissionRequestHandler((wc, permission, cb) => cb(false));
