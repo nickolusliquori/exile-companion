@@ -236,6 +236,31 @@ section.tab .card{scroll-margin-top:140px}
 
 
 /* craft lab */
+.gtip{background:rgba(5,4,3,.97);border:1px solid #3d3121;box-shadow:0 8px 30px rgba(0,0,0,.7);text-align:center;font-family:var(--body);max-width:420px}
+.gtip .th{padding:6px 14px;font:700 1rem/1.25 var(--display);letter-spacing:.02em;border-bottom:1px solid #000}
+.gtip .th.NORMAL{color:#c8c8c8;background:linear-gradient(#3a3a3a,#1c1c1c)}
+.gtip .th.MAGIC{color:#8888ff;background:linear-gradient(#26264a,#121224)}
+.gtip .th.RARE{color:#ffff77;background:linear-gradient(#4a4318,#221e0b)}
+.gtip .th.UNIQUE{color:#e0823a;background:linear-gradient(#4f2a12,#241307)}
+.gtip .tb{padding:8px 14px 10px;font-size:.86rem;line-height:1.4}
+.gtip .tp{color:#8c8c8c}#itemTip .tp b{color:#e8e8e8;font-weight:400}
+.gtip .tm{color:#8888ff}
+.gtip .tm.crafted{color:#b4b4ff}
+.gtip .tm.fractured{color:#a29162}
+.gtip .tm.corrupt{color:#d20000}
+.gtip .tsep{height:1px;margin:7px auto;width:80%;background:linear-gradient(90deg,transparent,#6d5a3a,transparent)}
+.gtip .tb.UNIQUE .tsep{background:linear-gradient(90deg,transparent,#8a4a20,transparent)}
+.gtip .tb.RARE .tsep{background:linear-gradient(90deg,transparent,#7a7230,transparent)}
+.gtip .tm.hit{text-shadow:0 0 8px rgba(226,189,110,.5)}
+.gtip .hitmark{color:var(--good);font-weight:700}
+.emu{display:grid;gap:16px;grid-template-columns:minmax(260px,420px) 1fr;align-items:start}
+@media (max-width:700px){.emu{grid-template-columns:1fr}}
+.emu select{width:auto;max-width:100%;padding:6px 8px}
+.btn.dis{opacity:.4;cursor:not-allowed}
+.emlog{margin:0;padding-left:18px;max-height:150px;overflow:auto}
+.simplan{margin:0;padding-left:22px;display:grid;gap:6px}
+.simplan select{width:auto;padding:6px 8px}
+
 .cl-cols{display:grid;gap:16px;grid-template-columns:repeat(auto-fit,minmax(320px,1fr))}
 .cl-list{display:grid;gap:4px;max-height:640px;overflow:auto;padding-right:4px}
 .cl-row{padding:6px 8px;border:1px solid #2a2118;border-radius:3px;background:#0d0b09}
@@ -3471,6 +3496,8 @@ const HELP={
   craftPlan:"A crafting plan for the selected slot: base, method and expected cost.",
   clItem:"Pick the base type, item level and influences. You can start from an item in your goal build.",
   clOdds:"For the mods you ticked: the chance per try and the average cost of each method, simulated with the game's mod weights and current prices.",
+  clEmu:"Click currency on the item to practice a craft with the game's real odds. Undo and New item are free; the spent counter uses current prices.",
+  clSim:"Build a plan from steps (for example Alteration until 2 targets, then Regal, then Exalt) and run it thousands of times for the average, median and unlucky cost.",
   clPool:"Every prefix and suffix that can roll on this base at this item level, with how often each comes up. Tick the ones you want.",
   craftProfit:"Crafts that tend to sell for more than they cost.",
   craftCalc:"Estimate the cost of a craft from the chance per try and the price per try.",
@@ -3714,7 +3741,7 @@ const CARD_ICONS={homeChar:"user",homeNext:"route",homeSession:"hourglass",homeL
   campAct:"flag",campGems:"gem",campSplits:"clock",campBuild:"tree",campRules:"scale",campReadouts:"chat",campOverview:"route",
   mapsNext:"route",mapsDanger:"skull",mapsProgress:"list",mapsCompletion:"map",mapsBosses:"skull",mapsCards:"card",
   treesCard:"tree",atlasProfile:"compass",atlasPhases:"route",atlasTree:"tree",
-  clItem:"sword",clOdds:"calc",clPool:"list",
+  clItem:"sword",clOdds:"calc",clPool:"list",clEmu:"hammer",clSim:"refresh",
   craftGearList:"sword",craftPlan:"hammer",craftProfit:"coins",craftCalc:"calc",craftRef:"news",
   sessTimer:"hourglass",sessGameLog:"news",sessAdd:"list",sessProfit:"coins",sessRecap:"clock",sessLog:"list",
   acctChar:"user",acctNet:"chest",acctFinds:"search",acctCx:"chart",acctSales:"trade",

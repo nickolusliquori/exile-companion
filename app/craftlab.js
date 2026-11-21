@@ -13,7 +13,7 @@ const MODCOUNT_RARE=[[4,8/12],[5,3/12],[6,1/12]];
 const MODCOUNT_JEWEL=[[3,0.5],[4,0.5]];
 const P_ALT_TWO=0.5;
 const PRICE_NAMES={chaos:"Chaos Orb",alt:"Orb of Alteration",aug:"Orb of Augmentation",regal:"Regal Orb",scour:"Orb of Scouring",trans:"Orb of Transmutation"};
-const FALLBACK={"Chaos Orb":1,"Orb of Alteration":0.12,"Orb of Augmentation":0.05,"Regal Orb":0.5,"Orb of Scouring":0.4,"Orb of Transmutation":0.03,
+const FALLBACK={"Exalted Orb":12,"Orb of Annulment":2,"Orb of Alchemy":0.3,"Divine Orb":150,"Chaos Orb":1,"Orb of Alteration":0.12,"Orb of Augmentation":0.05,"Regal Orb":0.5,"Orb of Scouring":0.4,"Orb of Transmutation":0.03,
   "Primitive Chaotic Resonator":1,"Potent Chaotic Resonator":2,"Powerful Chaotic Resonator":5,"Prime Chaotic Resonator":15};
 const RESO=["","Primitive Chaotic Resonator","Potent Chaotic Resonator","Powerful Chaotic Resonator","Prime Chaotic Resonator"];
 
@@ -66,8 +66,9 @@ function rollInto(item,pool,n,maxP,maxS){
 }
 function addMod(item,x){item.mods.push(x);item.groups.add(x.m.grp);if(x.m.g==="p")item.np++;else item.ns++}
 const newItem=()=>({mods:[],groups:new Set(),np:0,ns:0});
-function hits(item,targets){return targets.every(t=>item.mods.some(x=>x.key===t.key&&(x.tier||1)<=t.minTier||(x.forced&&x.m.grp===t.grp&&x.m.g===t.g)))}
-function countHits(item,targets){return targets.filter(t=>item.mods.some(x=>x.key===t.key&&(x.tier||1)<=t.minTier||(x.forced&&x.m.grp===t.grp&&x.m.g===t.g))).length}
+const modHits=(x,t)=>x.key===t.key&&(x.tier||1)<=t.minTier||((x.forced||x.crafted)&&x.m.grp===t.grp&&x.m.g===t.g);
+function hits(item,targets){return targets.every(t=>item.mods.some(x=>modHits(x,t)))}
+function countHits(item,targets){return targets.filter(t=>item.mods.some(x=>modHits(x,t))).length}
 
 function runSim(trial,budgetMs){
   const t0=performance.now();let n=0,ok=0,cost=0;
@@ -143,6 +144,7 @@ async function render(){
     </div>
     <div class="card" id="clOdds"><h2>Odds &amp; cost</h2><div id="clOddsBody">${base?(s.targets.length?'<p class="small muted" style="margin:0">Working out the odds…</p>':emptyBox("Tick the mods you want below (and the lowest tier you'd accept) to see the chance and cost of each crafting method.")):emptyBox("Pick a base type first.")}</div></div>
   </div>
+  ${base?`<div class="card" id="clEmu"></div><div class="card" id="clSim"></div>`:""}
   ${base?`<div class="card" id="clPool"><div class="row" style="justify-content:space-between"><h2>Mod pool</h2><input id="clFilter" type="text" placeholder="Filter mods, e.g. life or resist" value="${esc2(s.filter)}" style="max-width:260px"></div><div class="cl-cols" id="clCols"></div></div>`:""}`;
   $("clBase").onchange=e=>{const b=baseByName(e.target.value);s.base=b?b.n:e.target.value;if(b){s.targets=[];s.fossils=[]}save();render()};
   $("clIlvl").onchange=e=>{s.ilvl=Math.max(1,Math.min(100,+e.target.value||86));save();render()};
@@ -150,6 +152,7 @@ async function render(){
   const gs=$("clGoal");if(gs)gs.onchange=()=>{const x=goal[+gs.value];if(x)fromItem(x.item)};
   if(!base) return;
   renderPool();
+  renderEmu();renderSim();
   setTimeout(renderOdds,30);
 }
 function fromItem(item){
@@ -176,7 +179,7 @@ function renderPool(){
         <details class="small" style="margin-left:26px"><summary>Tiers</summary><table class="cl-t"><thead><tr><th>Tier</th><th>Name</th><th>Roll</th><th>ilvl</th><th>Weight</th></tr></thead><tbody>${r.tiers.map(x=>`<tr><td>T${x.tier}</td><td>${esc2(x.m.n)}</td><td>${esc2(x.m.x.replace(/\n/g," / "))}</td><td class="num">${x.m.l}</td><td class="num">${Math.round(x.w)}</td></tr>`).join("")}</tbody></table></details></li>`}).join("")||'<li class="muted small">No mods match the filter.</li>'}</ul></div>`};
   cols.innerHTML=col("p")+col("s");
   $("clFilter").oninput=e=>{s.filter=e.target.value;save();renderPool()};
-  cols.querySelectorAll("[data-tg]").forEach(cb=>cb.onchange=()=>{const r=rows.find(x=>x.key===cb.dataset.tg);if(cb.checked){if(!s.targets.some(t=>t.grp===r.grp))s.targets.push({key:r.key,g:r.g,grp:r.grp,minTier:Math.min(r.tiers.length,2)})}else s.targets=s.targets.filter(t=>t.key!==r.key);save();renderPool();renderOdds()});
+  cols.querySelectorAll("[data-tg]").forEach(cb=>cb.onchange=()=>{const r=rows.find(x=>x.key===cb.dataset.tg);if(cb.checked){if(!s.targets.some(t=>t.grp===r.grp))s.targets.push({key:r.key,g:r.g,grp:r.grp,minTier:Math.min(r.tiers.length,2)})}else s.targets=s.targets.filter(t=>t.key!==r.key);save();renderPool();renderOdds();renderEmu()});
   cols.querySelectorAll("[data-mt]").forEach(sel=>sel.onchange=()=>{const t=s.targets.find(x=>x.key===sel.dataset.mt);if(t)t.minTier=+sel.value;save();renderOdds()});
 }
 let oddsSeq=0;
@@ -206,6 +209,177 @@ async function renderOdds(){
   el.querySelectorAll("[data-fos]").forEach(cb=>cb.onchange=()=>{const n=cb.dataset.fos;if(cb.checked){if(s.fossils.length>=4){cb.checked=false;toast("A resonator holds at most 4 fossils.");return}s.fossils.push(n)}else s.fossils=s.fossils.filter(x=>x!==n);save();renderOdds()});
   el.querySelectorAll("[data-price]").forEach(inp=>inp.onchange=()=>{const n=inp.dataset.price;if(inp.value==="")delete s.prices[n];else s.prices[n]=+inp.value;save();renderOdds()});
 }
+/* ---------- item operations (shared by the emulator and the simulator) ---------- */
+function ctxFor(st){
+  const base=st.base,jw=isJewel(base);
+  const ctx={base,ilvl:st.ilvl,infl:st.infl,maxP:jw?2:3,maxS:jw?2:3,dist:jw?MODCOUNT_JEWEL:MODCOUNT_RARE,pool:makePool(base,st.ilvl,st.infl,[]),fossilPools:{}};
+  ctx.fossilPool=names=>{const k=names.slice().sort().join("|");if(!ctx.fossilPools[k])ctx.fossilPools[k]=makePool(base,st.ilvl,st.infl,names.map(n=>D().fossils.find(f=>f.n===n)).filter(Boolean));return ctx.fossilPools[k]};
+  return ctx;
+}
+const blankItem=()=>({r:"n",mods:[],groups:new Set(),np:0,ns:0});
+function cloneItem(it){return {r:it.r,mods:it.mods.map(x=>({...x})),groups:new Set(it.groups),np:it.np,ns:it.ns}}
+function clearMods(it){it.mods=[];it.groups=new Set();it.np=0;it.ns=0}
+function removeAt(it,i){const x=it.mods.splice(i,1)[0];if(!x)return;it.groups.delete(x.m.grp);if(x.m.g==="p")it.np--;else it.ns--}
+function rollVals(x){const parts=[];x.text=x.m.x.replace(/\((-?\d+(?:\.\d+)?)-(-?\d+(?:\.\d+)?)\)/g,(_,a,b)=>{const lo=+a,hi=+b,dec=(a.split(".")[1]||"").length;const v=lo+Math.random()*(hi-lo);const r=dec?v.toFixed(dec):String(Math.round(v));parts.push(r);return r});return x}
+function rollN(it,pool,n,maxP,maxS,vals){const before=it.mods.length;rollInto(it,pool,n,maxP,maxS);if(vals)for(let i=before;i<it.mods.length;i++){it.mods[i]={...it.mods[i]};rollVals(it.mods[i])}}
+const OPS={
+  trans:{name:"Transmutation",price:"Orb of Transmutation",can:it=>it.r==="n",run:(it,c,v)=>{it.r="m";rollN(it,c.pool,Math.random()<P_ALT_TWO?2:1,1,1,v)}},
+  alt:{name:"Alteration",price:"Orb of Alteration",can:it=>it.r==="m",run:(it,c,v)=>{clearMods(it);rollN(it,c.pool,Math.random()<P_ALT_TWO?2:1,1,1,v)}},
+  aug:{name:"Augmentation",price:"Orb of Augmentation",can:it=>it.r==="m"&&it.mods.length<2,run:(it,c,v)=>rollN(it,c.pool,it.mods.length+1,1,1,v)},
+  regal:{name:"Regal",price:"Regal Orb",can:it=>it.r==="m",run:(it,c,v)=>{it.r="r";rollN(it,c.pool,it.mods.length+1,c.maxP,c.maxS,v)}},
+  alch:{name:"Alchemy",price:"Orb of Alchemy",can:it=>it.r==="n",run:(it,c,v)=>{it.r="r";rollN(it,c.pool,sampleCount(c.dist),c.maxP,c.maxS,v)}},
+  chaos:{name:"Chaos",price:"Chaos Orb",can:it=>it.r==="r",run:(it,c,v)=>{clearMods(it);rollN(it,c.pool,sampleCount(c.dist),c.maxP,c.maxS,v)}},
+  exalt:{name:"Exalted",price:"Exalted Orb",can:(it,c)=>it.r==="r"&&(it.np<c.maxP||it.ns<c.maxS),run:(it,c,v)=>rollN(it,c.pool,it.mods.length+1,c.maxP,c.maxS,v)},
+  annul:{name:"Annulment",price:"Orb of Annulment",can:it=>it.r!=="n"&&it.mods.length>0,run:it=>removeAt(it,Math.floor(Math.random()*it.mods.length))},
+  scour:{name:"Scouring",price:"Orb of Scouring",can:it=>it.r!=="n",run:it=>{it.r="n";clearMods(it)}},
+  divine:{name:"Divine",price:"Divine Orb",can:it=>it.mods.length>0,run:it=>{it.mods=it.mods.map(x=>x.crafted?x:rollVals({...x}))}},
+  unbench:{name:"Remove crafted",price:null,can:it=>it.mods.some(x=>x.crafted),run:it=>{for(let i=it.mods.length-1;i>=0;i--)if(it.mods[i].crafted)removeAt(it,i)}},
+};
+function essenceOp(e,base){const mid=e.m[base.c];const m=mid&&(D().mods[mid]||D().extra[mid]);if(!m)return null;
+  return {name:e.n,price:e.n,can:it=>it.r==="n"||(it.r==="r"&&/^(Shrieking|Deafening)/.test(e.n)),run:(it,c,v)=>{clearMods(it);it.r="r";const fp=c.pool.find(p=>p.id===mid);const x=fp?{...fp,forced:true}:{id:mid,m,w:0,key:m.g+"|"+m.grp+"|"+m.ty,tier:1,forced:true};addMod(it,v?rollVals({...x}):x);rollN(it,c.pool.filter(p=>p.m.grp!==m.grp),sampleCount(c.dist),c.maxP,c.maxS,v)}}}
+function fossilOp(names){const reso=RESO[names.length];return {name:names.map(n=>n.replace(" Fossil","")).join(" + ")+" fossil"+(names.length>1?"s":""),price:null,prices:[reso,...names],
+  can:it=>it.r==="n"||it.r==="r",run:(it,c,v)=>{clearMods(it);it.r="r";rollN(it,c.fossilPool(names),sampleCount(c.dist),c.maxP,c.maxS,v)}}}
+function benchOp(b){const m=D().extra[b.m]||D().mods[b.m];if(!m)return null;const cost=Object.entries(b.cost);
+  return {name:"Bench: "+m.x.replace(/\n/g," / "),price:null,prices:cost.flatMap(([k,n])=>Array(n).fill(k)),m,
+    can:(it,c)=>it.r!=="n"&&!it.mods.some(x=>x.crafted)&&!it.groups.has(m.grp)&&(m.g==="p"?it.np<(it.r==="m"?1:c.maxP):it.ns<(it.r==="m"?1:c.maxS)),
+    run:(it,c,v)=>{const x={id:b.m,m,w:0,key:m.g+"|"+m.grp+"|"+m.ty,tier:1,crafted:true};addMod(it,v?rollVals({...x}):x)}}}
+function opCost(op,prices){if(op.prices)return op.prices.reduce((a,n)=>a+(prices[n]!=null?prices[n]:(FALLBACK[n]||0)),0);if(!op.price)return 0;return prices[op.price]!=null?prices[op.price]:(FALLBACK[op.price]||0)}
+
+/* ---------- emulator ---------- */
+let EMU=null;
+function emuState(){const s=state();const key=s.base+"|"+s.ilvl+"|"+s.infl.join(",");if(!EMU||EMU.key!==key){EMU={key,item:blankItem(),hist:[],spent:{},cost:0,log:[]}}return EMU}
+function itemHtml(it,base,targets){
+  const cls=it.r==="r"?"RARE":it.r==="m"?"MAGIC":"NORMAL";
+  const name=it.r==="r"?"Crafted Item":it.r==="m"?(()=>{const p=it.mods.find(x=>x.m.g==="p"),q=it.mods.find(x=>x.m.g==="s");return `${p?p.m.n+" ":""}${base.n}${q?" "+q.m.n:""}`})():base.n;
+  const line=x=>{const hit=targets.some(t=>modHits(x,t));return `<div class="tm ${x.crafted?"crafted":""}${hit?" hit":""}" title="${esc2((x.m.g==="p"?"Prefix":"Suffix")+(x.tier?` · tier ${x.tier} of ${x.tiers}`:"")+(x.crafted?" · crafted":""))}">${esc2((x.text||x.m.x).replace(/\n/g," / "))}${hit?' <span class="hitmark">✓</span>':""}</div>`};
+  const order=[...it.mods].sort((a,b)=>(a.m.g===b.m.g?0:a.m.g==="p"?-1:1));
+  return `<div class="gtip"><div class="th ${cls}"><div>${esc2(name)}</div>${it.r==="r"?`<div>${esc2(base.n)}</div>`:""}</div><div class="tb ${cls}">
+    <div class="tp">Item Level: <b>${state().ilvl}</b>${state().infl.length?` · ${state().infl.map(i=>INF.find(x=>x[0]===i)[2]).join(" · ")}`:""}</div>
+    ${base.i.length?`<div class="tsep"></div>${base.i.map(t=>`<div class="tm">${esc2(t)}</div>`).join("")}`:""}
+    ${order.length?`<div class="tsep"></div>${order.map(line).join("")}`:'<div class="tsep"></div><div class="tp">No modifiers</div>'}
+  </div></div>`;
+}
+function renderEmu(){
+  const el=$("clEmu");const s=state();const base=baseByName(s.base);if(!el||!base)return;
+  const E=emuState();const c=ctxFor({...s,base});const it=E.item;const prices=currentPrices();
+  const ess=D().essences.filter(e=>e.m[base.c]&&(!e.il||s.ilvl>=e.il));
+  const bench=D().bench.filter(b=>b.c.includes(base.c)).map(benchOp).filter(Boolean);
+  const btn=(k,op)=>`<button class="btn small${op.can(it,c)?"":" dis"}" data-op="${k}"${op.can(it,c)?"":" disabled"} title="${esc2(op.price||"")}">${esc2(op.name)}</button>`;
+  const hitAll=s.targets.length&&hits(it,s.targets);
+  el.innerHTML=`<div class="row" style="justify-content:space-between"><h2>Emulator</h2><span class="small muted">Practice on this base with real odds. Nothing here costs anything.</span></div>
+   <div class="emu">
+    <div>${itemHtml(it,base,s.targets)}
+      ${hitAll?'<p class="status ok" style="margin:6px 0 0">✓ All your target mods are on the item.</p>':s.targets.length?`<p class="small muted" style="margin:6px 0 0">${countHits(it,s.targets)} of ${s.targets.length} target mods (marked ✓).</p>`:""}
+      <p class="small" style="margin:6px 0 0">Spent: <b>${E.cost>=100?Math.round(E.cost).toLocaleString():E.cost.toFixed(1)}c</b>${Object.keys(E.spent).length?` · ${Object.entries(E.spent).map(([k,n])=>`${n}× ${esc2(k)}`).join(", ")}`:""}</p>
+      <div class="row" style="margin-top:6px"><button class="btn ghost small" id="emUndo"${E.hist.length?"":" disabled"}>Undo</button><button class="btn ghost small" id="emReset">New item</button></div>
+    </div>
+    <div style="display:grid;gap:8px;align-content:start">
+      <div class="row">${["trans","alt","aug","regal","alch","chaos","exalt","annul","scour","divine"].map(k=>btn(k,OPS[k])).join("")}</div>
+      <div class="row"><select id="emEss"><option value="">Essence…</option>${ess.map((e,i)=>`<option value="${i}">${esc2(e.n)}</option>`).join("")}</select><button class="btn small" id="emEssGo">Use essence</button></div>
+      <div class="row"><button class="btn small" id="emFos"${s.fossils.length?"":" disabled"}>${s.fossils.length?esc2(fossilOp(s.fossils).name):"Fossils: tick some under Odds & cost"}</button></div>
+      <div class="row"><select id="emBench" style="max-width:100%"><option value="">Bench craft…</option>${bench.map((b,i)=>`<option value="${i}"${b.can(it,c)?"":" disabled"}>${esc2(b.name.replace("Bench: ",""))}</option>`).join("")}</select><button class="btn small" id="emBenchGo">Craft</button>${btn("unbench",OPS.unbench)}</div>
+      <ol class="small muted emlog" reversed>${E.log.slice(-8).reverse().map(l=>`<li>${esc2(l)}</li>`).join("")}</ol>
+    </div>
+   </div>`;
+  const apply=(op,label)=>{if(!op||!op.can(it,c)){toast("That can't be used on this item right now.");return}
+    E.hist.push({item:cloneItem(it),spent:{...E.spent},cost:E.cost,log:E.log.slice()});if(E.hist.length>200)E.hist.shift();
+    op.run(it,c,true);const cost=opCost(op,prices);E.cost+=cost;
+    const names=op.prices||(op.price?[op.price]:[]);names.forEach(n=>E.spent[n]=(E.spent[n]||0)+1);
+    E.log.push(label||op.name);renderEmu()};
+  el.querySelectorAll("[data-op]").forEach(b=>b.onclick=()=>apply(OPS[b.dataset.op]));
+  $("emEssGo").onclick=()=>{const e=ess[+$("emEss").value];if(e)apply(essenceOp(e,base))};
+  $("emFos").onclick=()=>apply(fossilOp(s.fossils));
+  $("emBenchGo").onclick=()=>{const b=bench[+$("emBench").value];if(b)apply(b)};
+  $("emUndo").onclick=()=>{const h=E.hist.pop();if(!h)return;E.item=h.item;E.spent=h.spent;E.cost=h.cost;E.log=h.log;renderEmu()};
+  $("emReset").onclick=()=>{EMU=null;renderEmu()};
+}
+
+/* ---------- simulator ---------- */
+const UNTIL=[["once","once"],["all","until all targets hit"],["1","until 1+ target hits"],["2","until 2+ targets hit"],["3","until 3+ targets hit"],["4","until 4+ targets hit"]];
+function planActions(st){
+  const base=st.base;const out=[["alt","Alteration (+ Augmentation)"],["trans","Transmutation"],["regal","Regal"],["alch","Alchemy"],["chaos","Chaos"],["exalt","Exalted"],["annul","Annulment"],["scour","Scouring"]];
+  if(st.fossils.length)out.push(["fossil",fossilOp(st.fossils).name]);
+  D().essences.filter(e=>e.m[base.c]&&(!e.il||st.ilvl>=e.il)&&/^(Screaming|Shrieking|Deafening)/.test(e.n)).forEach(e=>out.push(["ess:"+e.n,e.n]));
+  D().bench.filter(b=>b.c.includes(base.c)).forEach((b,i)=>{const m=D().extra[b.m]||D().mods[b.m];if(m&&st.targets.some(t=>t.grp===m.grp&&t.g===m.g))out.push(["bench:"+b.m,"Bench: "+m.x.replace(/\n/g," / ")])});
+  return out;
+}
+function opFor(key,st){
+  if(key==="fossil")return fossilOp(st.fossils);
+  if(key.startsWith("ess:")){const e=D().essences.find(x=>x.n===key.slice(4));return e&&essenceOp(e,st.base)}
+  if(key.startsWith("bench:")){const b=D().bench.find(x=>x.m===key.slice(6)&&x.c.includes(st.base.c));return b&&benchOp(b)}
+  return OPS[key];
+}
+/* run the plan until it produces an item with every target; returns cost and currency used */
+function simulateOnce(st,ctx,plan,prices,limit){
+  const it=blankItem();const used={};let cost=0,tries=0;
+  const pay=op=>{cost+=opCost(op,prices);(op.prices||(op.price?[op.price]:[])).forEach(n=>used[n]=(used[n]||0)+1)};
+  const ops=plan.map(p=>({p,op:opFor(p.a,st)}));
+  for(let attempt=0;attempt<limit;attempt++){
+    if(it.r!=="n"){pay(OPS.scour);OPS.scour.run(it)}
+    for(const {p,op} of ops){
+      if(!op)continue;
+      const need=p.u==="all"?st.targets.length:p.u==="once"?0:+p.u;
+      if(p.u==="once"){
+        if(p.a==="alt"&&it.r==="n"){pay(OPS.trans);OPS.trans.run(it,ctx)}
+        if(op.can(it,ctx)){pay(op);op.run(it,ctx);if(p.a==="alt"&&it.mods.length<2&&OPS.aug.can(it,ctx)){pay(OPS.aug);OPS.aug.run(it,ctx)}}
+        continue;}
+      let n=0;
+      while(countHits(it,st.targets)<need&&n<3000){
+        if(p.a==="alt"&&it.r==="n"){pay(OPS.trans);OPS.trans.run(it,ctx)}
+        if(!op.can(it,ctx))break;
+        pay(op);op.run(it,ctx);n++;tries++;
+        if(p.a==="alt"&&it.mods.length<2&&OPS.aug.can(it,ctx)&&countHits(it,st.targets)<need){pay(OPS.aug);OPS.aug.run(it,ctx)}
+      }
+    }
+    if(hits(it,st.targets))return {ok:true,cost,used,tries};
+  }
+  return {ok:false,cost,used,tries};
+}
+const PRESETS=[["Chaos spam",[{a:"alch",u:"once"},{a:"chaos",u:"all"}]],["Alt → Regal → Exalt",[{a:"alt",u:"2"},{a:"regal",u:"once"},{a:"exalt",u:"once"}]],["Alt → Regal → bench",[{a:"alt",u:"2"},{a:"regal",u:"once"}]],["Essence spam",[]],["Fossil spam",[{a:"fossil",u:"all"}]]];
+let simRun=0;
+function renderSim(){
+  const el=$("clSim");const s=state();const base=baseByName(s.base);if(!el||!base)return;
+  const st={...s,base};const acts=planActions(st);s.plan=(s.plan||[{a:"alch",u:"once"},{a:"chaos",u:"all"}]).filter(p=>acts.some(x=>x[0]===p.a));
+  if(!s.plan.length)s.plan=[{a:"chaos",u:"all"}];
+  el.innerHTML=`<div class="row" style="justify-content:space-between"><h2>Simulator</h2><span class="small muted">Runs a crafting plan thousands of times to find the real average cost.</span></div>
+    <div class="row small">Start from: ${PRESETS.map((p,i)=>`<button class="btn ghost small" data-preset="${i}">${esc2(p[0])}</button>`).join("")}</div>
+    <ol class="simplan">${s.plan.map((p,i)=>`<li class="row"><select data-pa="${i}">${acts.map(([k,l])=>`<option value="${esc2(k)}"${k===p.a?" selected":""}>${esc2(l)}</option>`).join("")}</select><select data-pu="${i}">${UNTIL.map(([k,l])=>`<option value="${k}"${k===p.u?" selected":""}>${esc2(l)}</option>`).join("")}</select><button class="btn ghost small" data-pdel="${i}" aria-label="Remove step">✕</button></li>`).join("")}</ol>
+    <div class="row"><button class="btn ghost small" id="smAdd"${s.plan.length>=8?" disabled":""}>Add step</button><button class="btn primary" id="smGo"${s.targets.length?"":" disabled"}>Run simulation</button></div>
+    <p class="small muted" style="margin:0">If the plan ends without every target, the item is scoured and the plan starts again; all of that counts in the cost. ${s.targets.length?"":"Tick target mods in the mod pool first."}</p>
+    <div id="smOut"></div>`;
+  el.querySelectorAll("[data-preset]").forEach(b=>b.onclick=()=>{const p=PRESETS[+b.dataset.preset];let plan=JSON.parse(JSON.stringify(p[1]));
+    if(p[0]==="Essence spam"){const e=acts.find(x=>x[0].startsWith("ess:"));if(!e){toast("No Screaming, Shrieking or Deafening essence fits this base and item level.");return}plan=[{a:e[0],u:"all"}]}
+    if(p[0]==="Fossil spam"&&!s.fossils.length){toast("Tick fossils under Odds & cost first.");return}
+    if(p[0]==="Alt → Regal → bench"){const b=acts.find(x=>x[0].startsWith("bench:"));if(b)plan.push({a:b[0],u:"once"});else{toast("None of your targets can be bench crafted on this base.");return}}
+    s.plan=plan;save();renderSim()});
+  el.querySelectorAll("[data-pa]").forEach(x=>x.onchange=()=>{s.plan[+x.dataset.pa].a=x.value;save()});
+  el.querySelectorAll("[data-pu]").forEach(x=>x.onchange=()=>{s.plan[+x.dataset.pu].u=x.value;save()});
+  el.querySelectorAll("[data-pdel]").forEach(x=>x.onclick=()=>{s.plan.splice(+x.dataset.pdel,1);save();renderSim()});
+  $("smAdd").onclick=()=>{s.plan.push({a:"exalt",u:"once"});save();renderSim()};
+  $("smGo").onclick=()=>runSim2(st);
+}
+function runSim2(st){
+  const out=$("smOut");const run=++simRun;const ctx=ctxFor(st);const prices=currentPrices();const plan=st.plan.slice();
+  const results=[];let fails=0;const t0=performance.now();const div=prices["Divine Orb"]||null;
+  const money=c=>!isFinite(c)?"–":div&&c>=div*0.8?(c/div).toFixed(c/div>=100?0:1)+" div":(c>=100?Math.round(c).toLocaleString():c.toFixed(c<10?1:0))+"c";
+  const step=()=>{
+    if(run!==simRun)return;
+    const t=performance.now();
+    while(performance.now()-t<60&&results.length<2000){const r=simulateOnce(st,ctx,plan,prices,400);if(r.ok)results.push(r);else{fails++;if(fails>=20&&!results.length)break}}
+    const done=results.length>=2000||performance.now()-t0>6000||(fails>=20&&!results.length);
+    if(!results.length){out.innerHTML=done?`<p class="small" style="margin:0;color:var(--warn)">This plan didn't finish an item with all your targets even after 400 restarts. Try fewer targets, lower tiers, or a different plan.</p>`:'<p class="small muted" style="margin:0">Running…</p>';if(!done)setTimeout(step,0);return}
+    const costs=results.map(r=>r.cost).sort((a,b)=>a-b);const q=f=>costs[Math.min(costs.length-1,Math.floor(f*costs.length))];
+    const avg=costs.reduce((a,b)=>a+b,0)/costs.length;const usedAvg={};results.forEach(r=>Object.entries(r.used).forEach(([k,n])=>usedAvg[k]=(usedAvg[k]||0)+n));
+    out.innerHTML=`<div class="stats" style="margin-top:6px"><div class="stat"><div class="k">Average</div><div class="v num">${money(avg)}</div></div><div class="stat"><div class="k">Median</div><div class="v num">${money(q(.5))}</div></div><div class="stat"><div class="k">Lucky 1 in 10</div><div class="v num">${money(q(.1))}</div></div><div class="stat"><div class="k">Unlucky 1 in 10</div><div class="v num">${money(q(.9))}</div></div></div>
+      <p class="small" style="margin:6px 0 0">On average you'd use: ${Object.entries(usedAvg).filter(([k,n])=>n/results.length>=0.05).sort((a,b)=>b[1]-a[1]).map(([k,n])=>`${(n/results.length)>=10?Math.round(n/results.length):(n/results.length).toFixed(1)}× ${esc2(k)}`).join(", ")}.</p>
+      ${(()=>{const miss=Object.keys(usedAvg).filter(k=>prices[k]==null&&FALLBACK[k]==null);return miss.length?`<p class="small" style="margin:4px 0 0;color:var(--warn)">No price for ${miss.map(esc2).join(", ")}, so ${miss.length>1?"they're":"it's"} counted as free. Open the desktop app for poe.ninja prices.</p>`:""})()}
+      <p class="small muted" style="margin:4px 0 0">${results.length.toLocaleString()} finished items simulated${done?"":"… still running"}.</p>`;
+    if(!done)setTimeout(step,0);
+  };
+  out.innerHTML='<p class="small muted" style="margin:0">Running…</p>';setTimeout(step,10);
+}
+CL._test2={ctxFor,OPS,essenceOp,fossilOp,benchOp,simulateOnce,blankItem,countHits,hits};
+
 CL.render=render;CL.fromItem=fromItem;CL.load=load;
 CL._test={makePool,groupRows,methods,norm,ranges,baseByName:n=>baseByName(n)};
 })();

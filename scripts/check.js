@@ -108,6 +108,14 @@ try {
   const m = T.methods({ base: b, ilvl: 86, infl: [], fossils: [], targets: [{ key: life.key, g: "p", grp: life.grp, minTier: 3 }, { key: fire.key, g: "s", grp: fire.grp, minTier: 3 }] }, { "Chaos Orb": 1 });
   const chaos = m.find((x) => x.name === "Chaos Orb spam");
   assert(chaos && chaos.p > 0.002 && chaos.p < 0.2, "chaos odds out of range: " + (chaos && chaos.p));
+  // emulator operations and the simulator
+  const T2 = ctx.CraftLab._test2, cx = T2.ctxFor({ base: b, ilvl: 86, infl: [] });
+  const it = T2.blankItem(); T2.OPS.alch.run(it, cx, true);
+  assert(it.r === "r" && it.mods.length >= 4 && it.mods.every((x) => x.text && !/\(\d/.test(x.text)), "alchemy should give a rare with rolled values");
+  const n = it.mods.length; T2.OPS.annul.run(it); assert.strictEqual(it.mods.length, n - 1, "annulment removes one mod");
+  const st2 = { base: b, ilvl: 86, infl: [], fossils: [], targets: [{ key: life.key, g: "p", grp: life.grp, minTier: 3 }, { key: fire.key, g: "s", grp: fire.grp, minTier: 3 }] };
+  const sim = T2.simulateOnce(st2, cx, [{ a: "alch", u: "once" }, { a: "chaos", u: "all" }], { "Chaos Orb": 1 }, 400);
+  assert(sim.ok && sim.cost > 0, "simulator should finish a chaos-spam plan");
   ok(`craft lab engine works (${ctx.CRAFTDATA.v}, ${Object.keys(ctx.CRAFTDATA.mods).length} mods)`);
 } catch (e) { fail("craft lab: " + e.message); }
 
