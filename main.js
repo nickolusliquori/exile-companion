@@ -8,6 +8,14 @@ const { parseEvents, detectLogPaths, readTail, Tail } = require("./lib/logtail")
 const { GGG } = require("./lib/ggg");
 const { DiscordRPC } = require("./lib/discord");
 const { markItemText } = require("./lib/clip");
+const { redact, sanitizeCfg } = require("./lib/diag");
+const os = require("os");
+
+// recent background errors and warnings, for "Report a problem" (kept in memory only)
+const DIAG = { errors: [], warnings: [] };
+const diagPush = (list, msg) => { list.push({ t: Date.now(), m: String(msg).slice(0, 800) }); if (list.length > 30) list.shift(); };
+process.on("uncaughtException", (err) => { diagPush(DIAG.errors, (err && err.stack) || err); console.error(err); });
+process.on("unhandledRejection", (err) => { diagPush(DIAG.errors, "Unhandled promise: " + ((err && err.stack) || err)); console.error(err); });
 
 const { pathToFileURL } = require("url");
 const APP_NAME = "Exile Companion";
@@ -162,7 +170,7 @@ function showPrice(text) {
   // Escape closes the popup while it is open (released again on hide)
   if (!globalShortcut.isRegistered("Escape")) globalShortcut.register("Escape", () => priceWin && priceWin.hide());
 }
-const sendMain = (ch, data) => { if (mainWin && !mainWin.isDestroyed()) mainWin.webContents.send(ch, data); };
+const sendMain = (ch, data) => { if (ch === "app:warning") diagPush(DIAG.warnings, data); if (mainWin && !mainWin.isDestroyed()) mainWin.webContents.send(ch, data); };
 
 /* ---------------- hotkeys ---------------- */
 function registerHotkeys() {
@@ -425,6 +433,27 @@ ipcMain.on("overlay:reset", () => { cfg.overlayBounds = null; saveCfg(); if (ove
 ipcMain.on("price:close", () => priceWin && priceWin.hide());
 ipcMain.on("price:test", (e, text) => showPrice(text));
 ipcMain.on("clip:write", (e, t) => { ignoreClipboard = t; clipboard.writeText(String(t || "")); });
+ipcMain.handle("diag:get", () => {
+  const ctx = { home: os.homedir(), user: (() => { try { return os.userInfo().username; } catch (e) { return ""; } })() };
+  const displays = screen.getAllDisplays().map((d) => `${d.size.width}x${d.size.height}@${d.scaleFactor}x`);
+  const clean = (list) => list.map((x) => ({ t: x.t, m: redact(x.m, ctx) }));
+  return {
+    app: VERSION, packaged: app.isPackaged, electron: process.versions.electron, chrome: process.versions.chrome, node: process.versions.node,
+    os: `${os.type()} ${os.release()} (${os.arch()})`, locale: app.getLocale(), displays,
+    memoryMB: Math.round(process.memoryUsage().rss / 1048576), uptimeMin: Math.round(process.uptime() / 60),
+    cfg: sanitizeCfg(cfg, ctx), update: updateState && { state: updateState.state, version: updateState.version, message: updateState.message && redact(updateState.message, ctx) },
+    log: { set: !!cfg.logPath, exists: !!(cfg.logPath && fs.existsSync(cfg.logPath)) },
+    errors: clean(DIAG.errors), warnings: clean(DIAG.warnings),
+    redactCtx: { home: ctx.home, user: ctx.user },
+  };
+});
+ipcMain.handle("diag:save", async (e, text) => {
+  const body = String(text || "").slice(0, 1024 * 1024);
+  const r = await dialog.showSaveDialog(mainWin, { title: "Save problem report", defaultPath: `exile-companion-report-${new Date().toISOString().slice(0, 10)}.txt`, filters: [{ name: "Text", extensions: ["txt"] }] });
+  if (r.canceled || !r.filePath) return null;
+  fs.writeFileSync(r.filePath, body, "utf8");
+  return path.basename(r.filePath);
+});
 ipcMain.on("open:external", (e, url) => { if (typeof url === "string" && /^https:\/\/[^\s]+$/i.test(url) && url.length < 2048) shell.openExternal(url); });
 
 

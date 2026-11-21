@@ -10,7 +10,7 @@ let failures = 0;
 const fail = (msg) => { console.error("✗ " + msg); failures++; };
 const ok = (msg) => console.log("✓ " + msg);
 
-for (const f of ["main.js", "preload.js", "lib/logtail.js", "lib/ggg.js", "lib/discord.js", "lib/clip.js"]) {
+for (const f of ["main.js", "preload.js", "lib/logtail.js", "lib/ggg.js", "lib/discord.js", "lib/clip.js", "lib/diag.js"]) {
   try { new vm.Script(fs.readFileSync(path.join(root, f), "utf8"), { filename: f }); ok(`${f} parses`); }
   catch (e) { fail(`${f}: ${e.message}`); }
 }
@@ -60,6 +60,18 @@ try {
   }
   ok("repeat price-check marking works");
 } catch (e) { fail("clip: " + e.message); }
+
+// problem reports must never leak secrets or the Windows user name
+try {
+  const { redact, sanitizeCfg } = require(path.join(root, "lib", "diag.js"));
+  const ctx = { home: "C:\\Users\\Nick", user: "Nick" };
+  const sample = "Error at C:\\Users\\Nick\\AppData\\x.js; POESESSID=0123456789abcdef0123456789abcdef; Bearer abcdefghijkl123; mail nick@example.com; /home/nick/file";
+  const r = redact(sample, ctx);
+  for (const bad of ["Nick", "0123456789abcdef0123456789abcdef", "abcdefghijkl123", "nick@example.com", "/home/nick"]) if (r.includes(bad)) throw new Error("leaked " + bad + " in: " + r);
+  const c = sanitizeCfg({ accountName: "Nick#1234", contact: "nick@example.com", logPath: "C:\\Users\\Nick\\Client.txt", priceOnCopy: true, poesessid: "x" }, ctx);
+  if (c.accountName || c.contact || c.poesessid || /Nick/.test(JSON.stringify(c))) throw new Error("sanitizeCfg leaked: " + JSON.stringify(c));
+  ok("problem reports redact secrets and user names");
+} catch (e) { fail("diag: " + e.message); }
 
 if (failures) { console.error(`\n${failures} check(s) failed`); process.exit(1); }
 console.log("\nAll checks passed");

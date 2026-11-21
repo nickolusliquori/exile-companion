@@ -82,4 +82,6 @@ contextBridge.exposeInMainWorld("exileDesktop", {
   // misc
   copy: (text) => ipcRenderer.send("clip:write", text),
   openExternal: (url) => ipcRenderer.send("open:external", url),
+  diagnostics: () => ipcRenderer.invoke("diag:get"),
+  saveReport: (text) => ipcRenderer.invoke("diag:save", text),
 });

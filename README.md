@@ -79,7 +79,7 @@ npm run dist:local # build an installer on your own PC (skips exe signing tools)
 
 GitHub Actions builds the Windows installer and publishes the release; installed apps pick it up automatically.
 
-## Hotkeys (change them on the Desktop tab)
+## Hotkeys (change them in Settings)
 
 | Key | What it does |
 |---|---|
@@ -106,10 +106,12 @@ The app only reads your log file and clipboard. It never sends key presses or cl
 ## Troubleshooting
 
 - **Overlay not visible over the game**: switch the game to Windowed Fullscreen. Use *Overlay → Reset position* in the menu if it's off-screen.
-- **"Client.txt not found"**: Desktop tab → *Find Client.txt* or *Choose file…*. It's in the game folder under `logs`.
+- **"Client.txt not found"**: Settings → Desktop tools → *Find Client.txt* or *Choose file…* (or rerun the setup wizard). It's in the game folder under `logs`.
 - **Price check says rate-limited**: the trade site limits searches. Wait the number of seconds shown.
-- **A hotkey doesn't work**: another program may use it. Pick a different one on the Desktop tab.
-- **Prices missing for a new league**: set the league name on the Desktop tab exactly as the trade site shows it.
+- **A hotkey doesn't work**: another program may use it. Pick a different one in Settings → Hotkeys.
+- **Prices missing for a new league**: set the league name in Settings exactly as the trade site shows it.
+
+- **Anything else**: Settings → *Report a problem* builds a report with the app version, your system and recent errors (no account secrets) that you can copy, save or open as a GitHub issue.
 
 ## Credits
 
