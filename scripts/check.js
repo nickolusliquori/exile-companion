@@ -10,7 +10,7 @@ let failures = 0;
 const fail = (msg) => { console.error("✗ " + msg); failures++; };
 const ok = (msg) => console.log("✓ " + msg);
 
-for (const f of ["main.js", "preload.js", "lib/logtail.js", "lib/ggg.js", "lib/discord.js"]) {
+for (const f of ["main.js", "preload.js", "lib/logtail.js", "lib/ggg.js", "lib/discord.js", "lib/clip.js"]) {
   try { new vm.Script(fs.readFileSync(path.join(root, f), "utf8"), { filename: f }); ok(`${f} parses`); }
   catch (e) { fail(`${f}: ${e.message}`); }
 }
@@ -49,6 +49,17 @@ try {
   assert.ok(parseTrade("Hi, I'd like to buy your 10 Divine Orb for my 1800 Chaos Orb in Covens of Umbra.").bulk);
   ok("log parser tests pass");
 } catch (e) { fail("log parser: " + e.message); }
+
+try {
+  const { markItemText } = require(path.join(root, "lib", "clip.js"));
+  const item = "Item Class: Rings\r\nRarity: Rare\r\nDread Spiral\r\nVermillion Ring\r\n--------\r\nItem Level: 84";
+  for (const t of [item, item + "\r\n", item + "\n"]) {
+    const m = markItemText(t);
+    assert.notStrictEqual(m, t, "marked text must differ from the copied text");
+    assert.strictEqual(m.trim(), t.trim(), "marking must not change the item text");
+  }
+  ok("repeat price-check marking works");
+} catch (e) { fail("clip: " + e.message); }
 
 if (failures) { console.error(`\n${failures} check(s) failed`); process.exit(1); }
 console.log("\nAll checks passed");

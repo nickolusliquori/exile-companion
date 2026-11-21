@@ -7,6 +7,7 @@ const path = require("path");
 const { parseEvents, detectLogPaths, readTail, Tail } = require("./lib/logtail");
 const { GGG } = require("./lib/ggg");
 const { DiscordRPC } = require("./lib/discord");
+const { markItemText } = require("./lib/clip");
 
 const { pathToFileURL } = require("url");
 const APP_NAME = "Exile Companion";
@@ -210,7 +211,13 @@ function startClipboardWatch() {
     if (t === lastClip) return;
     lastClip = t;
     if (t === ignoreClipboard) return;
-    if (cfg.priceOnCopy && isItemText(t)) showPrice(t);
+    if (cfg.priceOnCopy && isItemText(t)) {
+      showPrice(t);
+      // let the same item be checked again with another Ctrl+C
+      const marked = markItemText(t);
+      ignoreClipboard = marked; lastClip = marked;
+      clipboard.writeText(marked);
+    }
   }, 250);
 }
 
