@@ -1,0 +1,32 @@
+# One-off helper: copies each version's section of CHANGELOG.md into the notes of its existing
+# GitHub release. Run it by hand from the Actions tab ("Fill release notes" → Run workflow).
+# New releases get their notes automatically from release.yml.
+name: Fill release notes
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write   # needed to edit release notes
+
+jobs:
+  notes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Copy changelog sections into release notes
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          for v in $(grep -oP '^## \[\K[0-9][^]]*' CHANGELOG.md); do
+            if ! gh release view "v$v" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then echo "v$v: no release, skipped"; continue; fi
+            awk -v h="## [$v]" 'index($0,"## [")==1{ if(p) exit; if(index($0,h)==1){p=1; next} } p' CHANGELOG.md > notes.md
+            echo "" >> notes.md
+            echo "**Install:** download \`Exile-Companion-Setup-$v.exe\` below and run it. Installed copies update themselves." >> notes.md
+            gh release edit "v$v" --repo "$GITHUB_REPOSITORY" --notes-file notes.md
+            echo "v$v: notes updated"
+          done

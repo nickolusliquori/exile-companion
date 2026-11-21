@@ -109,7 +109,9 @@ function methods(st,prices){
 }
 function benchFor(st){
   const {base,targets}=st;
-  return D().bench.filter(b=>b.c.includes(base.c)).map(b=>{const m=D().extra[b.m]||D().mods[b.m];return m&&{m,cost:b.cost,t:targets.find(t=>t.grp===m.grp&&t.g===m.g)}}).filter(x=>x&&x.t);
+  const all=D().bench.filter(b=>b.c.includes(base.c)).map(b=>{const m=D().extra[b.m]||D().mods[b.m];return m&&{m,cost:b.cost,t:targets.find(t=>t.grp===m.grp&&t.g===m.g)}}).filter(x=>x&&x.t);
+  const best={};all.forEach(x=>{const k=x.m.g+"|"+x.m.grp;if(!best[k]||x.m.l>best[k].m.l)best[k]=x});
+  return Object.values(best);
 }
 
 /* ---------- UI ---------- */
@@ -179,7 +181,7 @@ function renderPool(){
         <details class="small" style="margin-left:26px"><summary>Tiers</summary><table class="cl-t"><thead><tr><th>Tier</th><th>Name</th><th>Roll</th><th>ilvl</th><th>Weight</th></tr></thead><tbody>${r.tiers.map(x=>`<tr><td>T${x.tier}</td><td>${esc2(x.m.n)}</td><td>${esc2(x.m.x.replace(/\n/g," / "))}</td><td class="num">${x.m.l}</td><td class="num">${Math.round(x.w)}</td></tr>`).join("")}</tbody></table></details></li>`}).join("")||'<li class="muted small">No mods match the filter.</li>'}</ul></div>`};
   cols.innerHTML=col("p")+col("s");
   $("clFilter").oninput=e=>{s.filter=e.target.value;save();renderPool()};
-  cols.querySelectorAll("[data-tg]").forEach(cb=>cb.onchange=()=>{const r=rows.find(x=>x.key===cb.dataset.tg);if(cb.checked){if(!s.targets.some(t=>t.grp===r.grp))s.targets.push({key:r.key,g:r.g,grp:r.grp,minTier:Math.min(r.tiers.length,2)})}else s.targets=s.targets.filter(t=>t.key!==r.key);save();renderPool();renderOdds();renderEmu()});
+  cols.querySelectorAll("[data-tg]").forEach(cb=>cb.onchange=()=>{const r=rows.find(x=>x.key===cb.dataset.tg);if(cb.checked){if(!s.targets.some(t=>t.grp===r.grp))s.targets.push({key:r.key,g:r.g,grp:r.grp,minTier:Math.min(r.tiers.length,2)})}else s.targets=s.targets.filter(t=>t.key!==r.key);save();renderPool();renderOdds();renderEmu();renderSim()});
   cols.querySelectorAll("[data-mt]").forEach(sel=>sel.onchange=()=>{const t=s.targets.find(x=>x.key===sel.dataset.mt);if(t)t.minTier=+sel.value;save();renderOdds()});
 }
 let oddsSeq=0;
@@ -202,7 +204,7 @@ async function renderOdds(){
     ${res.map(r=>r.note?`<tr><td colspan="3" class="small" style="color:var(--warn)">${esc2(r.note)}</td></tr>`:`<tr${r===best?' class="best"':""}><td><b>${esc2(r.name)}</b>${r===best?' <span class="pill good">cheapest</span>':""}<br><span class="small muted">${esc2(r.per)}${r.forces?` · forces ${esc2(r.forces.replace(/\n/g," / "))}`:""}</span></td><td class="num">${r.ok?pct(r.p):"≈ 0%"}<br><span class="small muted">${r.ok?oneIn(r.p):"no hits in "+r.n.toLocaleString()+" tries"}</span></td><td class="num">${r.unpriced?'<span class="small muted">no price</span>':r.ok?money(r.costPerHit):"–"}${r.ok&&r.ok<30?'<br><span class="small muted">rough: few hits</span>':""}</td></tr>`).join("")}
     </tbody></table></div>
     ${res.length&&res.every(r=>r.note||!r.ok)?`<p class="small" style="margin:0;color:var(--warn)">None of these methods hit all ${s.targets.length} mods in a reasonable number of tries. Aim for fewer mods (2–3), lower the tiers you'll accept, or finish the last mods with the bench, Harvest or an Exalted slam.</p>`:""}
-    ${bench.length?`<p class="small" style="margin:0"><b>Bench craft instead:</b> ${bench.map(b=>`${esc2(b.m.x.replace(/\n/g," / "))} (${Object.entries(b.cost).map(([k,v])=>v+"× "+esc2(k)).join(", ")})`).join("; ")}. Leave that one unticked and craft it last if you have an open ${bench[0].m.g==="p"?"prefix":"suffix"}.</p>`:""}
+    ${bench.length?`<p class="small" style="margin:0"><b>Bench craft instead:</b> ${bench.map(b=>`${esc2(b.m.x.replace(/\n/g," / "))} (${Object.entries(b.cost).map(([k,v])=>v+"× "+esc2(k)).join(", ")})`).join("; ")}. Leave it unticked and craft it last, as long as the item has a free slot of that kind.</p>`:""}
     <details class="small"><summary>Fossils</summary><div class="row" style="margin-top:6px">${D().fossils.map(f=>`<label class="row" style="gap:4px" title="${esc2(f.d.join(", "))}"><input type="checkbox" data-fos="${esc2(f.n)}"${s.fossils.includes(f.n)?" checked":""}> ${esc2(f.n.replace(" Fossil",""))}</label>`).join("")}</div><p class="small muted" style="margin:6px 0 0">Tick up to 4. Hover a fossil to see what it changes.</p></details>
     <details class="small"><summary>Prices used${NINJA?" (poe.ninja)":" (defaults: open the desktop app for live prices)"}</summary><div class="fgrid" style="margin-top:6px">${["Chaos Orb","Orb of Alteration","Orb of Augmentation","Regal Orb","Orb of Scouring","Orb of Transmutation"].map(n=>`<label class="f">${esc2(n)}<input type="number" step="any" min="0" data-price="${esc2(n)}" value="${prices[n]!=null?+(+prices[n]).toFixed(3):FALLBACK[n]}"></label>`).join("")}</div><p class="small muted" style="margin:6px 0 0">Edits are kept on this device. Clear a box to go back to the live price.</p></details>
     <p class="note" style="margin:0">Mod weights come from the game files. How many mods a Chaos Orb gives (4/5/6 at 8:3:1) and Alteration's 1-or-2 mod split are community estimates, so treat the results as a guide.</p>`;

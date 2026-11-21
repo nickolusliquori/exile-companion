@@ -77,6 +77,13 @@ jobs:
           echo "$files"
           for f in $files; do test -s "$f" || { echo "missing $f"; exit 1; }; done
           flags="--latest"; case "$v" in *-*) flags="--prerelease --latest=false";; esac
-          notes="Download Exile-Companion-Setup-$v.exe below and run it. Installed copies update themselves."
-          case "$v" in *-*) notes="Test build. Auto-update skips pre-releases, so only people who install this by hand get it.";; esac
-          gh release create "v$v" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --title "$v" --notes "$notes" $flags $files
+          # release notes = this version's section of CHANGELOG.md (a beta uses its base version's section)
+          base="${v%%-*}"
+          section=$(awk -v h="## [$v]" -v b="## [$base]" 'index($0,"## [")==1{ if(p) exit; if(index($0,h)==1||index($0,b)==1){p=1; next} } p' CHANGELOG.md)
+          {
+            case "$v" in *-*) echo "**Test build.** Auto-update skips pre-releases, so only people who install this by hand get it."; echo;; esac
+            if [ -n "$section" ]; then echo "$section"; echo; fi
+            echo "**Install:** download \`Exile-Companion-Setup-$v.exe\` below and run it. Installed copies update themselves."
+          } > notes.md
+          cat notes.md
+          gh release create "v$v" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --title "$v" --notes-file notes.md $flags $files
