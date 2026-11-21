@@ -62,7 +62,21 @@ jobs:
       - name: Run checks
         run: npm run check
 
-      - name: Build and publish installer
+      # electron-builder only builds; the upload is done below with GitHub's CLI
+      # (electron-builder 26 runs its GitHub publisher twice in parallel and the second one fails)
+      - name: Build installer
+        run: npx electron-builder --win nsis --publish never
+
+      - name: Publish GitHub release
+        shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: npx electron-builder --win nsis --publish always
+        run: |
+          v=$(node -p "require('./package.json').version")
+          files=$(ls dist/*.exe dist/*.exe.blockmap; ls dist/*.yml | grep -v builder-)
+          echo "$files"
+          for f in $files; do test -s "$f" || { echo "missing $f"; exit 1; }; done
+          flags="--latest"; case "$v" in *-*) flags="--prerelease --latest=false";; esac
+          notes="Download Exile-Companion-Setup-$v.exe below and run it. Installed copies update themselves."
+          case "$v" in *-*) notes="Test build. Auto-update skips pre-releases, so only people who install this by hand get it.";; esac
+          gh release create "v$v" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --title "$v" --notes "$notes" $flags $files
