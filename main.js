@@ -71,9 +71,26 @@ function externalLinks(win) {
   win.webContents.on("will-navigate", (e, url) => { if (!url.toLowerCase().startsWith(APP_URL)) { e.preventDefault(); if (/^https:\/\//i.test(url)) shell.openExternal(url); } });
 }
 
+const APP_ICON = path.join(__dirname, "app", "icon.png");
+let splashWin = null;
+function createSplash() {
+  splashWin = new BrowserWindow({ width: 420, height: 300, frame: false, transparent: true, resizable: false, movable: true, alwaysOnTop: true,
+    skipTaskbar: true, show: false, icon: APP_ICON, webPreferences: prefs() });
+  splashWin.loadFile(path.join(__dirname, "app", "splash.html"), { query: { v: VERSION } });
+  splashWin.once("ready-to-show", () => splashWin && splashWin.show());
+  splashWin.on("closed", () => { splashWin = null; });
+}
 function createMain() {
-  mainWin = new BrowserWindow({ width: 1240, height: 900, minWidth: 380, backgroundColor: "#0e0c0a", title: APP_NAME, webPreferences: prefs() });
+  const shownAt = Date.now();
+  mainWin = new BrowserWindow({ width: 1240, height: 900, minWidth: 380, backgroundColor: "#0e0c0a", title: APP_NAME, icon: APP_ICON, show: false, webPreferences: prefs() });
   mainWin.loadFile(path.join(__dirname, "app", "index.html"));
+  // show the main window once it has painted; keep the splash up at least ~0.9s so it doesn't flash
+  const reveal = () => setTimeout(() => {
+    if (mainWin && !mainWin.isVisible()) mainWin.show();
+    if (splashWin) splashWin.close();
+  }, Math.max(0, 900 - (Date.now() - shownAt)));
+  mainWin.once("ready-to-show", reveal);
+  setTimeout(reveal, 8000); // never leave the user staring at a splash
   externalLinks(mainWin);
   mainWin.on("closed", () => { mainWin = null; app.quit(); });
 }
@@ -503,6 +520,7 @@ ipcMain.on("update:install", () => { if (updater && updateState.state === "ready
 if (!app.requestSingleInstanceLock()) { app.quit(); }
 else {
   app.on("second-instance", () => { if (mainWin) { if (mainWin.isMinimized()) mainWin.restore(); mainWin.focus(); } });
+  if (process.platform === "win32") app.setAppUserModelId("app.exilecompanion.desktop");
   app.whenReady().then(async () => {
     loadCfg();
     loadSecrets();
@@ -520,6 +538,7 @@ else {
       ] },
     ]));
     try { fs.rmSync(path.join(app.getPath("userData"), "cheatsheets", ".trash"), { recursive: true, force: true }); } catch (e) { /* ignore */ }
+    createSplash();
     createMain();
     createOverlay();
     createPrice();

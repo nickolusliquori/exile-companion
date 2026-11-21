@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src 'self' file:; object-src 'none'; base-uri 'none'; form-action 'none'">
+<title>Exile Companion</title>
+<style>
+html,body{margin:0;height:100%;background:transparent;overflow:hidden;user-select:none;-webkit-app-region:drag}
+.box{position:absolute;inset:0;display:grid;place-items:center;align-content:center;gap:14px;
+  background:radial-gradient(circle at 50% 38%,#2a1f13 0%,#120d09 62%,#0a0806 100%);
+  border:1px solid #8a6c38;border-radius:6px;box-shadow:inset 0 0 0 1px #000,inset 0 0 60px rgba(0,0,0,.8)}
+img{width:96px;height:96px;filter:drop-shadow(0 0 18px rgba(226,189,110,.35));animation:pulse 2.4s ease-in-out infinite}
+h1{margin:0;font:700 26px/1 "Cinzel","Trajan Pro",Georgia,serif;letter-spacing:.08em;background:linear-gradient(#f6e2ac,#b88a42);-webkit-background-clip:text;background-clip:text;color:transparent}
+p{margin:0;font:13px "Segoe UI",system-ui,sans-serif;color:#a39682;letter-spacing:.04em}
+.bar{width:220px;height:4px;background:#0b0806;border:1px solid #3a2d1f;border-radius:99px;overflow:hidden}
+.bar i{display:block;height:100%;width:35%;background:linear-gradient(90deg,transparent,#e2bd6e,transparent);animation:slide 1.3s ease-in-out infinite}
+@keyframes slide{from{transform:translateX(-100%)}to{transform:translateX(320%)}}
+@keyframes pulse{50%{filter:drop-shadow(0 0 28px rgba(226,189,110,.6))}}
+@media (prefers-reduced-motion:reduce){img,.bar i{animation:none}}
+</style>
+</head>
+<body>
+<div class="box">
+  <img src="icon.png" alt="">
+  <h1>Exile Companion</h1>
+  <div class="bar"><i></i></div>
+  <p id="v">Loading…</p>
+</div>
+<script>
+const v=new URLSearchParams(location.search).get("v");
+if(v&&/^[\w.\-]+$/.test(v)) document.getElementById("v").textContent="Version "+v+" · loading…";
+</script>
+</body>
+</html>
