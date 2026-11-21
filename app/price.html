@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src data: https://web.poecdn.com; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<title>Price check</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  /* Price popup: one dense card, item header in rarity colour, listings below. */
+  --bg:#15110d; --panel:#211b14; --line:#3b3024; --text:#e8dfcf; --muted:#a39682;
+  --gold:#c9a45c; --gold-dim:#8a6f3c; --good:#71c27a; --warn:#e2a63c; --bad:#e0584b;
+  --unique:#c8702e; --rare:#f2f27a; --magic:#8f8fff; --gem:#1ba29b; --currency:#aa9e82;
+  --display:"Cinzel", Georgia, serif; --body:"Segoe UI", system-ui, sans-serif;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font-family:var(--body);font-size:13px;line-height:1.4}
+body{display:flex;flex-direction:column;border:1px solid var(--gold-dim)}
+header{padding:8px 10px;border-bottom:1px solid var(--line);display:flex;gap:8px;align-items:flex-start;-webkit-app-region:drag}
+header .t{flex:1;min-width:0}
+.nm{font-family:var(--display);font-weight:700;font-size:15px}
+.base{color:var(--muted);font-size:12px}
+.r-unique{color:var(--unique)}.r-rare{color:var(--rare)}.r-magic{color:var(--magic)}.r-gem{color:var(--gem)}.r-currency,.r-divination{color:var(--currency)}
+.x{-webkit-app-region:no-drag;background:none;border:0;color:var(--muted);font-size:18px;cursor:pointer;line-height:1}
+main{flex:1;overflow:auto;padding:10px;display:grid;gap:10px;align-content:start}
+.est{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.stat{background:var(--panel);border:1px solid var(--line);border-radius:4px;padding:6px 8px}
+.stat .k{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+.stat .v{font-size:17px;font-weight:700;font-variant-numeric:tabular-nums}
+.status{color:var(--muted)} .status.err{color:var(--bad)} .status.warn{color:var(--warn)}
+table{border-collapse:collapse;width:100%;font-size:12px}
+td,th{padding:3px 6px;border-bottom:1px solid var(--line);text-align:left;font-variant-numeric:tabular-nums}
+th{color:var(--muted);font-weight:600;font-size:10px;text-transform:uppercase}
+.mod{display:flex;gap:6px;align-items:center;font-size:12px}
+.mod input[type=checkbox]{accent-color:var(--gold);flex:none}
+.mod input[type=number]{width:56px;background:#0b0a08;border:1px solid var(--line);color:var(--text);border-radius:3px;padding:2px 4px}
+.mod span{flex:1}
+.mod.nomatch{opacity:.45}
+.row{display:flex;gap:6px;flex-wrap:wrap}
+button.b{font:inherit;color:var(--gold);background:var(--panel);border:1px solid var(--gold-dim);border-radius:4px;padding:5px 10px;cursor:pointer}
+button.b.p{background:var(--gold);color:#1a140c;font-weight:700}
+.up{background:var(--panel);border:1px solid var(--line);border-radius:4px;padding:8px;display:grid;gap:4px}
+.deltas{display:flex;flex-wrap:wrap;gap:4px 10px;font-size:12px;font-variant-numeric:tabular-nums}.deltas .pos{color:var(--good)}.deltas .neg{color:var(--bad)}
+.pill{font-size:11px;padding:1px 7px;border-radius:99px;border:1px solid var(--line);white-space:nowrap}.pill.good{color:var(--good);border-color:#71c27a66}.pill.warn{color:var(--warn);border-color:#e2a63c66}.pill.bad{color:var(--bad);border-color:#e0584b66}
+h3{margin:0;font-family:var(--display);font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+footer{padding:5px 10px;border-top:1px solid var(--line);color:var(--muted);font-size:11px}
+:focus-visible{outline:2px solid var(--gold);outline-offset:1px}
+
+/* Exile skin: item-tooltip header */
+html,body{background:#0d0a07}
+body{border:1px solid #6e5430;box-shadow:inset 0 0 0 1px #000;background:radial-gradient(500px 300px at 50% -80px,#22180e,transparent 70%),#0d0a07}
+header{flex-direction:row;justify-content:center;text-align:center;position:relative;padding:10px 34px 9px;background:linear-gradient(#2a2015,#15100b);border-bottom:1px solid #4a3a26}
+header .t{text-align:center}
+header.h-unique{background:linear-gradient(#3b210f,#1d1109);border-bottom-color:#af6025}
+header.h-rare{background:linear-gradient(#2c2a12,#16150a);border-bottom-color:#a8a64a}
+header.h-magic{background:linear-gradient(#17193a,#0d0e20);border-bottom-color:#5f5fc0}
+header.h-gem{background:linear-gradient(#0f2c2a,#081816);border-bottom-color:#1ba29b}
+header.h-currency,header.h-divination{background:linear-gradient(#2a251b,#15120d);border-bottom-color:#857a62}
+.x{position:absolute;right:8px;top:8px}
+.nm{font-size:16px;letter-spacing:.03em;text-shadow:0 1px 0 #000}
+.base{color:#b8a888}
+.stat,.up{background:linear-gradient(#1c150e,#100c08);border-color:#3a2d1f}
+button.b{background:linear-gradient(#3c2d1a,#211810);border-color:#6e5430;color:#efd7a0;font-family:"Cinzel",Georgia,serif;letter-spacing:.03em;box-shadow:inset 0 1px 0 rgba(255,230,170,.15)}
+button.b.p{background:linear-gradient(#ecca80,#b08540);color:#1d1408;border-color:#f2d99c}
+h3{color:#c8a96c;letter-spacing:.08em}
+.trend{font-size:12px}.trend.up{color:var(--good)}.trend.down{color:var(--bad)}
+.wiki .flavour{margin:0;color:#af6025;font-style:italic;font-size:12px;white-space:pre-line}
+footer{background:#0b0806;border-top-color:#3a2d1f}
+</style>
+</head>
+<body>
+<header id="hdr"><div class="t"><div class="nm" id="nm">Price check</div><div class="base" id="base">Hover an item in game and press Ctrl+C</div></div><button class="x" id="close" aria-label="Close">×</button></header>
+<main id="main"></main>
+<footer id="foot">Esc closes this window</footer>
+<script>
+"use strict";
+const D=window.exileDesktop;
+const $=id=>document.getElementById(id);
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const fmt=n=>{n=Number(n)||0;if(n>=1000)return (n/1e3).toFixed(1)+"k";if(n>=10)return Math.round(n)+"";return (Math.round(n*10)/10)+""};
+const TRADE="https://www.pathofexile.com";
+let league=null, item=null, rates=null, statIndex=null, lastSearchId=null;
+
+/* ---------- item text parsing (Ctrl+C format) ---------- */
+const META=/^(Corrupted|Mirrored|Split|Unidentified|Twice Corrupted|Note:|Synthesised Item|Fractured Item|Searing Exarch Item|Eater of Worlds Item|Shaper Item|Elder Item|Crusader Item|Hunter Item|Redeemer Item|Warlord Item|Place into|Right click|Travel to|Can be|Shift click|Unstack|This is a|Stack Size)/i;
+function parseItem(text){
+  const secs=[];let cur=[];
+  for(const raw of text.replace(/\r/g,"").split("\n")){const l=raw.trim();if(l==="--------"){secs.push(cur);cur=[]}else if(l)cur.push(l)}
+  if(cur.length)secs.push(cur);
+  const it={cls:"",rarity:"",name:"",base:"",ilvl:null,quality:0,gemLevel:null,mapTier:null,stack:1,corrupted:false,links:0,implicits:[],mods:[],props:{},advanced:/^\{ .*Modifier/m.test(text),craft:[]};
+  for(const l of secs[0]||[]){
+    if(l.startsWith("Item Class:"))it.cls=l.slice(11).trim();
+    else if(l.startsWith("Rarity:"))it.rarity=l.slice(7).trim().toLowerCase();
+    else if(!it.name)it.name=l; else if(!it.base)it.base=l;
+  }
+  if(!it.base)it.base=it.name;
+  it.base=it.base.replace(/^(Superior|Synthesised) /,"");
+  let ilvlSec=-1;
+  secs.forEach((s,i)=>{
+    if(s[0]==="Requirements:")return;
+    for(const l of s){
+      let m;
+      if((m=l.match(/^Item Level: (\d+)/))){it.ilvl=+m[1];ilvlSec=i}
+      else if((m=l.match(/^Quality: \+?(\d+)%/)))it.quality=+m[1];
+      else if((m=l.match(/^Level: (\d+)/))&&it.rarity==="gem")it.gemLevel=+m[1];
+      else if((m=l.match(/^Map Tier: (\d+)/)))it.mapTier=+m[1];
+      else if((m=l.match(/^Stack Size: ([\d,.]+)\//)))it.stack=+m[1].replace(/[,.]/g,"");
+      else if((m=l.match(/^Sockets: (.+)/)))it.links=Math.max(...m[1].trim().split(" ").map(g=>g.split("-").length));
+      else if(/^Corrupted$/.test(l)||/^Twice Corrupted$/.test(l))it.corrupted=true;
+      if((m=l.match(/^([A-Z][A-Za-z ]+): \+?(-?\d+)%/))&&ilvlSec<0)it.props[m[1]]=+m[2];
+    }
+  });
+  if(ilvlSec>=0){
+    secs.slice(ilvlSec+1).forEach(s=>s.forEach(l=>{
+      if(l.startsWith("{")||META.test(l))return;
+      const kind=/\(implicit\)$/.test(l)?"implicit":/\(enchant\)$/.test(l)?"enchant":/\(crafted\)$/.test(l)?"crafted":/\(fractured\)$/.test(l)?"fractured":"explicit";
+      const t=l.replace(/ \((implicit|enchant|crafted|fractured)\)$/,"").replace(/\((-?[\d.]+)-(-?[\d.]+)\)/g,"").replace(/ — Unscalable Value$/,"");
+      if(!/\d/.test(t)&&kind==="explicit"&&it.rarity==="unique")return;
+      (kind==="implicit"?it.implicits:it.mods).push({text:t,kind});
+    }));
+  }
+  if(it.advanced){
+    let cur=null;
+    for(const raw of text.replace(/\r/g,"").split("\n")){
+      const l=raw.trim();let m;
+      if((m=l.match(/^\{ (Master Crafted |Fractured |Desecrated )?(Prefix|Suffix|Implicit|Unique|Eldritch Implicit|Searing Exarch Implicit|Eater of Worlds Implicit)? ?Modifier(?: "([^"]*)")?(?: \((?:Tier|Rank): (\d+)\))?(?: — (.+))? \}$/))){
+        cur={kind:(m[2]||"Unique").toLowerCase(),crafted:/Master/.test(m[1]||""),fractured:/Fractured/.test(m[1]||""),name:m[3]||"",tier:m[4]?+m[4]:null,tags:m[5]||"",lines:[]};it.craft.push(cur);continue}
+      if(l==="--------"||l.startsWith("{")){if(l==="--------")cur=null;continue}
+      if(cur&&l){const vals=[...l.matchAll(/(-?[\d.]+)\((-?[\d.]+)-(-?[\d.]+)\)/g)].map(x=>({v:+x[1],min:+x[2],max:+x[3]}));cur.lines.push({text:l.replace(/\((-?[\d.]+)-(-?[\d.]+)\)/g,"").replace(/ — Unscalable Value$/,""),vals})}
+    }
+  }
+  return it;
+}
+
+/* ---------- crafting helper (from the game's advanced copy, Ctrl+Alt+C) ---------- */
+function craftHtml(it){
+  if(!(it.rarity==="rare"||it.rarity==="magic")||!/Ring|Amulet|Belt|Armour|Helmet|Gloves|Boots|Shield|Quiver|Bow|Claw|Dagger|Sword|Axe|Mace|Sceptre|Staff|Wand|Jewel|Flask/i.test(it.cls)) return "";
+  if(!it.advanced) return `<p class="status" style="margin:0;font-size:12px">Tip: press <b>Ctrl+Alt+C</b> instead of Ctrl+C to see each mod's tier and roll here.</p>`;
+  const aff=it.craft.filter(c=>c.kind==="prefix"||c.kind==="suffix");
+  const pre=aff.filter(c=>c.kind==="prefix"),suf=aff.filter(c=>c.kind==="suffix");
+  const max=it.rarity==="magic"?1:3;
+  const roll=c=>{const vs=c.lines.flatMap(l=>l.vals).filter(v=>v.max!==v.min);if(!vs.length)return null;return Math.round(vs.reduce((a,v)=>a+(v.v-v.min)/(v.max-v.min),0)/vs.length*100)};
+  const tierCls=t=>t==null?"":t<=1?"good":t<=3?"warn":"bad";
+  const tips=[];
+  if(pre.length<max)tips.push(`${max-pre.length} open prefix${max-pre.length>1?"es":""}: bench-craft one (life, ES or damage are the usual picks).`);
+  if(suf.length<max)tips.push(`${max-suf.length} open suffix${max-suf.length>1?"es":""}: bench-craft a resistance or attribute.`);
+  const goodPre=pre.filter(c=>c.tier&&c.tier<=2&&!c.crafted).length,goodSuf=suf.filter(c=>c.tier&&c.tier<=2&&!c.crafted).length;
+  if(goodPre>=2&&suf.some(c=>c.tier>4))tips.push("Two strong prefixes: lock them with the bench meta-craft “Prefixes cannot be changed” (1–2 Divine Orbs), then reroll the suffixes.");
+  if(goodSuf>=2&&pre.some(c=>c.tier>4))tips.push("Two strong suffixes: lock them with “Suffixes cannot be changed”, then reroll the prefixes.");
+  const lowTop=aff.filter(c=>c.tier&&c.tier<=2&&roll(c)!=null&&roll(c)<40);
+  if(lowTop.length)tips.push(`Top-tier mod${lowTop.length>1?"s":""} with a low roll (${lowTop.map(c=>c.name||"?").join(", ")}): a Divine Orb rerolls the numbers.`);
+  if(!tips.length&&aff.every(c=>c.tier&&c.tier<=2))tips.push("All mods are tier 1–2 and the affixes are full: use it or sell it.");
+  return `<div class="up"><div class="row" style="justify-content:space-between;align-items:center"><h3>Crafting</h3><span class="pill">${pre.length}/${max} prefixes · ${suf.length}/${max} suffixes</span></div>
+    <div style="display:grid;gap:3px">${it.craft.filter(c=>c.kind!=="unique").map(c=>{const r=roll(c);return `<div class="mod" style="align-items:flex-start"><span class="pill ${tierCls(c.tier)}" style="flex:none;min-width:34px;text-align:center">${c.tier?"T"+c.tier:c.kind==="implicit"?"impl":"–"}</span><span>${c.lines.map(l=>esc(l.text)).join("<br>")}<br><i style="color:var(--muted)">${esc(c.kind)}${c.name?` “${esc(c.name)}”`:""}${c.crafted?" · crafted":""}${c.fractured?" · fractured":""}${r!=null?` · roll ${r}%`:""}</i></span></div>`}).join("")}</div>
+    ${tips.length?`<ul style="margin:2px 0 0;padding-left:16px;font-size:12px">${tips.map(t=>`<li>${esc(t)}</li>`).join("")}</ul>`:""}
+    <p class="status" style="margin:0;font-size:11px">Tier 1 is the best roll of that mod; roll % is where the value sits inside its tier.</p></div>`;
+}
+
+/* ---------- map checker ---------- */
+async function mapHtml(it){
+  if(it.cls!=="Maps") return "";
+  const gear=D.getGear?await D.getGear():null;
+  const avoid=(gear&&gear.avoid)||[];
+  const lines=[...it.implicits,...it.mods].map(m=>m.text);
+  const bad=[];
+  avoid.forEach(a=>{const hit=lines.find(l=>l.toLowerCase().includes(a.frag.toLowerCase()));if(hit)bad.push({label:a.label,line:hit})});
+  const props=Object.entries(it.props).filter(([k])=>/Quantity|Rarity|Pack Size|Atlas|Scarab|Currency|Maps|Monster/i.test(k));
+  const verdict=bad.length?["Reroll it","bad"]:it.rarity==="normal"?["Roll it first","warn"]:["Run it","good"];
+  return `<div class="up"><div class="row" style="justify-content:space-between;align-items:center"><h3>Map check${it.mapTier?` · T${it.mapTier}`:""}</h3><span class="pill ${verdict[1]}">${verdict[0]}</span></div>
+    ${bad.length?bad.map(b=>`<p class="status err" style="margin:0">⚠ ${esc(b.line)} <i>(${esc(b.label)})</i></p>`).join(""):`<p class="status" style="margin:0">${avoid.length?"None of the mods your build should avoid.":"Set up your build in the companion to check mods against it."}</p>`}
+    ${props.length?`<div class="deltas">${props.map(([k,v])=>`<span class="pos">+${v}% ${esc(k)}</span>`).join("")}</div>`:""}
+    <p class="status" style="margin:0;font-size:11px">${lines.length} mods${it.corrupted?" · corrupted":""}. Your avoid list comes from the Maps tab.</p></div>`;
+}
+const wikiUrl=it=>{const n=it.rarity==="unique"||it.rarity==="gem"||it.rarity==="currency"||it.rarity==="divination card"?it.name:it.base;return "https://www.poewiki.net/wiki/"+encodeURIComponent(String(n||"").replace(/ /g,"_"))};
+
+/* ---------- APIs ---------- */
+async function get(url,cacheMs){const r=await D.http({url,cacheMs});return r}
+async function post(url,body){return D.http({url,method:"POST",body})}
+async function ninjaLeague(){const r=await get("https://poe.ninja/poe1/api/economy/leagues",3600e3);const l=Array.isArray(r.data)?r.data:[];const hit=l.find(x=>x.id===league||x.name===league);return hit?hit.id:(league||(l[0]&&l[0].id))}
+async function loadRates(){
+  if(rates)return rates;
+  rates={chaos:1};const nl=await ninjaLeague();
+  for(const type of ["Currency","Fragment"]){
+    try{const r=await get(`https://poe.ninja/poe1/api/economy/stash/current/currency/overview?league=${encodeURIComponent(nl)}&type=${type}`,15*60e3);
+      const d=r.data||{};const byName={};(d.lines||[]).forEach(l=>{byName[l.currencyTypeName]=l.chaosEquivalent;const s=l.receiveSparkLine||l.sparkLine;if(s&&typeof s.totalChange==="number"){rates.__trend=rates.__trend||{};rates.__trend[l.currencyTypeName]=s.totalChange}});
+      (d.currencyDetails||[]).forEach(c=>{if(c.tradeId&&byName[c.name]!=null)rates[c.tradeId]=byName[c.name]});
+      rates.__names=Object.assign(rates.__names||{},byName);
+    }catch(e){}
+  }
+  return rates;
+}
+async function ninjaItem(type){const nl=await ninjaLeague();const r=await get(`https://poe.ninja/poe1/api/economy/stash/current/item/overview?league=${encodeURIComponent(nl)}&type=${type}`,15*60e3);return (r.data&&r.data.lines)||[]}
+async function loadStats(){
+  if(statIndex)return statIndex;
+  const r=await get(TRADE+"/api/trade/data/stats",24*3600e3);
+  statIndex=new Map();
+  ((r.data&&r.data.result)||[]).forEach(g=>(g.entries||[]).forEach(e=>{const k=(e.type||g.id)+"|"+e.text.toLowerCase();if(!statIndex.has(k))statIndex.set(k,e.id)}));
+  return statIndex;
+}
+const tmpl=t=>t.toLowerCase().replace(/\d+(\.\d+)?/g,"#");
+const valOf=t=>{const m=t.match(/(\d+(?:\.\d+)?) to (\d+(?:\.\d+)?)/);if(m)return (+m[1]+ +m[2])/2;const n=t.match(/\d+(\.\d+)?/);return n?+n[0]:null};
+const MOD_PRIO=[[/maximum Life/i,5],[/to Level of/i,5],[/maximum Energy Shield|increased Energy Shield/i,4],[/Resistance/i,4],[/Suppress Spell/i,4],[/Movement Speed/i,4],[/Critical Strike Multiplier/i,3],[/Critical Strike Chance/i,3],[/Adds .* Damage|increased .*Damage/i,3],[/Attack Speed|Cast Speed/i,3],[/Damage over Time Multiplier/i,3]];
+const LOCAL_CLASSES=/Weapon|Bow|Claw|Dagger|Sword|Axe|Mace|Sceptre|Staff|Wand|Body Armour|Helmet|Gloves|Boots|Shield/i;
+function statId(mod,kind){
+  const t=tmpl(mod);const types=kind==="implicit"?["implicit"]:kind==="crafted"?["crafted","explicit"]:kind==="fractured"?["fractured","explicit"]:["explicit"];
+  for(const ty of types){
+    if(LOCAL_CLASSES.test(item.cls)){const loc=statIndex.get(ty+"|"+t+" (local)");if(loc)return loc}
+    const id=statIndex.get(ty+"|"+t);if(id)return id;
+  }
+  return null;
+}
+function minFor(v){if(v==null)return null;if(v<5)return v;return Math.floor(v*0.85)}
+
+
+/* ---------- "is this an upgrade?" (compares with your equipped item) ---------- */
+const CLASS_SLOTS=[[/^Body Armours$/,["Body Armour"]],[/^Helmets$/,["Helmet"]],[/^Gloves$/,["Gloves"]],[/^Boots$/,["Boots"]],[/^Rings$/,["Ring 1","Ring 2"]],[/^Amulets$/,["Amulet"]],[/^Belts$/,["Belt"]],[/^(Shields|Quivers)$/,["Weapon 2"]],[/(Bows|Claws|Daggers|Swords|Axes|Maces|Sceptres|Staves|Wands|Warstaves)$/,["Weapon 1"]]];
+const RES=["fire","cold","lightning","chaos"];
+function statsOf(mods){
+  const s={life:0,lifePct:0,es:0,mana:0,fire:0,cold:0,lightning:0,chaos:0,str:0,dex:0,int:0,gems:0,ms:0,as:0,cs:0,crit:0,multi:0,supp:0,dmg:0,addDmg:0};
+  for(const raw of mods){
+    const t=raw.replace(/ \((implicit|crafted|fractured|enchant)\)$/,"");let m;
+    const n=+(t.match(/[+-]?\d+(\.\d+)?/)||[0])[0];
+    if(/to maximum Life$/.test(t)) s.life+=n;
+    else if(/increased maximum Life$/.test(t)) s.lifePct+=n;
+    else if(/to maximum Energy Shield$/.test(t)) s.es+=n;
+    else if(/to maximum Mana$/.test(t)) s.mana+=n;
+    else if(/to all Elemental Resistances$/.test(t)){s.fire+=n;s.cold+=n;s.lightning+=n}
+    else if((m=t.match(/to (Fire|Cold|Lightning|Chaos)(?: and (Fire|Cold|Lightning|Chaos))? Resistances?$/))){s[m[1].toLowerCase()]+=n;if(m[2])s[m[2].toLowerCase()]+=n}
+    else if(/to all Attributes$/.test(t)){s.str+=n;s.dex+=n;s.int+=n}
+    else if((m=t.match(/to (Strength|Dexterity|Intelligence)(?: and (Strength|Dexterity|Intelligence))?$/))){const k={Strength:"str",Dexterity:"dex",Intelligence:"int"};s[k[m[1]]]+=n;if(m[2])s[k[m[2]]]+=n}
+    else if(/to Level of (all|Socketed).*Gems$/.test(t)) s.gems+=n;
+    else if(/increased Movement Speed$/.test(t)) s.ms+=n;
+    else if(/increased Attack Speed$/.test(t)) s.as+=n;
+    else if(/increased Cast Speed$/.test(t)) s.cs+=n;
+    else if(/Critical Strike Chance/.test(t)&&/increased/.test(t)) s.crit+=n;
+    else if(/Critical Strike Multiplier$/.test(t)) s.multi+=n;
+    else if(/chance to Suppress Spell Damage$/.test(t)) s.supp+=n;
+    else if((m=t.match(/^Adds (\d+) to (\d+) .*Damage/))) s.addDmg+=(+m[1]+ +m[2])/2;
+    else if(/increased .*Damage$/.test(t)) s.dmg+=n;
+  }
+  return s;
+}
+const LABEL={life:"life",lifePct:"% life",es:"energy shield",mana:"mana",fire:"% fire res",cold:"% cold res",lightning:"% lightning res",chaos:"% chaos res",str:"strength",dex:"dexterity",int:"intelligence",gems:"gem levels",ms:"% movement speed",as:"% attack speed",cs:"% cast speed",crit:"% crit chance",multi:"% crit multi",supp:"% suppression",dmg:"% damage",addDmg:"added damage (avg)"};
+const WEIGHT={life:1,lifePct:8,es:0.5,mana:0.1,str:0.2,dex:0.2,int:0.2,gems:40,ms:3,as:4,cs:4,crit:1,multi:2,supp:3,dmg:1,addDmg:1.5};
+const tmplU=t=>t.toLowerCase().replace(/ \((implicit|crafted|fractured|enchant)\)$/,"").replace(/\d+(\.\d+)?/g,"#");
+async function upgradeCheck(it){
+  if(!D.getGear) return null;
+  const gear=await D.getGear();if(!gear||!gear.slots) return null;
+  const hit=CLASS_SLOTS.find(([re])=>re.test(it.cls));if(!hit) return null;
+  const newMods=[...it.implicits,...it.mods].map(m=>m.text);
+  const ns=statsOf(newMods);
+  let best=null;
+  for(const slot of hit[1]){
+    const eq=gear.slots[slot];
+    const os=statsOf(eq?eq.mods:[]);
+    const d={};Object.keys(ns).forEach(k=>{const v=Math.round((ns[k]-os[k])*10)/10;if(v)d[k]=v});
+    const res=gear.res||{};const warn=[];let score=0;
+    for(const k of ["fire","cold","lightning"]){if(d[k]==null)continue;const now=res[k];if(now==null){score+=d[k]*0.5;continue}const after=now+d[k];
+      if(now>=75&&after<75){warn.push(`${k} res would drop to ${after}% (uncapped)`);score-=(75-after)*4}else if(now<75){score+=Math.min(d[k],75-now)*2+Math.max(0,d[k]-(75-now))*0.2}else score+=d[k]*0.1}
+    if(d.chaos)score+=d.chaos*0.5;
+    Object.entries(d).forEach(([k,v])=>{if(WEIGHT[k])score+=v*WEIGHT[k]});
+    const goal=(gear.goal||{})[slot]||[];
+    const must=goal.filter(g=>g.must);
+    const matchN=list=>must.filter(g=>list.some(x=>tmplU(x)===tmplU(g.text))).length;
+    const gNew=matchN(newMods),gOld=eq?matchN(eq.mods):0;
+    score+=(gNew-gOld)*25;
+    const r={slot,eq,d,warn,score,gNew,gOld,gTotal:must.length};
+    if(!best||r.score>best.score) best=r;
+  }
+  return {...best,from:gear.from};
+}
+function upgradeHtml(u){
+  if(!u) return "";
+  const verdict=u.warn.length&&u.score<20?["Breaks your resistances","bad"]:u.score>=25?["Likely upgrade","good"]:u.score>-10?["Sidegrade: check in PoB","warn"]:["Downgrade","bad"];
+  const rows=Object.entries(u.d).sort((a,b)=>Math.abs(b[1]*(WEIGHT[b[0]]||1))-Math.abs(a[1]*(WEIGHT[a[0]]||1))).slice(0,9);
+  return `<div class="up"><div class="row" style="justify-content:space-between;align-items:center"><h3>vs your ${esc(u.slot)}</h3><span class="pill ${verdict[1]}">${verdict[0]}</span></div>
+    <p class="status" style="margin:0">${u.eq?`Equipped: ${esc(u.eq.name)}`:"Nothing equipped there"}${u.from==="goal"?" (from your goal build: import or sync your character for a real comparison)":""}</p>
+    ${rows.length?`<div class="deltas">${rows.map(([k,v])=>`<span class="${v>0?"pos":"neg"}">${v>0?"+":""}${v} ${LABEL[k]}</span>`).join("")}</div>`:""}
+    ${u.warn.map(w=>`<p class="status err" style="margin:0">⚠ ${esc(w)}</p>`).join("")}
+    ${u.gTotal?`<p class="status" style="margin:0">Guide's key mods: ${u.gNew}/${u.gTotal} on this item vs ${u.gOld}/${u.gTotal} on yours</p>`:""}
+    <p class="status" style="margin:0;font-size:11px">Estimate from the item's mods, not a full DPS calculation.</p></div>`;
+}
+
+/* ---------- search ---------- */
+async function tradeSearch(query){
+  const body={query:{status:{option:"online"},...query},sort:{price:"asc"}};
+  const r=await post(`${TRADE}/api/trade/search/${encodeURIComponent(league)}`,body);
+  if(r.status===429)throw new Error(`The trade site is rate-limiting requests. Try again in ${r.retryAfter||10}s.`);
+  if(r.status>=400||!r.data)throw new Error((r.data&&r.data.error&&r.data.error.message)||`Trade search failed (${r.status}).`);
+  lastSearchId=r.data.id;
+  const ids=(r.data.result||[]).slice(0,10);
+  if(!ids.length)return {total:0,listings:[]};
+  const f=await get(`${TRADE}/api/trade/fetch/${ids.join(",")}?query=${r.data.id}`);
+  if(f.status===429)throw new Error(`Rate-limited fetching listings. Try again in ${f.retryAfter||10}s.`);
+  const listings=((f.data&&f.data.result)||[]).filter(Boolean).map(x=>({amount:x.listing.price&&x.listing.price.amount,currency:x.listing.price&&x.listing.price.currency,seller:x.listing.account&&x.listing.account.name,indexed:x.listing.indexed})).filter(l=>l.amount!=null);
+  return {total:r.data.total,listings};
+}
+function toChaos(l){const r=rates&&rates[l.currency];return r!=null?l.amount*r:null}
+function summarize(listings){
+  const ch=listings.map(toChaos).filter(v=>v!=null).sort((a,b)=>a-b);
+  if(!ch.length)return null;
+  const top=ch.slice(0,Math.min(5,ch.length));
+  return {min:ch[0],typical:top[Math.floor(top.length/2)]};
+}
+const divTxt=c=>rates&&rates.divine?` · ${(c/rates.divine).toFixed(2)} div`:"";
+const ago=t=>{if(!t)return"";const m=Math.round((Date.now()-new Date(t).getTime())/60000);return m<60?m+"m":m<1440?Math.round(m/60)+"h":Math.round(m/1440)+"d"};
+
+let UPG=null,EXTRA="",WIKI="",TREND=null,LAST_STATE=null;
+const trendTxt=ch=>ch==null?"":`<span class="trend ${ch>=0?"up":"down"}">${ch>=0?"▲":"▼"} ${Math.abs(ch).toFixed(1)}% in 7 days</span>`;
+const wikiText=s=>String(s||"").replace(/<br\s*\/?>/gi,"\n").replace(/<[^>]+>/g,"").replace(/\[\[(?:[^|\]]*\|)?([^\]]+)\]\]/g,"$1").replace(/&lt;/g,"<").replace(/&gt;/g,">").replace(/&amp;/g,"&").replace(/&#39;/g,"'").replace(/&quot;/g,'"').trim();
+async function loadWiki(it){
+  if(!(it.rarity==="unique"||it.rarity==="divination card"||it.rarity==="gem")) return;
+  const name=it.name;const where=`items.name="${name.replace(/"/g,"")}"`;
+  const q=f=>D.http({url:"https://www.poewiki.net/w/api.php?"+new URLSearchParams({action:"cargoquery",format:"json",limit:"1",tables:"items",fields:f,where}),cacheMs:24*3600e3});
+  let r=await q("items.name=name,items.required_level=level,items.drop_text=droptext,items.drop_areas=areas,items.explicit_stat_text=stats,items.flavour_text=flavour");
+  if(!r||!r.data||r.data.error) r=await q("items.name=name,items.drop_text=droptext,items.drop_areas=areas");
+  const row=r&&r.data&&r.data.cargoquery&&r.data.cargoquery[0]&&r.data.cargoquery[0].title;
+  if(!row||item!==it) return;
+  const stats=wikiText(row.stats),drop=wikiText(row.droptext),areas=String(row.areas||"").split(",").map(s=>s.trim()).filter(Boolean);
+  WIKI=`<div class="up wiki"><h3>From the wiki</h3>${row.level?`<p class="status" style="margin:0">Requires level ${esc(row.level)}</p>`:""}${stats&&it.rarity==="divination card"?`<p style="margin:0">Reward: ${esc(stats)}</p>`:""}${drop?`<p style="margin:0">Drops: ${esc(drop)}</p>`:""}${areas.length?`<p class="status" style="margin:0">Drop areas: ${areas.slice(0,8).map(a=>esc(a.replace(/^MapWorlds/,"").replace(/([a-z])([A-Z])/g,"$1 $2"))).join(", ")}${areas.length>8?"…":""}</p>`:""}${row.flavour?`<p class="flavour">${esc(wikiText(row.flavour))}</p>`:""}</div>`;
+  if(LAST_STATE) render(LAST_STATE);
+}
+function render(state){
+  LAST_STATE=state;
+  const m=$("main");let h="";
+  if(EXTRA) h+=EXTRA;
+  if(UPG) h+=upgradeHtml(UPG);
+  if(state.status)h+=`<p class="status ${state.statusCls||""}">${esc(state.status)}</p>`;
+  if(state.ninja!=null)h+=`<div class="est"><div class="stat"><div class="k">poe.ninja value</div><div class="v">${fmt(state.ninja*(item.stack||1))}c</div></div><div class="stat"><div class="k">${item.stack>1?"Each":"In divines"}</div><div class="v">${item.stack>1?fmt(state.ninja)+"c":(rates&&rates.divine?(state.ninja/rates.divine).toFixed(2):"–")}</div></div></div>`;
+  if(TREND!=null)h+=`<p style="margin:0">${trendTxt(TREND)}</p>`;
+  if(state.sum)h+=`<div class="est"><div class="stat"><div class="k">Cheapest listed</div><div class="v">${fmt(state.sum.min)}c</div></div><div class="stat"><div class="k">Typical (low 5)</div><div class="v">${fmt(state.sum.typical)}c</div></div></div><p class="status" style="margin:0">${state.total} listed${divTxt(state.sum.typical)}</p>`;
+  if(state.listings&&state.listings.length)h+=`<table><thead><tr><th>Price</th><th>≈ chaos</th><th>Listed</th></tr></thead><tbody>${state.listings.map(l=>{const c=toChaos(l);return `<tr><td>${l.amount} ${esc(l.currency)}</td><td>${c!=null?fmt(c):"–"}</td><td>${ago(l.indexed)}</td></tr>`}).join("")}</tbody></table>`;
+  if(WIKI)h+=WIKI;
+  if(state.mods)h+=`<h3>Search by these mods</h3><div style="display:grid;gap:4px">${state.mods.map((x,i)=>`<label class="mod${x.id?"":" nomatch"}"><input type="checkbox" data-m="${i}"${x.on?" checked":""}${x.id?"":" disabled"}><span>${esc(x.text)}${x.kind!=="explicit"?` <i style="color:var(--muted)">(${x.kind})</i>`:""}</span>${x.v!=null&&x.id?`<input type="number" data-min="${i}" value="${x.min}" aria-label="Minimum">`:""}</label>`).join("")}</div><div class="row"><button class="b p" id="again">Search again</button></div>`;
+  h+=`<div class="row">${lastSearchId?`<button class="b" id="open">Open on trade site</button>`:""}${state.exchange?`<button class="b" id="openEx">Open bulk exchange</button>`:""}<button class="b" id="wiki">Wiki</button><button class="b" id="close2">Close</button></div>`;
+  m.innerHTML=h;
+  const o=$("open");if(o)o.onclick=()=>D.openExternal(`${TRADE}/trade/search/${encodeURIComponent(league)}/${lastSearchId}`);
+  $("close2").onclick=()=>D.closePrice();
+  $("wiki").onclick=()=>D.openExternal(wikiUrl(item));
+  const ox=$("openEx");if(ox)ox.onclick=()=>D.openExternal(`${TRADE}/trade/exchange/${encodeURIComponent(league)}`);
+  if(state.mods){
+    m.querySelectorAll("[data-m]").forEach(c=>c.onchange=()=>{state.mods[+c.dataset.m].on=c.checked});
+    m.querySelectorAll("[data-min]").forEach(c=>c.onchange=()=>{state.mods[+c.dataset.min].min=+c.value});
+    $("again").onclick=()=>searchRare(state.mods);
+  }
+}
+
+async function searchRare(mods){
+  const st={mods,status:"Searching the trade site…"};render(st);
+  const filters=mods.filter(x=>x.on&&x.id).map(x=>({id:x.id,value:x.min!=null?{min:x.min}:{},disabled:false}));
+  const q={type:item.base,stats:[{type:"and",filters}],filters:{type_filters:{filters:{rarity:{option:"nonunique"}}},misc_filters:{filters:item.corrupted?{}:{corrupted:{option:"false"}}}}};
+  try{const r=await tradeSearch(q);const sum=summarize(r.listings);
+    render({mods,listings:r.listings,total:r.total,sum,status:r.total?"":"No matches. Untick a mod or lower a minimum, then search again.",statusCls:r.total?"":"warn"})}
+  catch(e){render({mods,status:e.message,statusCls:"err"})}
+}
+
+const UNIQUE_TYPE=c=>/Ring|Amulet|Belt/i.test(c)?"UniqueAccessory":/Flask/i.test(c)?"UniqueFlask":/Jewel/i.test(c)?"UniqueJewel":/Map/i.test(c)?"UniqueMap":/Body Armour|Helmet|Gloves|Boots|Shield|Quiver/i.test(c)?"UniqueArmour":"UniqueWeapon";
+
+async function check(text){
+  item=parseItem(text);
+  rates=null;lastSearchId=null;UPG=null;EXTRA="";WIKI="";TREND=null;LAST_STATE=null;
+  loadWiki(item).catch(()=>{});
+  try{EXTRA=(await mapHtml(item))+craftHtml(item)}catch(e){EXTRA=""}
+  if(item.rarity==="rare"||item.rarity==="unique"||item.rarity==="magic"){try{UPG=await upgradeCheck(item)}catch(e){UPG=null}}
+  const cls="r-"+(item.rarity==="divination card"?"divination":item.rarity);
+  $("nm").className="nm "+cls;$("hdr").className="h-"+(item.rarity==="divination card"?"divination":item.rarity);$("nm").textContent=item.name||"Unknown item";
+  $("base").textContent=[item.base!==item.name?item.base:"",item.cls,item.ilvl?`ilvl ${item.ilvl}`:"",item.gemLevel?`level ${item.gemLevel}/${item.quality}%`:"",item.mapTier?`tier ${item.mapTier}`:"",item.stack>1?`stack ${item.stack}`:"",item.corrupted?"corrupted":""].filter(Boolean).join(" · ");
+  $("foot").textContent=`League: ${league||"detecting…"} · Esc closes`;
+  if(!league){league=await D.detectLeague();$("foot").textContent=`League: ${league||"unknown"} · Esc closes`}
+  if(!league){render({status:"Couldn't detect the league. Set it on the Desktop tab of the companion.",statusCls:"err"});return}
+  render({status:"Checking prices…"});
+  try{await loadRates()}catch(e){}
+  try{
+    if(item.rarity==="currency"||/Stackable Currency|Map Fragments|Fragment/i.test(item.cls)){
+      const v=item.name==="Chaos Orb"?1:(rates&&rates.__names&&rates.__names[item.name]);
+      TREND=rates&&rates.__trend?rates.__trend[item.name]??null:null;
+      render({ninja:v,status:v==null?"poe.ninja has no price for this. Check the bulk exchange.":"Currency trades in bulk, so this uses poe.ninja's exchange rate.",exchange:true});
+      return;
+    }
+    if(item.rarity==="unique"){
+      let ninja=null;
+      try{const lines=await ninjaItem(UNIQUE_TYPE(item.cls));const cand=lines.filter(l=>l.name===item.name&&(!l.baseType||l.baseType===item.base));
+        const pick=cand.find(l=>(l.links||0)===(item.links>=5?item.links:0)&&!!l.corrupted===item.corrupted)||cand.find(l=>(l.links||0)===(item.links>=5?item.links:0))||cand[0];ninja=pick?pick.chaosValue:null;const s=pick&&(pick.sparkLine||pick.lowConfidenceSparkLine);TREND=s&&typeof s.totalChange==="number"?s.totalChange:null}catch(e){}
+      const q={name:item.name,type:item.base,filters:{misc_filters:{filters:item.corrupted?{}:{corrupted:{option:"false"}}}}};
+      if(item.links>=5)q.filters.socket_filters={filters:{links:{min:item.links}}};
+      let r=null,err=null;try{r=await tradeSearch(q)}catch(e){err=e.message}
+      render(r?{ninja,listings:r.listings,total:r.total,sum:summarize(r.listings)}:{ninja,status:err,statusCls:"warn"});
+      return;
+    }
+    if(item.rarity==="gem"){
+      const mf={};if(item.gemLevel)mf.gem_level={min:item.gemLevel};if(item.quality)mf.quality={min:item.quality};mf.corrupted={option:item.corrupted?"true":"false"};
+      const r=await tradeSearch({type:item.name,filters:{misc_filters:{filters:mf}}});
+      render({listings:r.listings,total:r.total,sum:summarize(r.listings)});
+      return;
+    }
+    if(item.rarity==="divination card"){
+      const r=await tradeSearch({type:item.name});
+      render({listings:r.listings,total:r.total,sum:summarize(r.listings)});
+      return;
+    }
+    if(item.rarity==="rare"&&item.cls!=="Maps"){
+      await loadStats();
+      const all=[...item.implicits,...item.mods].map(x=>{const id=statId(x.text,x.kind);const v=valOf(x.text);const p=(MOD_PRIO.find(([re])=>re.test(x.text))||[0,1])[1];return {...x,id,v,min:minFor(v),prio:p,on:false}});
+      all.filter(x=>x.id&&x.kind!=="implicit").sort((a,b)=>b.prio-a.prio).filter(x=>x.prio>=3).slice(0,5).forEach(x=>x.on=true);
+      if(!all.some(x=>x.on))all.filter(x=>x.id&&x.kind!=="implicit").slice(0,3).forEach(x=>x.on=true);
+      await searchRare(all);
+      return;
+    }
+    if(item.cls==="Maps"){
+      const r=await tradeSearch({type:item.base,filters:{map_filters:{filters:item.mapTier?{map_tier:{min:item.mapTier,max:item.mapTier}}:{}}}});
+      render({listings:r.listings,total:r.total,sum:summarize(r.listings)});
+      return;
+    }
+    if(item.rarity==="normal"){
+      const mf={};if(item.ilvl)mf.ilvl={min:item.ilvl};
+      const r=await tradeSearch({type:item.base,filters:{misc_filters:{filters:mf},type_filters:{filters:{rarity:{option:"normal"}}}}});
+      render({listings:r.listings,total:r.total,sum:summarize(r.listings),status:"Base items: price shown is for this base at this item level or higher."});
+      return;
+    }
+    render({status:"Magic items rarely sell for much. Use the trade site if you think this one is special."});
+  }catch(e){render({status:e.message||"Price check failed.",statusCls:"err"})}
+}
+
+$("close").onclick=()=>D&&D.closePrice();
+document.addEventListener("keydown",e=>{if(e.key==="Escape")D&&D.closePrice()});
+if(D){D.onPriceItem(({text,league:l})=>{if(l)league=l;check(text)})}
+window.__parseItem=parseItem; // for testing
+</script>
+</body>
+</html>

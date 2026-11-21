@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src 'self'; img-src data:; object-src 'none'; base-uri 'none'; form-action 'none'">
+<title>Exile Companion: stream overlay</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  /* Stream widget: a compact lower-third card on a transparent background for OBS. */
+  --bg:rgba(14,12,10,.82); --line:#3b3024; --text:#f1e8d8; --muted:#b5a892; --gold:#d6b26a; --good:#7fd08a; --bad:#ea6a5c;
+  --display:"Cinzel", Georgia, serif; --body:"Segoe UI", system-ui, sans-serif;
+}
+html,body{margin:0;background:transparent;color:var(--text);font-family:var(--body);overflow:hidden}
+.card{background:linear-gradient(rgba(36,26,16,.9),rgba(14,10,7,.88))!important;box-shadow:inset 0 0 0 1px rgba(0,0,0,.6),0 6px 20px rgba(0,0,0,.6);display:inline-grid;gap:6px;margin:12px;padding:12px 16px;background:var(--bg);border:1px solid var(--line);border-left:4px solid var(--gold);border-radius:8px;min-width:320px;text-shadow:0 1px 2px #000}
+.top{display:flex;gap:10px;align-items:baseline}
+.cls{font-family:var(--display);font-size:22px;background:linear-gradient(#f6e2ac,#c49a50);-webkit-background-clip:text;background-clip:text;color:transparent;filter:drop-shadow(0 1px 1px #000)}
+.lvl{font-size:16px;color:var(--muted)}
+.zone{font-size:16px}
+.stats{display:flex;gap:16px;font-size:14px;color:var(--muted);font-variant-numeric:tabular-nums}
+.stats b{color:var(--text);font-size:18px}
+.step{font-size:14px;color:var(--muted);max-width:420px}
+</style>
+</head>
+<body>
+<div class="card" id="card"><div class="top"><span class="cls">Exile Companion</span><span class="lvl">waiting for the game…</span></div></div>
+<script>
+"use strict";
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const hms=ms=>{const t=Math.max(0,Math.floor(ms/1000));const h=Math.floor(t/3600),m=Math.floor(t/60)%60,s=t%60;return (h?h+":"+String(m).padStart(2,"0"):m)+":"+String(s).padStart(2,"0")};
+let last=null;
+function draw(){
+  if(!last) return;
+  const o=last.overlay||{}, s=last.stream||{};
+  const z=o.zone||{};
+  let h=`<div class="top"><span class="cls">${esc(s.cls||"Exile")}</span><span class="lvl">Level ${esc((o.char&&o.char.level)||s.level||"?")}</span></div>`;
+  if(o.mode==="maps"&&o.maps){
+    const m=o.maps;
+    h+=`<div class="zone">${m.current?`${esc(m.current.name)}${m.current.tier?` · T${m.current.tier}`:""} · ${hms(Date.now()-m.current.start)}`:esc(z.name||"In hideout")}</div>`;
+    h+=`<div class="stats"><span><b>${m.session.count}</b> maps</span>${m.session.div!=null?`<span><b>${m.session.div.toFixed(2)}</b> div/h</span>`:""}${s.deaths!=null?`<span><b>${s.deaths}</b> deaths</span>`:""}</div>`;
+  } else if(o.campaign){
+    h+=`<div class="zone">Act ${o.campaign.act}${z.name?` · ${esc(z.name)}`:""}</div>`;
+    if(o.campaign.steps&&o.campaign.steps[0]) h+=`<div class="step">Next: ${esc(o.campaign.steps[0].text)}</div>`;
+    if(o.campaign.split) h+=`<div class="stats"><span>Run <b>${hms(o.campaign.split.totalMs)}</b></span></div>`;
+  }
+  document.getElementById("card").innerHTML=h;
+}
+async function poll(){try{const r=await fetch("/data",{cache:"no-store"});last=await r.json();draw()}catch(e){}}
+poll();setInterval(poll,2000);setInterval(draw,1000);
+</script>
+</body>
+</html>

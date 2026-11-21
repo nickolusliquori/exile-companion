@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src data:; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<title>Exile Companion Overlay</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  /* Overlay: a compact, translucent stash-tab panel that sits over the game. */
+  --bg:rgba(14,12,10,.88); --panel:rgba(33,27,20,.92); --line:#3b3024; --text:#e8dfcf; --muted:#a39682;
+  --gold:#c9a45c; --gold-dim:#8a6f3c; --good:#71c27a; --warn:#e2a63c; --bad:#e0584b;
+  --display:"Cinzel", Georgia, serif; --body:"Segoe UI", system-ui, sans-serif;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:transparent;color:var(--text);font-family:var(--body);font-size:13px;line-height:1.35;overflow:hidden;user-select:none}
+.wrap{height:100%;display:flex;flex-direction:column;background:var(--bg);border:1px solid var(--line);border-radius:8px;overflow:hidden}
+body.interactive .wrap{border-color:var(--gold);box-shadow:0 0 0 1px var(--gold) inset}
+header{padding:8px 10px 6px;border-bottom:1px solid var(--line);display:grid;gap:3px}
+body.interactive header{-webkit-app-region:drag;cursor:move}
+.zone{font-family:var(--display);font-size:14px;color:var(--gold);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sub{display:flex;gap:6px;flex-wrap:wrap;align-items:center;color:var(--muted);font-size:12px}
+.pill{font-size:11px;padding:1px 7px;border-radius:99px;border:1px solid var(--line);white-space:nowrap}
+.pill.good{color:var(--good);border-color:#71c27a66}.pill.warn{color:var(--warn);border-color:#e2a63c66}.pill.bad{color:var(--bad);border-color:#e0584b66}.pill.gold{color:var(--gold);border-color:var(--gold-dim)}
+main{flex:1;overflow:auto;padding:8px 10px;display:grid;gap:8px;align-content:start}
+h3{margin:0;font-family:var(--display);font-size:12px;letter-spacing:.04em;color:var(--muted);text-transform:uppercase}
+ul{list-style:none;margin:0;padding:0;display:grid;gap:4px}
+.step{display:flex;gap:6px;align-items:flex-start}
+.step input{margin:2px 0 0;accent-color:var(--gold);flex:none;pointer-events:none}
+body.interactive .step input{pointer-events:auto;cursor:pointer}
+.tag{font-size:10px;padding:0 5px;border-radius:3px;margin-left:4px;white-space:nowrap}
+.tag.pt{background:#71c27a22;color:var(--good)}.tag.trial{background:#c9a45c22;color:var(--gold)}.tag.boss{background:#e0584b22;color:var(--bad)}
+.big{font-family:var(--display);font-size:22px;color:var(--text);font-variant-numeric:tabular-nums}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.stat{background:var(--panel);border:1px solid var(--line);border-radius:4px;padding:4px 6px}
+.stat .k{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+.stat .v{font-weight:700;font-variant-numeric:tabular-nums}
+.rx{display:flex;gap:6px;align-items:stretch}
+.code{flex:1;font-family:Consolas,monospace;font-size:11px;background:#0b0a08;border:1px solid var(--line);border-radius:4px;padding:4px 6px;word-break:break-all;max-height:52px;overflow:hidden}
+button{font:inherit;color:var(--gold);background:var(--panel);border:1px solid var(--gold-dim);border-radius:4px;padding:3px 8px;cursor:pointer;pointer-events:none;opacity:.6}
+body.interactive button{pointer-events:auto;opacity:1}
+.threads{display:flex;gap:4px;flex-wrap:wrap}
+.thread{font-size:11px;padding:1px 6px;border-radius:3px;background:#2a2219;border:1px solid var(--gold-dim);color:var(--gold)}
+footer{padding:5px 10px;border-top:1px solid var(--line);color:var(--muted);font-size:11px;display:flex;justify-content:space-between;gap:6px}
+.toast{position:fixed;left:10px;right:10px;bottom:34px;background:var(--gold);color:#1a140c;border-radius:4px;padding:5px 8px;font-weight:700;font-size:12px;opacity:0;transition:opacity .2s}
+.toast.on{opacity:1}
+.empty{color:var(--muted)}
+.tabs{display:flex;gap:3px;flex-wrap:wrap;margin-top:3px}
+.tabs button{font-size:10px;padding:1px 6px;border-color:var(--line);color:var(--muted);-webkit-app-region:no-drag}
+.tabs button.on{border-color:var(--gold);color:var(--gold);opacity:1}
+.bar{height:5px;background:#2a2219;border-radius:99px;overflow:hidden}.bar i{display:block;height:100%;background:var(--gold)}
+.kv{display:grid;grid-template-columns:1fr auto;gap:2px 8px}
+.st-done{color:var(--good)}.st-close{color:var(--warn)}.st-upgrade,.st-missing,.st-swap{color:var(--bad)}
+.trade{background:var(--panel);border:1px solid var(--gold-dim);border-radius:4px;padding:5px 7px;display:grid;gap:2px;margin-bottom:4px}
+.tr-top{display:flex;justify-content:space-between;align-items:center}
+.tr-btns{display:flex;gap:4px;flex-wrap:wrap;margin-top:2px}
+@media (prefers-reduced-motion:reduce){.toast{transition:none}}
+
+/* Exile skin */
+.wrap{background:linear-gradient(rgba(26,19,12,.9),rgba(12,9,7,.9));border:1px solid #6e5430;border-radius:4px;box-shadow:inset 0 0 0 1px rgba(0,0,0,.7),inset 0 1px 0 rgba(242,217,156,.1)}
+header{background:linear-gradient(rgba(48,34,19,.95),rgba(22,16,10,.9));border-bottom:1px solid #4a3a26}
+.zone{background:linear-gradient(#f6e2ac,#c49a50);-webkit-background-clip:text;background-clip:text;color:transparent;filter:drop-shadow(0 1px 0 #000);letter-spacing:.04em}
+h3{color:#c8a96c;letter-spacing:.09em}
+.stat{background:linear-gradient(rgba(30,22,14,.95),rgba(16,12,8,.95));border-color:#3a2d1f}
+button{background:linear-gradient(#3c2d1a,#211810);border-color:#6e5430;color:#efd7a0}
+.tabs button{background:linear-gradient(#251a10,#130e09)}
+.tabs button.on{background:linear-gradient(#3e2c17,#1b130b);color:#f2d99c;border-color:#8a6c38}
+.trade{background:linear-gradient(rgba(40,30,18,.95),rgba(20,15,10,.95));border-color:#8a6c38}
+.bar i{background:linear-gradient(90deg,#8a6c38,#e2bd6e);box-shadow:0 0 8px rgba(226,189,110,.5)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="zone" id="zone">Waiting for the game…</div>
+    <div class="sub" id="sub"></div>
+    <nav class="tabs" id="tabs"></nav>
+  </header>
+  <main id="main"><p class="empty">Start Path of Exile. This panel follows your Client.txt and updates as you change zones.</p></main>
+  <footer><span id="hint">Ctrl+Shift+I: click mode · Ctrl+Shift+O: hide</span><button id="done" hidden>Done</button></footer>
+</div>
+<div class="toast" id="toast" role="status"></div>
+<script>
+"use strict";
+const D=window.exileDesktop;
+const $=id=>document.getElementById(id);
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const fmt=n=>{n=Number(n)||0;if(Math.abs(n)>=1e6)return (n/1e6).toFixed(2).replace(/\.?0+$/,"")+"M";if(Math.abs(n)>=1e4)return Math.round(n/1e3)+"k";return Math.round(n).toLocaleString()};
+const hms=ms=>{const t=Math.max(0,Math.floor(ms/1000));const h=Math.floor(t/3600),m=Math.floor(t/60)%60,s=t%60;return (h?h+":"+String(m).padStart(2,"0"):m)+":"+String(s).padStart(2,"0")};
+let data=null, mapTimer=null, page="now";
+const PAGES=[["now","Now"],["build","Build"],["gear","Gear"],["atlas","Atlas"],["session","Session"],["trades","Trades"]];
+function pageHtml(){
+  const P=(data&&data.pages)||{};
+  const pct=v=>Math.round((v||0)*100);
+  if(page==="build"){const b=P.build;if(!b)return '<p class="empty">Import or sync your current character to compare with the guide.</p>';
+    return `<section><h3>Goal progress · ${b.pct}%</h3><div class="bar"><i style="width:${b.pct}%"></i></div></section>
+    <section><div class="kv"><span>Passive tree</span><span>${pct(b.bars.tree)}%</span><span>Gear</span><span>${pct(b.bars.items)}%</span><span>Gems</span><span>${pct(b.bars.gems)}%</span><span>DPS</span><span>${fmt(b.dps[0])} / ${fmt(b.dps[1])}</span><span>Life + ES</span><span>${fmt(b.pool[0])} / ${fmt(b.pool[1])}</span>${b.cost!=null?`<span>Cost to finish</span><span>${b.cost.toFixed(1)} div</span>`:""}</div></section>
+    <section><h3>Resistances</h3><div class="sub">${["fire","cold","lightning","chaos"].map(k=>{const v=b.res[k];const ok=k==="chaos"?(v??-1)>=0:(v??0)>=75;return `<span class="pill ${ok?"good":"bad"}">${k} ${v??"?"}%</span>`}).join("")}</div></section>
+    ${b.steps.length?`<section><h3>Do next</h3><ul>${b.steps.map(s=>`<li>• ${esc(s)}</li>`).join("")}</ul></section>`:""}`}
+  if(page==="gear"){const g=P.gear;if(!g)return '<p class="empty">Import or sync your current character to compare gear.</p>';
+    return `<section><h3>Gear vs guide</h3><ul>${g.map(x=>`<li><b class="st-${x.status}">${esc(x.slot)}</b>: ${esc(x.now||"empty")}${x.status!=="done"?` <span class="sub">→ ${esc(x.goal)}${x.total?` (${x.ok}/${x.total})`:""}</span>`:" ✓"}</li>`).join("")}</ul></section>`}
+  if(page==="atlas"){const a=P.atlas;if(!a)return "";
+    return `<section><h3>Map completion · ${a.done}/${a.total}</h3><div class="bar"><i style="width:${a.total?Math.round(a.done/a.total*100):0}%"></i></div></section>
+    <section><h3>${esc(a.strat)}</h3>${a.threads.length?`<div class="threads">${a.threads.map(([k,v])=>`<span class="thread">${v}× ${esc(k)}</span>`).join("")}</div>`:""}${a.next.length?`<p style="margin:4px 0 0">Next notables: ${a.next.map(esc).join(", ")}</p>`:""}</section>
+    ${a.bosses.length?`<section><h3>Bosses to beat</h3><ul>${a.bosses.map(b=>`<li>• ${esc(b)}</li>`).join("")}</ul></section>`:""}`}
+  if(page==="session"){const s=P.session;if(!s)return "";
+    return `<section><h3>This session</h3><div class="stats"><div class="stat"><div class="k">Maps</div><div class="v">${s.maps}</div></div><div class="stat"><div class="k">Div / h</div><div class="v">${s.div!=null?s.div.toFixed(2):"–"}</div></div><div class="stat"><div class="k">In maps</div><div class="v">${hms(s.mapMs)}</div></div></div></section>
+    <section><div class="kv">${s.profit?`<span>Profit logged</span><span>${fmt(s.profit)}c</span>`:""}${s.net!=null?`<span>Net worth</span><span>${s.net.toFixed(1)} div</span>`:""}${s.sales?`<span>Sales today</span><span>${fmt(s.sales)}c</span>`:""}</div>${s.recap?`<p style="margin:4px 0 0" class="sub">${esc(s.recap)}</p>`:""}</section>`}
+  if(page==="trades"){const t=P.trades||{};const tr=data.trades||[];
+    return (tr.length?"":'<p class="empty">No trade requests in the last 20 minutes.</p>')+(t.alerts&&t.alerts.length?`<section><h3>Price alerts hit</h3><ul>${t.alerts.map(a=>`<li>• ${esc(a)}</li>`).join("")}</ul></section>`:"")+(t.sold&&t.sold.length?`<section><h3>Recently sold</h3><ul>${t.sold.map(a=>`<li>• ${esc(a)}</li>`).join("")}</ul></section>`:"")}
+  return null;
+}
+
+function render(){
+  if(!data) return;
+  const z=data.zone||{};
+  $("zone").textContent=z.name?z.name+(z.lvl?`  ·  lvl ${z.lvl}`:""):"Waiting for the game…";
+  const sub=[];
+  if(data.char&&data.char.level) sub.push(`<span>${esc(data.char.name||"Character")} · Lv ${data.char.level}</span>`);
+  if(data.xp) sub.push(`<span class="pill ${data.xp.cls}">${esc(data.xp.label)}</span>`);
+  if(data.eta!=null) sub.push(`<span class="pill" id="eta">next lvl ~${hms(data.eta)}</span>`);
+  if(data.mode==="campaign"&&data.campaign) sub.push(`<span class="pill gold">Act ${data.campaign.act} · target ${data.campaign.target[0]}–${data.campaign.target[1]}</span>`);
+  $("sub").innerHTML=sub.join("");
+  $("tabs").innerHTML=PAGES.map(([k,l])=>`<button data-page="${k}" class="${page===k?"on":""}">${l}</button>`).join("");
+  document.querySelectorAll("[data-page]").forEach(b=>b.onclick=()=>{page=b.dataset.page;render()});
+  let h="";
+  const ph=page==="now"?null:pageHtml();
+  if(ph!=null){
+    h=ph;
+    if(page==="trades"&&data.trades&&data.trades.length) h=`<section class="trades"><h3>Trade requests</h3>${data.trades.map((t,i)=>`<div class="trade"><div class="tr-top"><b>${esc(t.name)}</b>${t.joined?'<span class="pill good">here</span>':""}</div><div>${esc(t.item)} · <b>${esc(t.price)}</b></div>${t.where?`<div class="sub">${esc(t.where)}</div>`:""}<div class="tr-btns">${t.cmds.map(([l,c],j)=>`<button data-cmd="${i}:${j}">${esc(l)}</button>`).join("")}</div></div>`).join("")}</section>`+h;
+    $("main").innerHTML=h;
+    document.querySelectorAll("[data-cmd]").forEach(b=>b.onclick=()=>{const [i,j]=b.dataset.cmd.split(":").map(Number);D.overlayAction({type:"copy",text:data.trades[i].cmds[j][1]})});
+    if(data.hint) $("hint").textContent=data.hint;
+    return;
+  }
+  if(data.mode==="campaign"&&data.campaign){
+    const c=data.campaign;
+    h+=`<section><h3>Next steps</h3>${c.steps.length?`<ul>${c.steps.map(s=>`<li class="step"><input type="checkbox" data-tick="${esc(s.key)}" aria-label="Done"><span>${esc(s.text)}${s.tag==="pt"?'<span class="tag pt">point</span>':s.tag==="trial"?'<span class="tag trial">trial</span>':s.tag==="boss"?'<span class="tag boss">boss</span>':""}</span></li>`).join("")}</ul>`:'<p class="empty">Act complete. On to the next one!</p>'}</section>`;
+    if(data.notes&&data.notes.lines.length) h+=`<section><h3>Guide: ${esc(data.notes.title)}</h3><ul>${data.notes.lines.map(l=>`<li>${esc(l)}</li>`).join("")}</ul></section>`;
+    if(c.gems&&c.gems.length) h+=`<section><h3>Gems this act</h3><ul>${c.gems.map(g=>`<li>${esc(g)}</li>`).join("")}</ul></section>`;
+    if(c.split) h+=`<section><h3>Act timer</h3><div class="stats"><div class="stat"><div class="k">This act</div><div class="v" id="actTime">${hms(c.split.actMs)}</div></div><div class="stat"><div class="k">Best</div><div class="v">${c.split.bestMs?hms(c.split.bestMs):"–"}</div></div><div class="stat"><div class="k">Total</div><div class="v">${hms(c.split.totalMs)}</div></div></div></section>`;
+  }
+  if(data.mode==="maps"&&data.maps){
+    const m=data.maps;
+    if(m.current) h+=`<section><h3>${esc(m.current.name)}${m.current.tier?` · T${m.current.tier}`:""}</h3><div class="big" id="mapClock">${hms(Date.now()-m.current.start)}</div>${m.current.deaths?`<span class="pill bad">${m.current.deaths} death${m.current.deaths>1?"s":""}</span>`:""}</section>`;
+    h+=`<section><h3>Session</h3><div class="stats"><div class="stat"><div class="k">Maps</div><div class="v">${m.session.count}</div></div><div class="stat"><div class="k">Avg time</div><div class="v">${m.session.avgMs?hms(m.session.avgMs):"–"}</div></div><div class="stat"><div class="k">Per hour</div><div class="v">${m.session.div!=null?m.session.div.toFixed(2)+" div":"–"}</div></div></div></section>`;
+    if(m.strat) h+=`<section><h3>${esc(m.strat.name)}</h3>${m.strat.threads.length?`<div class="threads">${m.strat.threads.map(([k,v])=>`<span class="thread">${v}× ${esc(k)}</span>`).join("")}</div>`:'<p class="empty">No Threads needed for this farm.</p>'}</section>`;
+    if(m.cards&&m.cards.length) h+=`<section><h3>Cards that drop here</h3><ul>${m.cards.map(c=>`<li>🂠 ${esc(c)}</li>`).join("")}</ul></section>`;
+    if(m.avoid&&m.avoid.length) h+=`<section><h3>Avoid these map mods</h3><ul>${m.avoid.slice(0,6).map(a=>`<li>• ${esc(a)}</li>`).join("")}</ul></section>`;
+    if(m.next) h+=`<section><h3>Next milestone</h3><p style="margin:0">${esc(m.next)}</p></section>`;
+  }
+  if(data.trades&&data.trades.length) h=`<section class="trades"><h3>Trade requests</h3>${data.trades.map((t,i)=>`<div class="trade"><div class="tr-top"><b>${esc(t.name)}</b>${t.joined?'<span class="pill good">here</span>':""}</div><div>${esc(t.item)} · <b>${esc(t.price)}</b></div>${t.where?`<div class="sub">${esc(t.where)}</div>`:""}<div class="tr-btns">${t.cmds.map(([l,c],j)=>`<button data-cmd="${i}:${j}">${esc(l)}</button>`).join("")}</div></div>`).join("")}</section>`+h;
+  if(data.regex) h+=`<section><h3>${esc(data.regexLabel||"Search")}</h3><div class="rx"><div class="code">${esc(data.regex)}</div><button data-copy>Copy</button></div></section>`;
+  $("main").innerHTML=h||'<p class="empty">Nothing to show here yet.</p>';
+  document.querySelectorAll("[data-tick]").forEach(c=>c.onchange=()=>D.overlayAction({type:"tick",key:c.dataset.tick}));
+  document.querySelectorAll("[data-cmd]").forEach(b=>b.onclick=()=>{const [i,j]=b.dataset.cmd.split(":").map(Number);D.overlayAction({type:"copy",text:data.trades[i].cmds[j][1]})});
+  const cp=document.querySelector("[data-copy]");if(cp)cp.onclick=()=>D.overlayAction({type:"copy",text:data.regex});
+  clearInterval(mapTimer);
+  mapTimer=setInterval(()=>{
+    const mc=$("mapClock");if(mc&&data.maps&&data.maps.current)mc.textContent=hms(Date.now()-data.maps.current.start);
+    const at=$("actTime");if(at&&data.campaign&&data.campaign.split&&data.campaign.split.since)at.textContent=hms(data.campaign.split.actMs+(Date.now()-data.campaign.split.since));
+  },1000);
+  if(data.hint) $("hint").textContent=data.hint;
+}
+let toastT=null;
+function toast(msg){const t=$("toast");t.textContent=msg;t.classList.add("on");clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove("on"),2200)}
+if(D){
+  D.onOverlayData(d=>{data=d;render()});
+  D.onOverlayInteractive(on=>{document.body.classList.toggle("interactive",on);$("done").hidden=!on;if(on)toast("Click mode: tick steps, copy, drag the header. Press Done when finished.")});
+  D.onOverlayToast(toast);
+  if(D.onOverlayPage)D.onOverlayPage(()=>{const i=PAGES.findIndex(p=>p[0]===page);page=PAGES[(i+1)%PAGES.length][0];render();toast(PAGES.find(p=>p[0]===page)[1]+" page")});
+  $("done").onclick=()=>D.overlayAction({type:"interactive",value:false});
+}
+</script>
+</body>
+</html>

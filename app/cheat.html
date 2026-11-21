@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src file: data:; object-src 'none'; base-uri 'none'; form-action 'none'">
+<title>Cheat sheet</title>
+<style>
+html,body{margin:0;height:100%;background:transparent;overflow:hidden}
+img{width:100%;height:100%;object-fit:contain;display:block}
+.label{position:fixed;left:8px;bottom:6px;font:12px "Segoe UI",system-ui,sans-serif;color:#e8dfcf;background:rgba(14,12,10,.8);padding:2px 8px;border-radius:4px}
+</style>
+</head>
+<body>
+<img id="img" alt="Cheat sheet">
+<div class="label" id="label"></div>
+<script>
+"use strict";
+const q=new URLSearchParams(location.search);
+document.getElementById("img").src=q.get("src")||"";
+document.getElementById("label").textContent=(q.get("label")||"")+" · press the hotkey again for the next one";
+</script>
+</body>
+</html>

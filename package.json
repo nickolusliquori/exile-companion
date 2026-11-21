@@ -1,0 +1,62 @@
+{
+  "name": "exile-companion",
+  "productName": "Exile Companion",
+  "version": "1.0.0",
+  "description": "Path of Exile 3.30 companion: build tracking, campaign and atlas guide, in-game overlay, live log and price checks.",
+  "main": "main.js",
+  "license": "MIT",
+  "author": "nickolusliquori",
+  "homepage": "https://github.com/nickolusliquori/exile-companion",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/nickolusliquori/exile-companion.git"
+  },
+  "scripts": {
+    "start": "electron .",
+    "check": "node scripts/check.js",
+    "dist": "electron-builder --win nsis",
+    "dist:local": "electron-builder --win nsis -c.win.signAndEditExecutable=false"
+  },
+  "dependencies": {
+    "electron-updater": "^6.3.4"
+  },
+  "devDependencies": {
+    "electron": "33.2.1",
+    "electron-builder": "25.1.8"
+  },
+  "build": {
+    "appId": "app.exilecompanion.desktop",
+    "productName": "Exile Companion",
+    "directories": {
+      "buildResources": "build",
+      "output": "dist"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "lib/**",
+      "app/**",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        "nsis"
+      ],
+      "icon": "build/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "artifactName": "Exile-Companion-Setup-${version}.${ext}",
+      "shortcutName": "Exile Companion"
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "nickolusliquori",
+        "repo": "exile-companion",
+        "releaseType": "release"
+      }
+    ]
+  }
+}
