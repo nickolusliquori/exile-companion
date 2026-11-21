@@ -1,7 +1,7 @@
 {
   "name": "exile-companion",
   "productName": "Exile Companion",
-  "version": "1.5.0-beta.2",
+  "version": "1.6.0-beta.1",
   "description": "Path of Exile 3.30 companion: build tracking, campaign and atlas guide, in-game overlay, live log and price checks.",
   "main": "main.js",
   "license": "MIT",
