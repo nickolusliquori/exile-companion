@@ -73,5 +73,27 @@ try {
   ok("problem reports redact secrets and user names");
 } catch (e) { fail("diag: " + e.message); }
 
+// craft lab engine: spawn weights, tiers, fossils and odds look sane on a known base
+try {
+  const ctx = { console, performance, Math, setTimeout, S: {}, save() {}, toast() {}, emptyBox: (m) => m, $: () => null, NINJA: null, DESK: null };
+  ctx.window = ctx; vm.createContext(ctx);
+  vm.runInContext(fs.readFileSync(path.join(appDir, "craftdata.js"), "utf8"), ctx);
+  vm.runInContext(fs.readFileSync(path.join(appDir, "craftlab.js"), "utf8"), ctx);
+  const T = ctx.CraftLab._test, b = T.baseByName("Vaal Regalia");
+  assert(b, "Vaal Regalia missing");
+  const rows = T.groupRows(T.makePool(b, 86, [], []));
+  const life = rows.find((r) => r.grp === "IncreasedLife");
+  assert(life && life.tiers.length >= 8, "life tiers missing");
+  assert(T.groupRows(T.makePool(b, 86, ["shaper"], [])).length > rows.length, "influence adds no mods");
+  const pri = ctx.CRAFTDATA.fossils.find((f) => f.n === "Pristine Fossil");
+  assert(T.groupRows(T.makePool(b, 86, [], [pri])).find((r) => r.grp === "IncreasedLife").share > life.share * 2, "Pristine Fossil doesn't favour life");
+  assert.strictEqual(T.norm("+98 to maximum Life"), T.norm("+(90-99) to maximum Life"));
+  const fire = rows.find((r) => r.grp === "FireResistance");
+  const m = T.methods({ base: b, ilvl: 86, infl: [], fossils: [], targets: [{ key: life.key, g: "p", grp: life.grp, minTier: 3 }, { key: fire.key, g: "s", grp: fire.grp, minTier: 3 }] }, { "Chaos Orb": 1 });
+  const chaos = m.find((x) => x.name === "Chaos Orb spam");
+  assert(chaos && chaos.p > 0.002 && chaos.p < 0.2, "chaos odds out of range: " + (chaos && chaos.p));
+  ok(`craft lab engine works (${ctx.CRAFTDATA.v}, ${Object.keys(ctx.CRAFTDATA.mods).length} mods)`);
+} catch (e) { fail("craft lab: " + e.message); }
+
 if (failures) { console.error(`\n${failures} check(s) failed`); process.exit(1); }
 console.log("\nAll checks passed");

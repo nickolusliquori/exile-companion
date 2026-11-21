@@ -234,6 +234,19 @@ section.tab .card{scroll-margin-top:140px}
 @media (prefers-reduced-motion:reduce){.card.flash{animation:none}}
 [hidden]{display:none!important}
 
+
+/* craft lab */
+.cl-cols{display:grid;gap:16px;grid-template-columns:repeat(auto-fit,minmax(320px,1fr))}
+.cl-list{display:grid;gap:4px;max-height:640px;overflow:auto;padding-right:4px}
+.cl-row{padding:6px 8px;border:1px solid #2a2118;border-radius:3px;background:#0d0b09}
+.cl-row.on{border-color:var(--gold-dim);background:linear-gradient(90deg,rgba(212,174,98,.10),transparent 70%),#0d0b09}
+.cl-row input[type=checkbox]{margin-top:3px}
+.cl-inf{color:#c6a9ff}
+.cl-row select{width:auto;padding:4px 6px}
+.cl-t{font-size:.78rem;margin-top:4px}.cl-t td,.cl-t th{padding:2px 6px}
+.cl-odds td{vertical-align:top}
+.cl-odds tr.best td{background:rgba(113,194,122,.07)}
+#clItem input[list],#clIlvl{width:100%}
 /* update 3: icons, tooltips, compact, phone */
 .ico-s{width:15px;height:15px;flex:none;vertical-align:-2px;margin-right:6px;opacity:.85}
 nav button{display:inline-flex;align-items:center}
@@ -351,6 +364,7 @@ header{transition:transform .2s ease}
     <button role="tab" data-tab="atlas" data-g="play" aria-selected="false">Atlas</button>
     <button role="tab" data-tab="session" data-g="play" aria-selected="false">Session</button>
     <button role="tab" data-tab="craft" data-g="trade" aria-selected="false">Crafting</button>
+    <button role="tab" data-tab="craftlab" data-g="trade" aria-selected="false">Craft lab</button>
     <button role="tab" data-tab="account" data-g="trade" aria-selected="false" id="acctTabBtn" hidden>Account</button>
     <button role="tab" data-tab="settings" data-g="app" aria-selected="false">Settings</button>
     <button role="tab" data-tab="desktop" data-g="app" aria-selected="false" id="deskTabBtn" hidden>Desktop tools</button>
@@ -468,6 +482,11 @@ header{transition:transform .2s ease}
       <div class="card" id="craftCalc"></div>
     </div>
     <div class="card" id="craftRef"></div>
+  </section>
+
+  <!-- CRAFT LAB (mod pools and odds; data loads when opened) -->
+  <section class="tab" id="tab-craftlab" role="tabpanel">
+    <div id="craftLab" style="display:grid;gap:16px"></div>
   </section>
 
   <!-- ACCOUNT (only in the desktop app) -->
@@ -1157,11 +1176,17 @@ function craftPlan(item,slot){
     <p class="small muted" style="margin:0">Full Divine lock for this slot: ${esc(lock)}.</p>
     <p class="note" style="margin:0">Not sure it's worth crafting? Search the trade site for the same base with your 2–3 most important mods. If it's cheaper than ~2 Divine Orbs, buy it.</p>`;
 }
+function openCraftLab(item){
+  const el=$("craftLab");if(el&&!el.firstChild)el.innerHTML='<div class="card hl"><h2>Craft lab</h2><p class="small muted" style="margin:0">Loading…</p></div>';
+  loadScriptOnce("craftlab.js","CraftLab").then(()=>CraftLab.load()).then(()=>{if(item)CraftLab.fromItem(item);else CraftLab.render()})
+    .catch(e=>{if(el)el.innerHTML=`<div class="card"><h2>Craft lab</h2>${emptyBox("Couldn't load the crafting data: "+(e.message||e))}</div>`});
+}
 function renderCraft(){
   $("craftGearList").innerHTML=`<h2>Your gear</h2><p class="small muted" style="margin:0">Pick a piece to plan the craft that turns it into the guide's target.</p><div style="display:grid;gap:6px">${gearButtons("craft")}</div>`;
   const list=slotItems();
   const cur=(selectedSlot&&list.find(x=>x.slot===selectedSlot))||list.find(x=>x.item.id===selectedItem)||list.find(x=>x.item.rarity==="RARE")||list[0];
-  $("craftPlan").innerHTML=cur?craftPlan(cur.item,cur.slot)+curCompareHtml(cur.slot,cur.item):'<h2>Crafting plan</h2><p class="muted">Import a build with items to get a plan.</p>';
+  $("craftPlan").innerHTML=cur?craftPlan(cur.item,cur.slot)+curCompareHtml(cur.slot,cur.item)+(cur.item.rarity!=="UNIQUE"?`<div><button class="btn" id="toLab">Work out the odds in the Craft lab</button></div>`:""):'<h2>Crafting plan</h2><p class="muted">Import a build with items to get a plan.</p>';
+  {const tl=$("toLab");if(tl&&cur)tl.onclick=()=>{showTab("craftlab");openCraftLab(withBuild(viewB(),()=>cur.item))}}
   $("craftProfit").innerHTML=`<h2>Craft for profit</h2>
     ${PROFIT.map(p=>`<details class="sg"><summary class="row" style="justify-content:space-between;cursor:pointer"><b>${esc(p.name)}</b><span class="pill ${p.risk==="High"?"bad":p.risk==="Medium"?"warn":"good"}">Risk: ${p.risk}</span></summary>
       <p class="small muted" style="margin:6px 0">${esc(p.slot)}</p><ol class="steps small">${p.steps.map(s=>`<li>${esc(s)}</li>`).join("")}</ol><p class="small muted" style="margin:6px 0 0">${esc(p.note)}</p></details>`).join("")}
@@ -3245,6 +3270,7 @@ function showTab(name){
   syncNav();
   if(name==="home") setTimeout(renderHome,0);
   if(name==="settings") setTimeout(renderSettings,0);
+  if(name==="craftlab") setTimeout(openCraftLab,0);
   if(name==="trees") setTimeout(renderTrees,0);
   if(name==="maps"&&!$("mapsCards").dataset.loaded){$("mapsCards").dataset.loaded="1";setTimeout(()=>renderCards(false),0)}
   if(location.hash!=="#"+name) history.replaceState(null,"","#"+name);
@@ -3443,6 +3469,9 @@ const HELP={
   atlasProfile:"Your build's strengths decide which farming strategies fit it best.",
   atlasPhases:"How to grow the atlas tree as you get more points.",
   craftPlan:"A crafting plan for the selected slot: base, method and expected cost.",
+  clItem:"Pick the base type, item level and influences. You can start from an item in your goal build.",
+  clOdds:"For the mods you ticked: the chance per try and the average cost of each method, simulated with the game's mod weights and current prices.",
+  clPool:"Every prefix and suffix that can roll on this base at this item level, with how often each comes up. Tick the ones you want.",
   craftProfit:"Crafts that tend to sell for more than they cost.",
   craftCalc:"Estimate the cost of a craft from the chance per try and the price per try.",
   sessTimer:"Times your play session. Maps from the game log land here automatically in the desktop app.",
@@ -3670,7 +3699,7 @@ const ICONS={
   wand:'<path d="M4 20L16 8"/><path d="M15 3v3M18 6h3M19 2l-1 2M13 5l2 1"/>',
 };
 const svgIcon=(n,cls)=>ICONS[n]?`<svg class="${cls||"ico-s"}" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">${ICONS[n]}</svg>`:"";
-const TAB_ICONS={home:"home",build:"sword",progress:"chart",shop:"bag",trees:"tree",campaign:"flag",maps:"map",atlas:"compass",session:"hourglass",craft:"hammer",account:"coins",settings:"gear",desktop:"monitor"};
+const TAB_ICONS={craftlab:"wand",home:"home",build:"sword",progress:"chart",shop:"bag",trees:"tree",campaign:"flag",maps:"map",atlas:"compass",session:"hourglass",craft:"hammer",account:"coins",settings:"gear",desktop:"monitor"};
 const GROUP_ICONS={home:"home",char:"user",play:"map",trade:"coins",app:"gear"};
 function decorateNav(){
   document.querySelectorAll("#tabs [data-tab]").forEach(b=>{if(!b.querySelector("svg"))b.insertAdjacentHTML("afterbegin",svgIcon(TAB_ICONS[b.dataset.tab]))});
@@ -3685,6 +3714,7 @@ const CARD_ICONS={homeChar:"user",homeNext:"route",homeSession:"hourglass",homeL
   campAct:"flag",campGems:"gem",campSplits:"clock",campBuild:"tree",campRules:"scale",campReadouts:"chat",campOverview:"route",
   mapsNext:"route",mapsDanger:"skull",mapsProgress:"list",mapsCompletion:"map",mapsBosses:"skull",mapsCards:"card",
   treesCard:"tree",atlasProfile:"compass",atlasPhases:"route",atlasTree:"tree",
+  clItem:"sword",clOdds:"calc",clPool:"list",
   craftGearList:"sword",craftPlan:"hammer",craftProfit:"coins",craftCalc:"calc",craftRef:"news",
   sessTimer:"hourglass",sessGameLog:"news",sessAdd:"list",sessProfit:"coins",sessRecap:"clock",sessLog:"list",
   acctChar:"user",acctNet:"chest",acctFinds:"search",acctCx:"chart",acctSales:"trade",
