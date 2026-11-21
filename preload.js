@@ -68,6 +68,8 @@ contextBridge.exposeInMainWorld("exileDesktop", {
   cheatList: () => ipcRenderer.invoke("cheat:list"),
   cheatAdd: () => ipcRenderer.invoke("cheat:add"),
   cheatRemove: (n) => ipcRenderer.invoke("cheat:remove", n),
+  cheatRestore: (n) => ipcRenderer.invoke("cheat:restore", n),
+  suspendHotkeys: (on) => ipcRenderer.send("hotkeys:suspend", !!on),
   backupSave: (json) => ipcRenderer.invoke("backup:save", json),
   backupOpen: () => ipcRenderer.invoke("backup:open"),
   backupAuto: (json) => ipcRenderer.invoke("backup:auto", json),

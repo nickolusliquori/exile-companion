@@ -229,7 +229,7 @@ function startLog() {
     const found = detectLogPaths();
     if (found.length) { cfg.logPath = found[0].path; saveCfg(); }
   }
-  if (!cfg.logPath) { sendMain("log:status", { ok: false, message: "Client.txt not found. Choose it on the Desktop tab." }); return; }
+  if (!cfg.logPath) { sendMain("log:status", { ok: false, message: "Client.txt not found. Choose it under Settings → Desktop tools." }); return; }
   tail = new Tail(cfg.logPath,
     (text) => {
       const ev = parseEvents(text);
@@ -310,7 +310,7 @@ const listCheats = () => { try { return fs.readdirSync(cheatDir()).filter((f) =>
 let cheatWin = null, cheatIdx = -1;
 function cycleCheat() {
   const list = listCheats();
-  if (!list.length) { overlayWin && overlayWin.webContents.send("overlay:toast", "Add cheat sheets on the Desktop tab first"); return; }
+  if (!list.length) { overlayWin && overlayWin.webContents.send("overlay:toast", "Add cheat sheets under Settings → Desktop tools first"); return; }
   cheatIdx++;
   if (cheatIdx >= list.length) { cheatIdx = -1; if (cheatWin) cheatWin.hide(); return; }
   const file = path.join(cheatDir(), list[cheatIdx]);
@@ -443,7 +443,20 @@ ipcMain.handle("cheat:add", async () => {
   r.filePaths.forEach((f) => fs.copyFileSync(f, path.join(cheatDir(), path.basename(f))));
   return listCheats();
 });
-ipcMain.handle("cheat:remove", (e, name) => { try { fs.unlinkSync(path.join(cheatDir(), path.basename(String(name)))); } catch (err) { /* ignore */ } cheatIdx = -1; if (cheatWin) cheatWin.hide(); return listCheats(); });
+// removed sheets go to a trash folder first so the app can offer Undo; the trash is emptied on the next start
+const cheatTrash = () => path.join(cheatDir(), ".trash");
+ipcMain.handle("cheat:remove", (e, name) => {
+  const base = path.basename(String(name));
+  try { fs.mkdirSync(cheatTrash(), { recursive: true }); fs.renameSync(path.join(cheatDir(), base), path.join(cheatTrash(), base)); } catch (err) { /* ignore */ }
+  cheatIdx = -1; if (cheatWin) cheatWin.hide(); return listCheats();
+});
+ipcMain.handle("cheat:restore", (e, name) => {
+  const base = path.basename(String(name));
+  try { fs.renameSync(path.join(cheatTrash(), base), path.join(cheatDir(), base)); } catch (err) { /* ignore */ }
+  return listCheats();
+});
+// pause global hotkeys while the Settings page records a new key combination
+ipcMain.on("hotkeys:suspend", (e, on) => { if (on) globalShortcut.unregisterAll(); else registerHotkeys(); });
 ipcMain.handle("backup:save", wrap(async (json) => {
   const r = await dialog.showSaveDialog(mainWin, { title: "Save backup", defaultPath: path.join(app.getPath("documents"), `ExileCompanion-backup-${new Date().toISOString().slice(0, 10)}.json`), filters: [{ name: "Backup", extensions: ["json"] }] });
   if (r.canceled || !r.filePath) throw new Error("Cancelled");
@@ -506,6 +519,7 @@ else {
         { label: "Reset position", click: () => { cfg.overlayBounds = null; saveCfg(); overlayWin && overlayWin.setBounds(defaultOverlayBounds()); } },
       ] },
     ]));
+    try { fs.rmSync(path.join(app.getPath("userData"), "cheatsheets", ".trash"), { recursive: true, force: true }); } catch (e) { /* ignore */ }
     createMain();
     createOverlay();
     createPrice();

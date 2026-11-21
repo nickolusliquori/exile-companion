@@ -226,6 +226,30 @@ section.tab .card{scroll-margin-top:140px}
 .steps.tight li{margin-bottom:4px}
 @media (prefers-reduced-motion:reduce){.card.flash{animation:none}}
 [hidden]{display:none!important}
+/* update 2: settings, wizard, help, empty states, undo */
+.card:empty{display:none}
+.grid:not(:has(> .card:not(:empty))){display:none}
+.helpbtn{margin-left:8px;width:20px;height:20px;border-radius:50%;border:1px solid var(--gold-dim);background:#0b0806;color:var(--gold);font:700 .75rem/1 var(--body);vertical-align:middle;padding:0;display:inline-grid;place-items:center}
+.helpbtn[aria-expanded="true"]{background:var(--gold);color:#1a140c}
+.helptext{margin:0;font-size:.85rem;color:var(--text);background:rgba(212,174,98,.07);border-left:2px solid var(--gold-dim);padding:8px 10px;border-radius:0 3px 3px 0}
+.emptybox{display:grid;gap:8px;justify-items:start;padding:12px;border:1px dashed var(--line);border-radius:4px;background:rgba(0,0,0,.18)}
+.emptybox p{margin:0;color:var(--muted);font-size:.9rem}
+#toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);z-index:50;display:flex;gap:12px;align-items:center;background:linear-gradient(#2a2017,#17110b);border:1px solid var(--gold-dim);border-radius:4px;padding:10px 14px;box-shadow:0 10px 30px rgba(0,0,0,.7);max-width:92vw}
+#toast[hidden]{display:none}
+#setup{width:min(680px,95vw)}
+.wiz-head{padding:16px 18px 10px;border-bottom:1px solid var(--line);display:grid;gap:10px}
+.wiz-dots{list-style:none;margin:0;padding:0;display:flex;gap:6px;flex-wrap:wrap}
+.wiz-dots li{font-size:.75rem;padding:3px 10px;border-radius:99px;border:1px solid var(--line);color:var(--muted)}
+.wiz-dots li.on{border-color:var(--gold);color:var(--gold)}
+.wiz-dots li.ok{border-color:#71c27a66;color:var(--good)}
+.wiz-body{padding:16px 18px;display:grid;gap:12px;min-height:230px;align-content:start}
+.wiz-body textarea{width:100%;min-height:90px;background:#0b0806;border:1px solid var(--line);border-radius:3px;padding:8px;font-size:.85rem}
+.wiz-foot{padding:12px 18px;border-top:1px solid var(--line);display:flex;gap:8px;align-items:center}
+.hk{display:grid;grid-template-columns:1fr 150px auto;gap:8px;align-items:center;padding:4px 0;border-bottom:1px solid #2a2118}
+.hk input{background:#0b0806;border:1px solid var(--line);border-radius:3px;padding:6px 8px;text-align:center;cursor:pointer;caret-color:transparent}
+.hk input.rec{border-color:var(--gold);box-shadow:0 0 0 1px var(--gold);color:var(--gold)}
+.hk .dup{color:var(--warn)}
+
 @media (max-width:600px){#groups button{padding:9px 10px;font-size:.88rem}#groups .kbtn kbd,#groups .kbtn .lbl{display:none}#groups .kbtn{font-size:1.1rem}}
 </style>
 </head>
@@ -241,7 +265,7 @@ section.tab .card{scroll-margin-top:140px}
     <button data-group="char">Character</button>
     <button data-group="play">Play</button>
     <button data-group="trade">Economy</button>
-    <button data-group="app" id="appGroupBtn" hidden>Desktop</button>
+    <button data-group="app" id="appGroupBtn">Settings</button>
     <button class="kbtn" id="openSearch" title="Search everything (Ctrl+K)"><span aria-hidden="true">&#x2315;</span> <span class="lbl">Search</span> <kbd>Ctrl K</kbd></button>
   </nav>
   <nav role="tablist" id="tabs" aria-label="Pages">
@@ -256,7 +280,8 @@ section.tab .card{scroll-margin-top:140px}
     <button role="tab" data-tab="session" data-g="play" aria-selected="false">Session</button>
     <button role="tab" data-tab="craft" data-g="trade" aria-selected="false">Crafting</button>
     <button role="tab" data-tab="account" data-g="trade" aria-selected="false" id="acctTabBtn" hidden>Account</button>
-    <button role="tab" data-tab="desktop" data-g="app" aria-selected="false" id="deskTabBtn" hidden>Desktop</button>
+    <button role="tab" data-tab="settings" data-g="app" aria-selected="false">Settings</button>
+    <button role="tab" data-tab="desktop" data-g="app" aria-selected="false" id="deskTabBtn" hidden>Desktop tools</button>
   </nav>
 </header>
 
@@ -375,10 +400,7 @@ section.tab .card{scroll-margin-top:140px}
 
   <!-- ACCOUNT (only in the desktop app) -->
   <section class="tab" id="tab-account" role="tabpanel">
-    <div class="grid">
-      <div class="card hl" id="acctConn"></div>
-      <div class="card" id="acctChar"></div>
-    </div>
+    <div class="card hl" id="acctChar"></div>
     <div class="card" id="acctNet"></div>
     <div class="grid">
       <div class="card" id="acctFinds"></div>
@@ -395,22 +417,34 @@ section.tab .card{scroll-margin-top:140px}
     </div>
     <div class="grid">
       <div class="card" id="deskPrice"></div>
-      <div class="card" id="deskRules"></div>
+      <div class="card" id="deskTrades"></div>
     </div>
     <div class="grid">
-      <div class="card" id="deskTrades"></div>
+      <div class="card" id="deskAlerts"></div>
+      <div class="card" id="deskCheats"></div>
+    </div>
+    <div class="grid">
+      <div class="card" id="deskNews"></div>
+      <div class="card" id="deskRules"></div>
+    </div>
+  </section>
+
+  <!-- SETTINGS -->
+  <section class="tab" id="tab-settings" role="tabpanel">
+    <div class="grid">
+      <div class="card hl" id="setGeneral"></div>
+      <div class="card" id="setHotkeys"></div>
+    </div>
+    <div class="grid">
+      <div class="card" id="acctConn"></div>
       <div class="card" id="deskDiscord"></div>
     </div>
     <div class="grid">
       <div class="card" id="deskUpdates"></div>
-      <div class="card" id="deskNews"></div>
-    </div>
-    <div class="grid">
       <div class="card" id="deskBackup"></div>
-      <div class="card" id="deskCheats"></div>
     </div>
     <div class="grid">
-      <div class="card" id="deskAlerts"></div>
+      <div class="card" id="sessSync"></div>
       <div class="card" id="deskStream"></div>
     </div>
   </section>
@@ -423,10 +457,7 @@ section.tab .card{scroll-margin-top:140px}
       <div class="card" id="sessAdd"></div>
     </div>
     <div class="card" id="sessProfit"></div>
-    <div class="grid">
-      <div class="card" id="sessRecap"></div>
-      <div class="card" id="sessSync"></div>
-    </div>
+    <div class="card" id="sessRecap"></div>
     <div class="card" id="sessLog"></div>
   </section>
 </main>
@@ -436,6 +467,12 @@ section.tab .card{scroll-margin-top:140px}
   <ul id="cmdkList" role="listbox"></ul>
   <p class="cmdk-foot small muted">↑ ↓ to move · Enter to open · Esc to close</p>
 </dialog>
+<dialog id="setup" aria-label="Setup">
+  <div class="wiz-head"><h2>Set up Exile Companion</h2><ol class="wiz-dots" id="wizDots"></ol></div>
+  <div class="wiz-body" id="wizBody"></div>
+  <div class="wiz-foot"><button class="btn ghost" id="wizBack">Back</button><span style="flex:1"></span><button class="btn ghost" id="wizSkip">Skip</button><button class="btn primary" id="wizNext">Next</button></div>
+</dialog>
+<div id="toast" role="status" aria-live="polite" hidden></div>
 <dialog id="importDlg">
   <form class="dlg" id="importForm" method="dialog">
     <h2>Import Path of Building</h2>
@@ -1603,7 +1640,7 @@ function splitTotals(r){let cum=0;const rows=[];for(let a=1;a<=10;a++){const v=r
 function renderSplits(){
   const el=$("campSplits");if(!el)return;
   const runs=S.splitRuns||[];
-  if(!runs.length){el.innerHTML=`<h2>Act splits</h2><p class="small" style="margin:0">Upload or link your Client.txt (Session tab) and your time per act appears here, compared with your best run.</p><div><button class="btn ghost small" id="splitGo">Go to game log</button></div>`;$("splitGo").onclick=()=>showTab("session");return}
+  if(!runs.length){el.innerHTML=`<h2>Act splits</h2><p class="small" style="margin:0">Upload or link your Client.txt (Play → Session) and your time per act appears here, compared with your best run.</p><div><button class="btn ghost small" id="splitGo">Go to game log</button></div>`;$("splitGo").onclick=()=>showTab("session");return}
   const latest=runs[runs.length-1];
   const finished=runs.filter(r=>r.done);
   const pb=finished.length?finished.reduce((a,b)=>Object.values(a.ms).reduce((x,y)=>x+y,0)<=Object.values(b.ms).reduce((x,y)=>x+y,0)?a:b):null;
@@ -1651,7 +1688,7 @@ function renderProfit(){
     <div class="tw"><table><thead><tr><th>Strategy</th><th>Maps</th><th>Avg time</th><th>Avg profit</th><th>Per hour</th></tr></thead><tbody>
     ${rows.map(r=>`<tr><td>${esc(r.k)}${bestK&&bestK.k===r.k?' <span class="pill good">best</span>':""}</td><td class="num">${r.n}</td><td class="num">${r.avgT?hms(r.avgT):"–"}</td><td class="num">${fmt(r.avgP)}c</td><td class="num">${r.cph!=null?`${fmt(r.cph)}c · ${(r.cph/S.divine).toFixed(2)} div`:"–"}</td></tr>`).join("")}
     </tbody></table></div>
-    <p class="note" style="margin:0">Per hour uses maps with a recorded time (from the game log) and the profit you entered. A strategy is marked best once it has 3+ maps with profit filled in. Switch strategy on the Atlas tab and new maps log under it.</p>`:'<p class="small muted" style="margin:0">Log maps (by hand or from your game log) under different strategies to compare chaos per hour.</p>'}`;
+    <p class="note" style="margin:0">Per hour uses maps with a recorded time (from the game log) and the profit you entered. A strategy is marked best once it has 3+ maps with profit filled in. Switch strategy on the Atlas tab and new maps log under it.</p>`:emptyBox("Log maps (by hand or from your game log) under different strategies to compare chaos per hour.",[["Add a map","addMap"]])}`;
 }
 
 /* ---------------- render: session ---------------- */
@@ -1674,7 +1711,7 @@ function renderSession(){
     <div class="row"><button class="btn primary" id="sessToggle">${s.start?"Pause":"Start"} timer</button><button class="btn ghost" id="sessReset">New session</button></div>
     <p class="small muted" style="margin:0">Divine valued at ${S.divine}c (change it in the crafting calculator).</p>`;
   $("sessToggle").onclick=()=>{if(s.start){s.elapsed+=Date.now()-s.start;s.start=null}else s.start=Date.now();save();renderSession()};
-  $("sessReset").onclick=()=>{if($("sessReset").dataset.armed){S.session={start:null,elapsed:0,maps:[]};save();renderSession()}else{$("sessReset").dataset.armed="1";$("sessReset").textContent="Tap again to clear"}};
+  $("sessReset").onclick=()=>{const prev=S.session;S.session={start:null,elapsed:0,maps:[]};save();renderSession();toast(`Session cleared (${prev.maps.length} map${prev.maps.length===1?"":"s"}).`,()=>{S.session=prev;save();renderSession()})};
   clearInterval(tick);if(s.start)tick=setInterval(()=>{const c=$("clock");if(c)c.textContent=hms(elapsed())},1000);
   const curStrat=(STRATS.find(x=>x.id===S.strat)||primaryStrat()).name;
   $("sessAdd").innerHTML=`<h2>Log a map</h2>
@@ -1692,8 +1729,8 @@ function renderSession(){
     <div class="row">${Object.entries(byStrat).map(([k,v])=>`<span class="pill gold">${esc(k)}: ${fmt(v.p/v.n)}c avg/map</span>`).join("")}</div>
     <div class="tw"><table><thead><tr><th>#</th><th>Tier</th><th>Strategy</th><th>Time</th><th>Threads</th><th>Profit (c)</th><th>Note</th><th></th></tr></thead><tbody>
     ${s.maps.map((m,i)=>`<tr><td class="num">${i+1}</td><td class="num">T${m.tier}</td><td>${esc(m.strat)}</td><td class="num">${m.dur?hms(m.dur):"–"}</td><td class="num">${m.threads}</td><td><input class="pinput num" type="number" step="any" value="${m.profit}" data-profit="${i}" aria-label="Profit for map ${i+1}"></td><td>${esc(m.note)}</td><td><button class="btn ghost small" data-del="${i}" aria-label="Delete map ${i+1}">✕</button></td></tr>`).reverse().join("")}
-    </tbody></table></div>`:'<p class="muted" style="margin:0">No maps logged yet. Start the timer and log each map to see which strategy really pays best for your character.</p>'}`;
-  document.querySelectorAll("[data-del]").forEach(b=>b.onclick=()=>{s.maps.splice(+b.dataset.del,1);save();renderSession()});
+    </tbody></table></div>`:emptyBox("No maps logged yet. Start the timer and log each map (or connect your game log to log them automatically) to see which strategy really pays best.",[["Start the timer","startTimer"],["Add a map","addMap"],[DESK?"Connect game log":"Upload Client.txt","findLog"]])}`;
+  document.querySelectorAll("[data-del]").forEach(b=>b.onclick=()=>{const i=+b.dataset.del,m=S.session.maps.splice(i,1)[0];save();renderSession();toast(`Removed map ${i+1} from the log.`,()=>{S.session.maps.splice(i,0,m);save();renderSession()})});
   document.querySelectorAll("[data-profit]").forEach(inp=>inp.onchange=()=>{s.maps[+inp.dataset.profit].profit=+inp.value||0;save();renderSession()});
   renderGameLog();renderProfit();renderRecaps();renderSync();
 }
@@ -1918,7 +1955,7 @@ function renderDesktop(){
   $("deskOverlay").innerHTML=`<h2>Overlay</h2>
     <div class="row"><button class="btn primary" id="dkOvl">${LIVE.overlayVisible?"Hide overlay":"Show overlay"}</button><button class="btn" id="dkInt">${LIVE.interactive?"Back to click-through":"Click mode (move, tick, copy)"}</button><button class="btn ghost" id="dkReset">Reset position</button></div>
     <label class="f" for="dkOpacity">Opacity: ${Math.round((c.overlayOpacity||0.92)*100)}%<input type="range" id="dkOpacity" min="0.4" max="1" step="0.02" value="${c.overlayOpacity||0.92}"></label>
-    <div class="fgrid">${hk("dkHkO","Show / hide","overlayHotkey")}${hk("dkHkI","Click mode","interactHotkey")}${hk("dkHkC","Copy current search","copyHotkey")}</div>
+    <p class="small muted" style="margin:0">Hotkeys: <b>${esc(keyName(c.overlayHotkey||"Ctrl+Shift+O"))}</b> show/hide · <b>${esc(keyName(c.interactHotkey||"Ctrl+Shift+I"))}</b> click mode · <b>${esc(keyName(c.copyHotkey||"Ctrl+Shift+F"))}</b> copy search. <a href="#settings">Change them in Settings</a>.</p>
     <p class="small muted" style="margin:0">Run Path of Exile in <b>Windowed Fullscreen</b> (Options → Graphics); true fullscreen hides overlays. In campaign zones the overlay shows the act's next steps, gem rewards and XP range. In maps it shows a map timer, deaths, your session rate and the map-mod search.</p>`;
   $("dkOvl").onclick=()=>DESK.toggleOverlay(!LIVE.overlayVisible);
   $("dkInt").onclick=()=>DESK.setInteractive(!LIVE.interactive);
@@ -1926,14 +1963,11 @@ function renderDesktop(){
   $("dkOpacity").onchange=async e=>{LIVE.cfg=await DESK.setConfig({overlayOpacity:+e.target.value});renderDesktop()};
   $("deskPrice").innerHTML=`<h2>Price check</h2>
     <p class="small" style="margin:0">Hover an item in game and press <b>Ctrl+C</b> (the game's own copy). A price window pops up next to your cursor with poe.ninja values and the cheapest live listings. For rares it searches by the item's best mods, and you can tick mods on or off and search again.</p>
-    <label class="row small"><input type="checkbox" id="dkOnCopy"${c.priceOnCopy!==false?" checked":""}> Price-check automatically on Ctrl+C</label>
-    <div class="fgrid">${hk("dkHkP","Re-open last price check","priceHotkey")}
-      <label class="f" for="dkLeague">Trade league<input type="text" id="dkLeague" value="${esc(c.league||"")}" data-cfg="league" placeholder="detected automatically"></label>
-      <label class="f" for="dkContact">Contact for API requests (optional)<input type="text" id="dkContact" value="${esc(c.contact||"")}" data-cfg="contact" placeholder="email or forum name"></label></div>
+    <p class="small muted" style="margin:0">${c.priceOnCopy!==false?"Automatic on Ctrl+C is on.":"Automatic on Ctrl+C is off."} <b>${esc(keyName(c.priceHotkey||"Ctrl+D"))}</b> re-opens the last check. League ${esc(c.league||"detected automatically")}. <a href="#settings">Change in Settings</a>.</p>
     <details class="small"><summary style="cursor:pointer">Test with pasted item text</summary><textarea id="dkTest" placeholder="Paste text copied from an item in game"></textarea><button class="btn" id="dkTestGo" style="margin-top:6px">Run price check</button></details>
     <p class="note" style="margin:0">Prices come from pathofexile.com/trade and poe.ninja, cached for 15 minutes. The trade site limits how often you can search, so the app waits when it's told to.</p>`;
-  $("dkOnCopy").onchange=async e=>{LIVE.cfg=await DESK.setConfig({priceOnCopy:e.target.checked})};
   $("dkTestGo").onclick=()=>{const t=$("dkTest").value.trim();if(t)DESK.testPrice(t)};
+  renderSettings();
   document.querySelectorAll("#tab-desktop [data-cfg]").forEach(inp=>inp.onchange=async()=>{const patch={};patch[inp.dataset.cfg]=inp.value.trim()||null;LIVE.cfg=await DESK.setConfig(patch);if(inp.dataset.cfg==="league"&&LIVE.cfg.league){S.league=LIVE.cfg.league;save();renderShop()}publishOverlay()});
   $("deskRules").innerHTML=`<h2>Playing by the rules</h2>
     <ul class="small" style="margin:0;padding-left:18px">
@@ -2224,7 +2258,7 @@ function stashFinds(){
 }
 function renderStashFinds(){
   const el=$("acctFinds");if(!el) return;
-  if(!ACCT.stashItems){el.innerHTML=`<h2>Stash finds</h2><p class="small muted" style="margin:0">Take a net worth snapshot first. Then this lists rares in your stash that beat your current gear for the goal build, and rares worth price-checking to sell.</p>`;return}
+  if(!ACCT.stashItems){el.innerHTML=`<h2>Stash finds</h2>${emptyBox("Take a net worth snapshot first. Then this lists rares in your stash that beat your current gear for the goal build, and rares worth price-checking to sell.",[["Take a snapshot","snapshot"]])}`;return}
   const f=stashFinds();
   const pos=s=>s.x!=null?` · left ${s.x+1}, top ${s.y+1}`:"";
   el.innerHTML=`<h2>Stash finds</h2>
@@ -2286,7 +2320,7 @@ function renderAtlasTree(){
   const canRead=DESK&&ACCT.status&&ACCT.status.signedIn;
   el.innerHTML=`<h2>Atlas notables for ${esc(strat.name)}</h2>
     <p class="small muted" style="margin:0">From GGG's 3.30 atlas tree data. ${S.atlasHashes?`Read from your account ${new Date(S.atlasAt).toLocaleString()}: ${S.atlasHashes.length} points spent.`:"Tick the ones you've taken, or read your tree from your account (desktop app, GGG sign-in)."}</p>
-    ${DESK?`<div class="row"><button class="btn" id="atRead"${canRead?"":" disabled"}>Read my atlas tree</button>${canRead?"":'<span class="small muted">Needs a GGG sign-in (Account tab)</span>'}</div>`:""}
+    ${DESK?`<div class="row"><button class="btn" id="atRead"${canRead?"":" disabled"}>Read my atlas tree</button>${canRead?"":'<span class="small muted">Needs a GGG sign-in (Settings)</span>'}</div>`:""}
     ${S.atlasHashes&&Object.keys(counts).length?`<div class="row">${Object.entries(counts).sort((a,b)=>b[1]-a[1]).slice(0,8).map(([k,v])=>`<span class="pill ${k===mech?"good":""}">${esc(k)} ${v}</span>`).join("")}</div>`:""}
     ${nodes.length?`<ul class="clean small">${nodes.map(n=>`<li><label class="check ${taken(n.id)?"done":""}"><input type="checkbox" data-atl="${n.id}"${taken(n.id)?" checked":""}${have.size?" disabled":""}><div><div class="t"><b>${esc(n.name)}</b>${n.kind==="k"?' <span class="tag trial">keystone</span>':""}</div><div class="muted">${esc(n.stats.join(" "))}</div></div></label></li>`).join("")}</ul>`:`<p class="small muted" style="margin:0">${strat.id==="covens"?"Covens & Fates has no atlas cluster: it's the league mechanic.":"No dedicated notables for this one."}</p>`}
     <details class="small"><summary style="cursor:pointer">All keystones (${kst.length})</summary><ul class="clean" style="margin-top:6px">${kst.map(k=>`<li><b${taken(k.id)?' style="color:var(--good)"':""}>${esc(k.name)}</b> <span class="muted">${esc(k.stats.join(" "))}</span></li>`).join("")}</ul></details>`;
@@ -2357,7 +2391,7 @@ function renderTrades(){
   const el=$("deskTrades");if(!el) return;
   el.innerHTML=`<h2>Trade requests</h2>${TRADES.length?`<ul class="clean small">${TRADES.map((t,i)=>`<li class="sg"><div class="row" style="justify-content:space-between"><b>${esc(t.name)}</b>${t.joined?'<span class="pill good">in your area</span>':`<span class="muted">${new Date(t.t).toLocaleTimeString()}</span>`}</div><div>${esc(t.item)} · <b>${esc(t.amount)} ${esc(t.currency)}</b>${t.tab?` <span class="muted">· "${esc(t.tab)}" left ${t.left}, top ${t.top}</span>`:""}</div><div class="row" style="margin-top:4px">${tradeCmds(t).map(([l,c],j)=>`<button class="btn ghost small" data-tc="${i}:${j}">${l}</button>`).join("")}<button class="btn ghost small" data-tx="${i}">Dismiss</button></div></li>`).join("")}</ul><p class="small muted" style="margin:0">Buttons copy the command; paste it in game chat with Enter, Ctrl+V, Enter. The app never sends anything for you.</p>`:'<p class="small muted" style="margin:0">Incoming trade whispers show up here (and on the overlay) with the item, price and stash position.</p>'}`;
   el.querySelectorAll("[data-tc]").forEach(b=>b.onclick=()=>{const [i,j]=b.dataset.tc.split(":").map(Number);DESK.copy(tradeCmds(TRADES[i])[j][1]);b.textContent="Copied"});
-  el.querySelectorAll("[data-tx]").forEach(b=>b.onclick=()=>{TRADES.splice(+b.dataset.tx,1);renderTrades();publishOverlay()});
+  el.querySelectorAll("[data-tx]").forEach(b=>b.onclick=()=>{const i=+b.dataset.tx,t=TRADES.splice(i,1)[0];renderTrades();publishOverlay();toast(`Dismissed ${t.name}'s request.`,()=>{TRADES.splice(i,0,t);renderTrades();publishOverlay()})});
 }
 
 /* ---------- reminders (notifications) ---------- */
@@ -2373,7 +2407,7 @@ function reminderOnAct(act){
   const g=gemPlan(G).filter(p=>p.act===act&&(p.how==="quest"||p.how==="vendor")).map(p=>p.info.name);
   DESK.notify({kind:"acts",title:`Act ${act}`,body:`Aim for level ${A.lvl[0]}–${A.lvl[1]} at the boss.${g.length?" Gems: "+g.join(", ")+".":""}`});
 }
-function reminderOnMaps(){const n=S.session.maps.length;if([10,25,50,100,250,500].includes(n))DESK.notify({kind:"milestones",title:`${n} maps logged`,body:"Check the Session tab to see which farm pays best."})}
+function reminderOnMaps(){const n=S.session.maps.length;if([10,25,50,100,250,500].includes(n))DESK.notify({kind:"milestones",title:`${n} maps logged`,body:"Check Play → Session to see which farm pays best."})}
 
 /* ---------- Discord presence ---------- */
 let discordT=null,discordStart=Date.now();
@@ -2466,7 +2500,7 @@ function renderRecaps(){
   const list=(S.recaps||[]).slice().reverse();
   const live=makeRecap();
   el.innerHTML=`<div class="row" style="justify-content:space-between"><h2>Session recaps</h2><button class="btn" id="rcSave">End session & save recap</button></div>
-    ${live?`<p class="small" style="margin:0"><b>This session so far:</b> ${esc(recapLine(live))}${live.profit?` · ${fmt(live.profit)}c profit`:""}</p>`:'<p class="small muted" style="margin:0">Nothing to recap yet this session.</p>'}
+    ${live?`<p class="small" style="margin:0"><b>This session so far:</b> ${esc(recapLine(live))}${live.profit?` · ${fmt(live.profit)}c profit`:""}</p>`:emptyBox("Nothing to recap yet this session. Start the timer or run a few maps.",[["Start the timer","startTimer"]])}
     ${list.length?`<div class="tw"><table><thead><tr><th>When</th><th>Length</th><th>Summary</th><th>Profit</th><th>Best map</th></tr></thead><tbody>${list.slice(0,12).map(r=>`<tr><td>${new Date(r.start).toLocaleDateString()} ${new Date(r.start).toLocaleTimeString([], {hour:"2-digit",minute:"2-digit"})}</td><td class="num">${hms(r.end-r.start)}</td><td>${esc(recapLine(r))}</td><td class="num">${r.profit?fmt(r.profit)+"c":"–"}</td><td>${r.best?`${esc(r.best.name)} (${fmt(r.best.profit)}c)`:"–"}</td></tr>`).join("")}</tbody></table></div>`:""}
     <p class="note" style="margin:0">${DESK?"A recap is saved automatically when you close the app.":"Saved when you press the button (or when you leave this page)."}</p>`;
   $("rcSave").onclick=()=>{saveRecap(true);renderRecaps();renderSession()};
@@ -2515,11 +2549,11 @@ async function checkAlerts(manual){
   save();renderAlerts();
 }
 function startAlerts(){clearInterval(alertTimer);if(DESK)alertTimer=setInterval(()=>checkAlerts(false),15*60e3)}
-function setWatch(name,kind,target){S.watch=S.watch||{};if(!target){delete S.watch[name]}else S.watch[name]={...(S.watch[name]||{}),name,kind,target:+target};save();renderAlerts();checkAlerts(false)}
+function setWatch(name,kind,target){S.watch=S.watch||{};if(!target){const old=S.watch[name];delete S.watch[name];if(old)toast(`Removed the price alert for ${name}.`,()=>{S.watch[name]=old;save();renderAlerts();if(typeof renderShop==="function")renderShop()})}else S.watch[name]={...(S.watch[name]||{}),name,kind,target:+target};save();renderAlerts();checkAlerts(false)}
 function renderAlerts(){
   const el=$("deskAlerts");if(!el) return;
   const ws=Object.values(S.watch||{});
-  el.innerHTML=`<h2>Price alerts</h2>${ws.length?`<div class="tw"><table><thead><tr><th>Item</th><th>Now</th><th>Alert at</th><th></th></tr></thead><tbody>${ws.map(w=>`<tr><td>${esc(w.name)}</td><td class="num">${w.last!=null?`<span class="pill ${w.last<=w.target?"good":""}">${fmt(w.last)}c</span>${w.trend!=null?trendHtml({ch:w.trend,data:[]}):""}`:"–"}</td><td class="num">≤ ${fmt(w.target)}c</td><td><button class="btn ghost small" data-unwatch="${esc(w.name)}">Remove</button></td></tr>`).join("")}</tbody></table></div><div class="row"><button class="btn ghost small" id="alCheck">Check now</button></div>`:'<p class="small muted" style="margin:0">Set an alert next to any unique or gem on the Shopping list. Prices are checked every 15 minutes while the app is open.</p>'}
+  el.innerHTML=`<h2>Price alerts</h2>${ws.length?`<div class="tw"><table><thead><tr><th>Item</th><th>Now</th><th>Alert at</th><th></th></tr></thead><tbody>${ws.map(w=>`<tr><td>${esc(w.name)}</td><td class="num">${w.last!=null?`<span class="pill ${w.last<=w.target?"good":""}">${fmt(w.last)}c</span>${w.trend!=null?trendHtml({ch:w.trend,data:[]}):""}`:"–"}</td><td class="num">≤ ${fmt(w.target)}c</td><td><button class="btn ghost small" data-unwatch="${esc(w.name)}">Remove</button></td></tr>`).join("")}</tbody></table></div><div class="row"><button class="btn ghost small" id="alCheck">Check now</button></div>`:emptyBox("No price alerts yet. Set one next to any unique or gem on the Shopping list, or add one below. Prices are checked every 15 minutes while the app is open.",[["Open shopping list","shop"]])}
     <h3>Add any item</h3><div class="row"><input type="text" id="alName" placeholder="Exact name, e.g. Headhunter" style="flex:2"><input type="number" id="alTarget" placeholder="chaos" style="flex:1"><select id="alKind"><option value="unique">Unique</option><option value="gem">Gem</option><option value="currency">Currency/other</option></select><button class="btn" id="alAdd">Add</button></div>`;
   el.querySelectorAll("[data-unwatch]").forEach(b=>b.onclick=()=>setWatch(b.dataset.unwatch,null,0));
   const ck=$("alCheck");if(ck)ck.onclick=()=>checkAlerts(true);
@@ -2594,7 +2628,7 @@ function loadQr(){if(qrLib)return Promise.resolve(qrLib);return new Promise((res
 function renderSync(){
   const el=$("sessSync");if(!el) return;
   el.innerHTML=`<h2>Sync with another device</h2>
-    <p class="small" style="margin:0">Move your progress between the desktop app and the web version on your phone. Create a code here, then open the other device's Session tab and paste it in.</p>
+    <p class="small" style="margin:0">Move your progress between the desktop app and the web version on your phone. Create a code here, then open Settings on the other device and paste it in.</p>
     <div class="row"><button class="btn" id="syProg">Progress only (QR code)</button><button class="btn" id="syAll">Everything incl. builds</button></div>
     <div id="syOut"></div>
     <h3>Paste a code from another device</h3>
@@ -2769,7 +2803,7 @@ function renderTreeSide(){
     const add=[...sets.a].filter(i=>!sets.b.has(i)),rem=[...sets.b].filter(i=>!sets.a.has(i)),shared=[...sets.a].filter(i=>sets.b.has(i)).length;
     const notable=ids=>d?ids.map(id=>d.nodes.find(x=>x[0]===id)).filter(n=>n&&(n[3]==="n"||n[3]==="k")).map(n=>n[4]):[];
     el.innerHTML=`<div class="row"><span class="pill gold">${shared} shared</span><span class="pill good">${add.length} to take</span><span class="pill bad">${rem.length} to refund</span></div>
-      ${C&&C!==G?"":`<p class="small muted" style="margin:0">Import your current character (or sync it) to compare against the guide.</p>`}
+      ${C&&C!==G?"":emptyBox("Import your current character (or sync it from your account) to see what's left to buy.",[["Import current character","importCurrent"]].concat(DESK?[["Sync from account","syncChar"]]:[]))}
       ${notable(add).length?`<p class="small" style="margin:0"><b style="color:#71c27a">Notables to take:</b> ${notable(add).map(esc).join(", ")}</p>`:""}
       ${notable(rem).length?`<p class="small" style="margin:0"><b style="color:#e0584b">Notables to refund:</b> ${notable(rem).map(esc).join(", ")}</p>`:""}`;
   } else {
@@ -2828,7 +2862,7 @@ function renderMapCompletion(){
   const byTier={};left.forEach(m=>{const t=m.tier||"?";(byTier[t]=byTier[t]||[]).push(m)});
   el.innerHTML=`<div class="row" style="justify-content:space-between"><h2>Atlas map completion</h2><span class="pill ${total&&n===total?"good":"gold"}">${total?`${n}/${total} maps`:`${n} maps run`}</span></div>
     ${total?`<div class="meter"><i style="width:${Math.round(n/total*100)}%"></i></div>`:`<p class="small muted" style="margin:0">${DESK?"Loading this league's map list from poe.ninja…":"The full map list loads from poe.ninja in the desktop app."}</p>`}
-    <p class="small muted" style="margin:0">Maps you've run, read from your game log${DESK?" (live)":" (upload Client.txt on the Session tab)"}. Each new map you complete adds to your atlas bonus; the in-game atlas is the final word on bonus objectives.</p>
+    <p class="small muted" style="margin:0">Maps you've run, read from your game log${DESK?" (live)":" (upload Client.txt under Play → Session)"}. Each new map you complete adds to your atlas bonus; the in-game atlas is the final word on bonus objectives.</p>
     ${total&&left.length?`<details class="small"><summary style="cursor:pointer">Still to run (${left.length})</summary><div style="display:grid;gap:4px;margin-top:6px">${Object.entries(byTier).map(([t,ms])=>`<div><b>${t==="?"?"Other":"Tier "+t}:</b> ${ms.map(m=>esc(m.name)).join(", ")}</div>`).join("")}</div></details>`:total?'<p class="small" style="margin:0">Every map done. Nice.</p>':""}
     ${total?`<details class="small"><summary style="cursor:pointer">Mark maps by hand</summary><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:2px;margin-top:6px;max-height:220px;overflow:auto">${MAP_POOL.slice().sort((a,b)=>a.name.localeCompare(b.name)).map(m=>`<label class="row"><input type="checkbox" data-mapd="${esc(m.key)}"${done[m.key]?" checked":""}> ${esc(m.name)}${m.tier?` <span class="muted">T${m.tier}</span>`:""}</label>`).join("")}</div></details>`:Object.keys(done).length?`<p class="small muted" style="margin:0">Run so far: ${Object.keys(done).map(esc).join(", ")}</p>`:""}`;
   el.querySelectorAll("[data-mapd]").forEach(c=>c.onchange=()=>{S.mapsDone=S.mapsDone||{};if(c.checked)S.mapsDone[c.dataset.mapd]=Date.now();else delete S.mapsDone[c.dataset.mapd];save();renderMapCompletion()});
@@ -2921,9 +2955,9 @@ async function renderCheats(){
   el.innerHTML=`<h2>Cheat sheets</h2>
     <p class="small" style="margin:0">Add your own images (a Betrayal board, boss notes, a map of the Lab). Press <b>${esc(keyName(c.cheatHotkey||"Ctrl+Shift+H"))}</b> in game to show the first one, press again for the next, and once more after the last to hide them.</p>
     <div class="row"><button class="btn" id="chAdd">Add images…</button></div>
-    ${list.length?`<ul class="clean small">${list.map(x=>`<li class="row" style="justify-content:space-between"><span>${esc(x)}</span><button class="btn ghost small" data-chdel="${esc(x)}">Remove</button></li>`).join("")}</ul>`:'<p class="small muted" style="margin:0">No cheat sheets yet.</p>'}`;
+    ${list.length?`<ul class="clean small">${list.map(x=>`<li class="row" style="justify-content:space-between"><span>${esc(x)}</span><button class="btn ghost small" data-chdel="${esc(x)}">Remove</button></li>`).join("")}</ul>`:emptyBox("No cheat sheets yet. Add images with the button above.")}`;
   $("chAdd").onclick=async()=>{await DESK.cheatAdd();renderCheats()};
-  el.querySelectorAll("[data-chdel]").forEach(b=>b.onclick=async()=>{await DESK.cheatRemove(b.dataset.chdel);renderCheats()});
+  el.querySelectorAll("[data-chdel]").forEach(b=>b.onclick=async()=>{const n=b.dataset.chdel;await DESK.cheatRemove(n);renderCheats();toast(`Removed cheat sheet "${n}".`,async()=>{if(DESK.cheatRestore)await DESK.cheatRestore(n);renderCheats()})});
 }
 
 /* ---------- overlay pages ---------- */
@@ -3102,7 +3136,7 @@ function renderUpdates(){
 }
 
 /* ---------------- wiring ---------------- */
-function renderAll(){if(window.exileDesktop){publishOverlay();setTimeout(()=>{renderDesktop();renderAccount();publishGear();publishDiscord()},0)}renderHeader();renderBuild();renderProgress();renderShop();renderCampaign();renderMaps();renderAtlas();renderCraft();renderSession();bindItems();try{renderHome()}catch(e){console.error(e)}}
+function renderAll(){if(window.exileDesktop){publishOverlay();setTimeout(()=>{renderDesktop();renderAccount();publishGear();publishDiscord()},0)}renderHeader();renderBuild();renderProgress();renderShop();renderCampaign();renderMaps();renderAtlas();renderCraft();renderSession();bindItems();try{renderHome();renderSettings()}catch(e){console.error(e)}}
 {const wrap=(f,pick)=>function(){return withBuild(pick(),()=>f.apply(this,arguments))};
  renderBuild=wrap(renderBuild,viewB);renderShop=wrap(renderShop,()=>G);renderCraft=wrap(renderCraft,()=>G);renderCampaign=wrap(renderCampaign,()=>G);
  renderMaps=wrap(renderMaps,liveB);renderAtlas=wrap(renderAtlas,liveB);renderSession=wrap(renderSession,liveB);
@@ -3115,7 +3149,6 @@ const tabVisible=t=>{const b=tabBtn(t);return !!b&&!b.hidden};
 const groupOf=t=>{const b=tabBtn(t);return b?b.dataset.g:"home"};
 function syncNav(){
   const g=groupOf(CUR_TAB);
-  $("appGroupBtn").hidden=!tabVisible("desktop");
   document.querySelectorAll("#groups [data-group]").forEach(b=>b.setAttribute("aria-current",String(b.dataset.group===g)));
   let vis=0;document.querySelectorAll("#tabs button").forEach(b=>{const on=b.dataset.g===g;b.classList.toggle("gx",!on);if(on&&!b.hidden)vis++});
   $("tabs").classList.toggle("solo",vis<=1);
@@ -3128,6 +3161,7 @@ function showTab(name){
   try{store.set("tab",name);const L=store.get("navLast",{})||{};L[groupOf(name)]=name;store.set("navLast",L)}catch(e){}
   syncNav();
   if(name==="home") setTimeout(renderHome,0);
+  if(name==="settings") setTimeout(renderSettings,0);
   if(name==="trees") setTimeout(renderTrees,0);
   if(name==="maps"&&!$("mapsCards").dataset.loaded){$("mapsCards").dataset.loaded="1";setTimeout(()=>renderCards(false),0)}
   if(location.hash!=="#"+name) history.replaceState(null,"","#"+name);
@@ -3214,7 +3248,7 @@ function renderHome(){
   if(DESK){q.push([LIVE.overlayVisible?"Hide overlay":"Show overlay","Shows on top of the game",()=>{DESK.toggleOverlay(!LIVE.overlayVisible);setTimeout(renderHome,300)}]);
     if($("nwSnap"))q.push(["Net worth snapshot","Price your chosen stash tabs",()=>{showTab("account");$("nwSnap").click()}]);
     if($("csNow"))q.push(["Sync character","Pull gear and tree from your account",()=>{showTab("account");$("csNow").click()}]);
-    q.push(["Settings & hotkeys","Log file, overlay, price check",()=>showTab("desktop")]);}
+    q.push(["Settings & hotkeys","Hotkeys, account, Discord, updates",()=>showTab("settings")]);}
   q.push(["Shopping list","Gems and items to pick up",()=>showTab("shop")],["Crafting","Plan upgrades and money crafts",()=>showTab("craft")]);
   $("homeQuick").innerHTML=`<h2>Quick actions</h2><div class="hgrid">${q.map((x,i)=>`<button class="btn ghost" data-hq="${i}"><b>${esc(x[0])}</b><small>${esc(x[1])}</small></button>`).join("")}</div>`;
   $("homeQuick").querySelectorAll("[data-hq]").forEach(b=>b.onclick=()=>q[+b.dataset.hq][2]());
@@ -3225,7 +3259,8 @@ setInterval(()=>{if(CUR_TAB==="home"&&!document.hidden)renderHome()},10000);
 const cmdk=$("cmdk");let CMDK=[],CMDK_SEL=0,CMDK_ITEMS=[];
 function cmdkIndex(){
   const out=[], names={};document.querySelectorAll("#tabs [data-tab]").forEach(b=>names[b.dataset.tab]=b.textContent.trim());
-  const acts=[["Import goal build",()=>openImport("goal")],["Import current character",()=>openImport("current")]];
+  const acts=[["Import goal build",()=>openImport("goal")],["Import current character",()=>openImport("current")],["Run setup wizard",()=>openWizard()]];
+  if(DESK)acts.push(["Change hotkeys",()=>{showTab("settings");scrollToCard("setHotkeys")}]);
   if($("sessToggle"))acts.push([S.session.start?"Pause session timer":"Start session timer",()=>$("sessToggle").click()]);
   if(DESK){acts.push([LIVE.overlayVisible?"Hide overlay":"Show overlay",()=>DESK.toggleOverlay(!LIVE.overlayVisible)]);
     if($("upCheck"))acts.push(["Check for app updates",()=>{showTab("desktop");$("upCheck").click()}]);
@@ -3235,7 +3270,7 @@ function cmdkIndex(){
   acts.forEach(([t,run])=>out.push({k:"Action",t,run,top:1}));
   document.querySelectorAll("#tabs [data-tab]").forEach(b=>{if(!b.hidden)out.push({k:"Page",t:b.textContent.trim(),run:()=>showTab(b.dataset.tab),top:1})});
   document.querySelectorAll("section.tab").forEach(sec=>{const tab=sec.id.slice(4);if(!tabVisible(tab))return;
-    sec.querySelectorAll(".card").forEach(c=>{if(c.hidden)return;const h=c.querySelector("h2");const t=h&&h.textContent.trim();if(!t)return;
+    sec.querySelectorAll(".card").forEach(c=>{if(c.hidden)return;const h=c.querySelector("h2");const t=h&&h2Text(h);if(!t)return;
       out.push({k:names[tab],t,run:()=>{showTab(tab);setTimeout(()=>{c.scrollIntoView({block:"start",behavior:"smooth"});c.classList.remove("flash");void c.offsetWidth;c.classList.add("flash")},40)}})})});
   const seen=new Set();document.querySelectorAll("#tab-build [data-item]").forEach(b=>{const ln=(b.innerText||b.textContent).split(/\n+/).map(x=>x.trim()).filter(Boolean);const t=(ln.length>=2?ln[1]+" · "+ln[0]:ln[0]||"").slice(0,80);if(!t||seen.has(t))return;seen.add(t);out.push({k:"Item",t,run:()=>b.click()})});
   return out;
@@ -3271,6 +3306,242 @@ document.addEventListener("keydown",e=>{
   const typing=/^(INPUT|TEXTAREA|SELECT)$/.test((e.target||{}).tagName||"")||(e.target&&e.target.isContentEditable);
   if(e.key==="/"&&!typing&&!document.querySelector("dialog[open]")){e.preventDefault();openSearch()}
 });
+/* ---------------- update 2: undo toasts, empty states, help, settings, setup wizard ---------------- */
+let toastT=null;
+function toast(msg,undo){
+  const t=$("toast");if(!t)return;
+  t.innerHTML=`<span>${esc(msg)}</span>${undo?'<button class="btn primary small" id="toastUndo">Undo</button>':""}<button class="btn ghost small" id="toastX" aria-label="Dismiss">✕</button>`;
+  t.hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>{t.hidden=true},undo?9000:4000);
+  if(undo)$("toastUndo").onclick=()=>{t.hidden=true;clearTimeout(toastT);try{undo()}catch(e){console.error(e)}};
+  $("toastX").onclick=()=>{t.hidden=true};
+}
+function emptyBox(msg,fixes){fixes=fixes||[];return `<div class="emptybox"><p>${esc(msg)}</p>${fixes.length?`<div class="row">${fixes.map(([l,a],i)=>`<button class="btn ${i?"ghost":"primary"} small" data-fix="${a}">${esc(l)}</button>`).join("")}</div>`:""}</div>`}
+const scrollToCard=id=>setTimeout(()=>{const c=$(id);if(c){c.scrollIntoView({block:"start",behavior:"smooth"});c.classList.remove("flash");void c.offsetWidth;c.classList.add("flash")}},60);
+const FIX={
+  importGoal:()=>openImport("goal"),importCurrent:()=>openImport("current"),wizard:()=>openWizard(),shop:()=>showTab("shop"),
+  startTimer:()=>{const t=$("sessToggle");if(t&&!S.session.start)t.click();showTab("session")},
+  addMap:()=>{showTab("session");scrollToCard("sessAdd");setTimeout(()=>{const i=$("sessAdd").querySelector("input,select");if(i)i.focus()},400)},
+  findLog:()=>{if(DESK){showTab("desktop");setTimeout(()=>{const b=$("dkDetect");if(b)b.click()},60)}else{showTab("session");scrollToCard("sessGameLog")}},
+  syncChar:()=>{showTab("account");scrollToCard("acctChar")},
+  snapshot:()=>{showTab("account");setTimeout(()=>{const b=$("nwSnap");if(b)b.click()},60)},
+  account:()=>{showTab("settings");scrollToCard("acctConn")},
+};
+document.addEventListener("click",e=>{const b=e.target.closest("[data-fix]");if(b&&FIX[b.dataset.fix]){e.preventDefault();if(b.closest("#setup"))$("setup").close();FIX[b.dataset.fix]()}});
+
+const HELP={
+  homeChar:"Your character at a glance. The percentage compares your current character with the goal build: passive tree, gear, gems and level.",
+  homeNext:"The most useful things to do right now: the next campaign steps (or atlas milestone) and the biggest gaps between your character and the guide.",
+  homeSession:"Time, maps and earnings for the current play session. The timer starts and pauses from here or the Session page.",
+  homeLive:"What the desktop app is connected to right now: the game log, the overlay, trade requests, your stash value and app updates.",
+  buildSummary:"The build from your Path of Building code. Switch between the goal build and your current character at the top.",
+  buildDefence:"Resistances and defences as Path of Building calculated them, with whatever config (flasks, charges, buffs) was on when you exported.",
+  buildSkills:"Every skill group in the build with its gem levels and quality. The main skill is listed first.",
+  buildGear:"Each equipped item. Click one to plan a craft for that slot.",
+  progSummary:"How close your current character is to the goal build, by passive tree, gear, gems and level.",
+  progNext:"A to-do list ordered by impact: resistances first, then links, key uniques and gear mods.",
+  progCost:"A rough price for everything you still need, from poe.ninja prices for uniques and gems.",
+  progTree:"Passives the guide has that you don't, and passives you have that the guide doesn't.",
+  progGems:"Gems missing from your character or below the guide's level and quality.",
+  progItems:"Slot by slot: how many of the guide's key mods your current item has.",
+  shopSummary:"Everything worth buying or looking out for, built from the goal build.",
+  shopGems:"Where to get each gem: quest reward, vendor, or the trade site, with copyable vendor searches.",
+  shopItems:"Uniques and key rare bases for the build, with trade links and optional price alerts.",
+  shopFilter:"A loot filter add-on that highlights your build's bases and uniques.",
+  campAct:"Step-by-step route for the act, with the target level to be when you leave.",
+  campGems:"Gems you can take or buy in this act for your build.",
+  campSplits:"Your time per act, read from Client.txt, compared with your best run.",
+  campReadouts:"Answers from in-game chat commands like /played and /passives, picked up from your game log.",
+  mapsNext:"The next step of atlas progression for your build's strength.",
+  mapsDanger:"Map mods your build should avoid, plus a stash search that hides maps with them.",
+  mapsCompletion:"Which maps you've completed for atlas bonus, so you know what's left.",
+  mapsBosses:"Pinnacle bosses and what you need to fight them.",
+  mapsCards:"Valuable divination cards and the maps that drop them.",
+  atlasProfile:"Your build's strengths decide which farming strategies fit it best.",
+  atlasPhases:"How to grow the atlas tree as you get more points.",
+  craftPlan:"A crafting plan for the selected slot: base, method and expected cost.",
+  craftProfit:"Crafts that tend to sell for more than they cost.",
+  craftCalc:"Estimate the cost of a craft from the chance per try and the price per try.",
+  sessTimer:"Times your play session. Maps from the game log land here automatically in the desktop app.",
+  sessGameLog:"Reads Client.txt, the game's log file, for levels, zones, deaths and maps. It only ever reads it.",
+  sessAdd:"Log a map by hand with its profit, so strategies can be compared.",
+  sessProfit:"Chaos per hour for each farming strategy you logged.",
+  sessRecap:"Save a summary of a session: length, levels, maps and profit.",
+  sessLog:"Every map this session. Removed one by mistake? Use Undo in the message at the bottom.",
+  acctChar:"Pulls your character from your GGG account so the Current build stays up to date without PoB.",
+  acctNet:"Prices the stash tabs you choose with poe.ninja and tracks the total over time.",
+  acctFinds:"Rares in your stash that beat your gear for the goal build, or look worth selling.",
+  acctCx:"What each currency has been worth over the last day on GGG's currency exchange.",
+  acctSales:"Items you sold, read from trade whispers in your game log.",
+  deskLog:"Connects the app to Client.txt so it follows your game live.",
+  deskOverlay:"A click-through panel over the game. It shows act steps in the campaign and map info in maps.",
+  deskPrice:"Ctrl+C on an item in game opens a price window with poe.ninja values and live listings.",
+  deskTrades:"Incoming trade whispers with the item, price and stash position. Buttons copy the reply for you to paste.",
+  deskAlerts:"Get a notification when an item drops to your target price.",
+  deskCheats:"Your own reference images (Betrayal board, Lab layout) shown over the game with a hotkey.",
+  deskNews:"New posts from pathofexile.com/news, such as patch notes.",
+  setGeneral:"Rerun the setup wizard, swap builds and change price-check options.",
+  setHotkeys:"Click a box and press the new key combination. Backspace resets it, Esc cancels.",
+  acctConn:"Your account name and the optional POESESSID, which is stored encrypted on this PC.",
+  deskDiscord:"Show your character on Discord and choose which desktop notifications you get.",
+  deskUpdates:"The app updates itself from GitHub. Every download is checked against its published checksum.",
+  deskBackup:"Save all your app data to a file, or load one. Secrets like POESESSID are never included.",
+  sessSync:"Move your data to the web version on your phone with a code.",
+  deskStream:"A local page you can add to OBS as a Browser Source to show your run on stream.",
+};
+const HELP_OPEN=new Set();let helpQ=0;
+function helpAnchor(el,h){let a=h;while(a.parentElement&&a.parentElement!==el)a=a.parentElement;return a}
+function ensureHelp(){
+  if(S.helpOff){document.querySelectorAll(".helpbtn,.helptext").forEach(x=>x.remove());return}
+  for(const id in HELP){const el=document.getElementById(id);if(!el||!el.firstElementChild)continue;const h=el.querySelector("h2");if(!h||h.querySelector(".helpbtn"))continue;
+    const b=document.createElement("button");b.type="button";b.className="helpbtn";b.textContent="?";b.dataset.help=id;b.setAttribute("aria-label","What is this?");b.setAttribute("aria-expanded",String(HELP_OPEN.has(id)));h.appendChild(b);
+    if(HELP_OPEN.has(id)&&!el.querySelector(":scope > .helptext")){const p=document.createElement("p");p.className="helptext";p.textContent=HELP[id];helpAnchor(el,h).after(p)}}
+}
+document.addEventListener("click",e=>{const b=e.target.closest(".helpbtn");if(!b)return;e.preventDefault();e.stopPropagation();const id=b.dataset.help,el=$(id);
+  if(HELP_OPEN.has(id)){HELP_OPEN.delete(id);const p=el.querySelector(":scope > .helptext");if(p)p.remove();b.setAttribute("aria-expanded","false")}
+  else{HELP_OPEN.add(id);const p=document.createElement("p");p.className="helptext";p.textContent=HELP[id];helpAnchor(el,b.closest("h2")).after(p);b.setAttribute("aria-expanded","true")}},true);
+new MutationObserver(()=>{if(!helpQ)helpQ=requestAnimationFrame(()=>{helpQ=0;ensureHelp()})}).observe(document.querySelector("main"),{childList:true,subtree:true});
+const h2Text=h=>[...h.childNodes].filter(n=>!(n.classList&&n.classList.contains("helpbtn"))).map(n=>n.textContent).join("").trim();
+
+/* shared build import (dialog + wizard) */
+async function importBuild(input,slot){
+  input=String(input||"").trim();if(!input) throw new Error("Paste a Path of Building code or link first.");
+  if(window.exileDesktop&&/^https?:\/\//i.test(input)) input=await fetchPobLink(input);
+  const xml=await decodePob(input);
+  if(slot==="goal"&&exC&&C){C=null}
+  await loadSlot(slot,xml,false);
+  S.view=slot;save();renderBuild();bindItems();
+}
+
+/* settings page */
+const HOTKEYS=[["overlayHotkey","Show / hide overlay","Ctrl+Shift+O"],["interactHotkey","Overlay click mode","Ctrl+Shift+I"],["pageHotkey","Next overlay page","Ctrl+Shift+P"],["copyHotkey","Copy overlay search","Ctrl+Shift+F"],["priceHotkey","Re-open price check","Ctrl+D"],["wikiHotkey","Wiki lookup","Ctrl+Alt+W"],["cheatHotkey","Cheat sheets","Ctrl+Shift+H"]];
+const RESERVED_KEYS=["Ctrl+C","Ctrl+V","Ctrl+X","Ctrl+A","Ctrl+Z","Ctrl+F","Alt+F4","Ctrl+Enter"];
+function accelFrom(e){
+  if(["Control","Shift","Alt","Meta"].includes(e.key)) return null;
+  let k=null;const c=e.code||"";
+  if(/^Key[A-Z]$/.test(c))k=c.slice(3);else if(/^Digit\d$/.test(c))k=c.slice(5);else if(/^F\d{1,2}$/.test(c))k=c;else if(/^Numpad\d$/.test(c))k="num"+c.slice(6);
+  else k={Space:"Space",Backquote:"`",Minus:"-",Equal:"=",BracketLeft:"[",BracketRight:"]",Semicolon:";",Quote:"'",Comma:",",Period:".",Slash:"/",Home:"Home",End:"End",PageUp:"PageUp",PageDown:"PageDown",Insert:"Insert"}[c]||null;
+  if(!k) return {err:"That key can't be used. Try a letter, number or F-key."};
+  const mods=[e.ctrlKey&&"Ctrl",e.altKey&&"Alt",e.shiftKey&&"Shift"].filter(Boolean);
+  if(!mods.length&&!/^F\d/.test(k)) return {err:"Add Ctrl, Alt or Shift so the key still works normally in game."};
+  const a=mods.concat([k]).join("+");
+  if(RESERVED_KEYS.includes(a)) return {err:`${a} is used by the game (Ctrl+C is how price checks start), so it can't be a hotkey.`};
+  return {a};
+}
+function renderSettings(){
+  const g=$("setGeneral");if(!g) return;
+  const c=LIVE.cfg||{};
+  const bname=(b,ex)=>b?`${esc(b.ascend||b.className)} · level ${b.level}${ex?' <span class="pill">example</span>':""}`:'<span class="muted">none</span>';
+  g.innerHTML=`<h2>General</h2>
+    <div class="row"><button class="btn primary" data-fix="wizard">Run setup wizard</button><button class="btn ghost" id="stSearch">Search everything <kbd>Ctrl K</kbd></button></div>
+    <h3>Builds</h3>
+    <ul class="clean small" style="display:grid;gap:6px">
+      <li class="row" style="justify-content:space-between"><span><b>Goal:</b> ${bname(G,exG)}</span><button class="btn ghost small" id="stImpG">${exG?"Import":"Replace"}</button></li>
+      <li class="row" style="justify-content:space-between"><span><b>Current:</b> ${bname(C,exC)}</span><span class="row"><button class="btn ghost small" id="stImpC">${C&&!exC?"Replace":"Import"}</button>${C&&!exC?'<button class="btn ghost small" id="stDelC">Remove</button>':""}</span></li>
+    </ul>
+    ${DESK?`<h3>Price check</h3>
+    <label class="row small"><input type="checkbox" id="stOnCopy"${c.priceOnCopy!==false?" checked":""}> Price-check automatically when I press Ctrl+C on an item</label>
+    <div class="fgrid"><label class="f" for="stLeague">Trade league<input type="text" id="stLeague" value="${esc(c.league||"")}" data-cfg="league" placeholder="detected automatically"></label>
+      <label class="f" for="stContact">Contact for API requests (optional)<input type="text" id="stContact" value="${esc(c.contact||"")}" data-cfg="contact" placeholder="email or forum name"></label></div>`:""}
+    <h3>Help</h3>
+    <label class="row small"><input type="checkbox" id="stHelp"${S.helpOff?"":" checked"}> Show the ? explainer button on cards</label>`;
+  $("stSearch").onclick=()=>openSearch();
+  $("stImpG").onclick=()=>openImport("goal");$("stImpC").onclick=()=>openImport("current");
+  const dc=$("stDelC");if(dc)dc.onclick=()=>{const xml=store.get("xml.current",null);clearSlot("current");renderSettings();if(xml)toast("Removed your current character.",async()=>{await loadSlot("current",xml,false);renderSettings()})};
+  $("stHelp").onchange=e=>{S.helpOff=!e.target.checked;save();ensureHelp()};
+  if(DESK){
+    $("stOnCopy").onchange=async e=>{LIVE.cfg=await DESK.setConfig({priceOnCopy:e.target.checked});renderDesktop()};
+    g.querySelectorAll("[data-cfg]").forEach(inp=>inp.onchange=async()=>{const patch={};patch[inp.dataset.cfg]=inp.value.trim()||null;LIVE.cfg=await DESK.setConfig(patch);if(inp.dataset.cfg==="league"&&LIVE.cfg.league){S.league=LIVE.cfg.league;save();renderShop()}publishOverlay();renderDesktop()});
+  }
+  const hkEl=$("setHotkeys");
+  if(!DESK){hkEl.innerHTML="";return}
+  if(document.activeElement&&document.activeElement.dataset&&document.activeElement.dataset.hk) return;
+  const cur=k=>c[k]||(HOTKEYS.find(x=>x[0]===k)||[])[2]||"";
+  const counts={};HOTKEYS.forEach(([k])=>{const v=cur(k).toLowerCase();counts[v]=(counts[v]||0)+1});
+  hkEl.innerHTML=`<h2>Hotkeys</h2>
+    <div>${HOTKEYS.map(([k,l,d])=>`<div class="hk"><label for="hk_${k}" class="small">${esc(l)}${counts[cur(k).toLowerCase()]>1?' <span class="dup">· used twice</span>':""}</label><input id="hk_${k}" readonly data-hk="${k}" value="${esc(keyName(cur(k)))}"><button class="btn ghost small" data-hkdef="${k}"${cur(k)===d?" disabled":""}>Default</button></div>`).join("")}</div>
+    <p class="small muted" style="margin:0" id="hkMsg">Click a box, then press the new combination. Backspace resets it to the default, Esc cancels.</p>
+    ${LIVE.warn?`<p class="small" style="margin:0;color:var(--warn)">${esc(LIVE.warn)}</p>`:""}
+    <div><button class="btn ghost small" id="hkReset">Reset all to defaults</button></div>`;
+  const setKey=async(k,v)=>{LIVE.warn=null;LIVE.cfg=await DESK.setConfig({[k]:v});publishOverlay()};
+  hkEl.querySelectorAll("[data-hk]").forEach(inp=>{
+    inp.onfocus=()=>{inp.classList.add("rec");inp.value="Press keys…";if(DESK.suspendHotkeys)DESK.suspendHotkeys(true)};
+    inp.onblur=()=>{inp.classList.remove("rec");if(DESK.suspendHotkeys)DESK.suspendHotkeys(false);setTimeout(()=>{renderSettings();renderDesktop()},0)};
+    inp.onkeydown=async e=>{e.preventDefault();e.stopPropagation();const k=inp.dataset.hk;
+      if(e.key==="Escape"||e.key==="Tab"){inp.blur();return}
+      if(e.key==="Backspace"||e.key==="Delete"){await setKey(k,HOTKEYS.find(x=>x[0]===k)[2]);inp.blur();return}
+      const r=accelFrom(e);if(!r)return;
+      if(r.err){$("hkMsg").textContent=r.err;$("hkMsg").style.color="var(--warn)";return}
+      await setKey(k,r.a);inp.blur();toast(`${HOTKEYS.find(x=>x[0]===k)[1]}: ${r.a}`)};
+  });
+  hkEl.querySelectorAll("[data-hkdef]").forEach(b=>b.onclick=async()=>{const k=b.dataset.hkdef;await setKey(k,HOTKEYS.find(x=>x[0]===k)[2]);renderSettings();renderDesktop()});
+  $("hkReset").onclick=async()=>{const prev={};const patch={};HOTKEYS.forEach(([k,,d])=>{prev[k]=c[k]||d;patch[k]=d});LIVE.cfg=await DESK.setConfig(patch);renderSettings();renderDesktop();
+    toast("All hotkeys reset to defaults.",async()=>{LIVE.cfg=await DESK.setConfig(prev);renderSettings();renderDesktop()})};
+}
+
+/* first-run setup wizard */
+const WIZ={i:0,ovl:false,t:null};
+function wizSteps(){return [["goal","Goal build"],["current","Your character"]].concat(DESK?[["log","Game log"],["overlay","Overlay & price check"]]:[]).concat([["finish","Done"]])}
+function wizOk(id){return id==="goal"?!exG:id==="current"?!!(C&&!exC):id==="log"?!!(LIVE.status&&LIVE.status.ok):id==="overlay"?WIZ.ovl:false}
+function openWizard(){WIZ.i=0;WIZ.ovl=false;wizRender();try{$("setup").showModal()}catch(e){$("setup").setAttribute("open","")}}
+function wizImportHtml(slot){
+  const b=slot==="goal"?(!exG&&G):(C&&!exC&&C);
+  return `${b?`<p class="status ok" style="margin:0">✓ Loaded: ${esc(b.ascend||b.className)} level ${b.level}. Paste another code to replace it, or press Next.</p>`:""}
+    <textarea id="wzCode" placeholder="Paste a Path of Building code, or a pobb.in / pastebin link"></textarea>
+    <div class="row"><button class="btn primary" id="wzLoad">Load ${slot==="goal"?"goal build":"my character"}</button><span class="status" id="wzSt"></span></div>`;
+}
+function wizRender(){
+  clearInterval(WIZ.t);
+  const st=wizSteps();WIZ.i=Math.max(0,Math.min(WIZ.i,st.length-1));const id=st[WIZ.i][0];const c=LIVE.cfg||{};
+  $("wizDots").innerHTML=st.map((x,i)=>`<li class="${i===WIZ.i?"on":wizOk(x[0])?"ok":""}">${wizOk(x[0])&&i!==WIZ.i?"✓ ":""}${i+1}. ${esc(x[1])}</li>`).join("");
+  const body=$("wizBody");
+  if(id==="goal") body.innerHTML=`<h3>Which build are you following?</h3>
+    <p class="small" style="margin:0">Paste the Path of Building code (or pobb.in link) from your build guide. This is your <b>goal</b>: the shopping list, crafting plans and progress all compare against it.</p>${wizImportHtml("goal")}
+    <p class="small muted" style="margin:0">In Path of Building: Import/Export Build → Generate → Copy. Most guides link a pobb.in page; its URL works too${DESK?"":" in the desktop app"}.</p>`;
+  else if(id==="current") body.innerHTML=`<h3>Where is your character now?</h3>
+    <p class="small" style="margin:0">Import your <b>current</b> character the same way to see exactly what's left to do. In Path of Building: Import/Export Build → Import from website → your account → your character, then Generate.</p>${wizImportHtml("current")}
+    <p class="small muted" style="margin:0">${DESK?"No PoB handy? Skip this and use Live character sync on the Account page (Economy) later. It pulls your character from your GGG account.":"You can skip this and do it any time from Import PoB."}</p>`;
+  else if(id==="log"){const s=LIVE.status;body.innerHTML=`<h3>Connect the game log</h3>
+    <p class="small" style="margin:0">The app follows <b>Client.txt</b>, the game's log file, to track zones, levels, deaths, maps and trade whispers as you play. It only ever reads it.</p>
+    <p class="status ${s&&s.ok?"ok":""}" style="margin:0;word-break:break-all">${s&&s.ok?"✓ Connected: "+esc(s.path):esc((s&&s.message)||"Not connected yet.")}</p>
+    <div class="row"><button class="btn primary" id="wzFind">Find it for me</button><button class="btn ghost" id="wzChoose">Choose file…</button></div>
+    <div id="wzFound"></div>
+    <p class="small muted" style="margin:0">It's in the game's <b>logs</b> folder, e.g. C:\\Program Files (x86)\\Grinding Gear Games\\Path of Exile\\logs or Steam\\steamapps\\common\\Path of Exile\\logs.</p>`;
+    $("wzFind").onclick=async()=>{const f=$("wzFound");f.innerHTML='<p class="small muted" style="margin:0">Looking…</p>';const list=await DESK.detectLogs();
+      if(list.length===1){LIVE.cfg=await DESK.setConfig({logPath:list[0].path});setTimeout(wizRender,800);f.innerHTML=`<p class="status ok" style="margin:0">Found it. Connecting…</p>`;return}
+      f.innerHTML=list.length?`<ul class="clean small">${list.map(d=>`<li class="row" style="justify-content:space-between"><span style="word-break:break-all">${esc(d.path)}</span><button class="btn ghost small" data-wzlog="${esc(d.path)}">Use</button></li>`).join("")}</ul>`:'<p class="small muted" style="margin:0">Not in the usual places. Use Choose file.</p>';
+      f.querySelectorAll("[data-wzlog]").forEach(b=>b.onclick=async()=>{LIVE.cfg=await DESK.setConfig({logPath:b.dataset.wzlog});setTimeout(wizRender,800)})};
+    $("wzChoose").onclick=async()=>{const p=await DESK.chooseLog();if(p)setTimeout(wizRender,800)};
+    WIZ.t=setInterval(()=>{if(LIVE.status&&LIVE.status.ok&&!body.querySelector(".status.ok"))wizRender()},1000);}
+  else if(id==="overlay"){const key=keyName(c.overlayHotkey||"Ctrl+Shift+O");let last=LIVE.overlayVisible;
+    body.innerHTML=`<h3>Try the overlay</h3>
+    <p class="small" style="margin:0">The overlay sits on top of the game with your act steps, map info and trade requests. Run the game in <b>Windowed Fullscreen</b> (Options → Graphics) so it can show.</p>
+    <p style="margin:0">Press <kbd>${esc(key)}</kbd> now. It works from anywhere, including this window.</p>
+    <p class="status ${WIZ.ovl?"ok":""}" id="wzOvl" style="margin:0">${WIZ.ovl?"✓ Hotkey works. ":""}The overlay is ${LIVE.overlayVisible?"showing":"hidden"}.</p>
+    <div class="row"><button class="btn ghost" id="wzOvlBtn">Show / hide it for me</button><a class="small" href="#settings" data-fix="none">Use a different key</a></div>
+    <h3>Price check</h3>
+    <p class="small" style="margin:0">In game, hover an item and press <kbd>Ctrl+C</kbd>. A price window opens next to your cursor. <kbd>${esc(keyName(c.priceHotkey||"Ctrl+D"))}</kbd> re-opens the last one.</p>`;
+    $("wzOvlBtn").onclick=()=>DESK.toggleOverlay(!LIVE.overlayVisible);
+    body.querySelector('a[href="#settings"]').onclick=e=>{e.preventDefault();$("setup").close();showTab("settings");scrollToCard("setHotkeys")};
+    WIZ.t=setInterval(()=>{if(LIVE.overlayVisible!==last){last=LIVE.overlayVisible;WIZ.ovl=true;const s=$("wzOvl");if(s){s.className="status ok";s.textContent=`✓ Hotkey works. The overlay is ${last?"showing":"hidden"}.`}}},300);}
+  else body.innerHTML=`<h3>You're set</h3>
+    <ul class="clean small" style="display:grid;gap:6px">${wizSteps().filter(x=>x[0]!=="finish").map(x=>`<li>${wizOk(x[0])?'<span class="pill good">done</span>':'<span class="pill">skipped</span>'} ${esc(x[1])}</li>`).join("")}</ul>
+    <p class="small" style="margin:0">A few things worth knowing:</p>
+    <ul class="small" style="margin:0;padding-left:18px;display:grid;gap:4px">
+      <li><b>Home</b> shows what to do next, your session and live status.</li>
+      <li>Press <kbd>Ctrl K</kbd> anywhere to jump to any page, card or action.</li>
+      <li>Tap <b>?</b> next to a card's title for a short explanation.</li>
+      <li><b>Settings</b> has hotkeys, your GGG account, Discord, updates and backups. You can rerun this wizard from there.</li>
+    </ul>`;
+  const ld=$("wzLoad");if(ld)ld.onclick=async()=>{const s=$("wzSt");s.className="status";s.textContent="Loading…";
+    try{await importBuild($("wzCode").value,id);s.className="status ok";s.textContent="Loaded.";setTimeout(()=>{WIZ.i++;wizRender()},700)}catch(err){s.className="status err";s.textContent=err.message||"Couldn't read that build."}};
+  $("wizBack").hidden=WIZ.i===0;$("wizSkip").hidden=id==="finish"||wizOk(id);
+  $("wizNext").textContent=id==="finish"?"Finish":"Next";
+}
+$("wizBack").onclick=()=>{WIZ.i--;wizRender()};
+$("wizSkip").onclick=()=>{WIZ.i++;wizRender()};
+$("wizNext").onclick=()=>{if(wizSteps()[WIZ.i][0]==="finish"){$("setup").close();showTab("home");return}WIZ.i++;wizRender()};
+$("setup").addEventListener("close",()=>{clearInterval(WIZ.t);try{store.set("setupDone",1)}catch(e){}renderAll()});
+
 const dlg=$("importDlg");
 const openImport=slot=>{if(typeof slot!=="string")slot=exG?"goal":"current";$(slot==="current"?"slotCur":"slotGoal").checked=true;$("pobCode").value="";$("pobFile").value="";$("importStatus").textContent="";$("importStatus").className="status";try{dlg.showModal()}catch(e){dlg.setAttribute("open","")}setTimeout(()=>$("pobCode").focus(),50)};
 $("openImport").onclick=openImport;$("openImport2").onclick=openImport;
@@ -3278,12 +3549,9 @@ $("importCancel").onclick=()=>dlg.close();
 $("pobFile").onchange=async e=>{const f=e.target.files[0];if(!f)return;$("pobCode").value=await f.text();$("importStatus").textContent="File loaded. Tap Load build.";$("importStatus").className="status ok"};
 $("importGo").onclick=async()=>{
   const st=$("importStatus");st.className="status";st.textContent="Unpacking…";
-  try{let input=$("pobCode").value.trim();
-    if(window.exileDesktop&&/^https?:\/\//i.test(input)){st.textContent="Fetching the link…";input=await fetchPobLink(input)}
-    const xml=await decodePob(input);const slot=$("slotCur").checked?"current":"goal";
-    if(slot==="goal"&&exC&&C){C=null}
-    await loadSlot(slot,xml,false);st.className="status ok";st.textContent="Loaded.";dlg.close();
-    if(slot==="current"){S.view="current";save();renderBuild();bindItems();showTab(G&&!exG?"progress":"build")}else{S.view="goal";save();renderBuild();bindItems();showTab(C&&!exC?"progress":"build")}}
+  try{const slot=$("slotCur").checked?"current":"goal";
+    await importBuild($("pobCode").value,slot);st.className="status ok";st.textContent="Loaded.";dlg.close();
+    showTab(slot==="current"?(G&&!exG?"progress":"build"):(C&&!exC?"progress":"build"))}
   catch(err){st.className="status err";st.textContent=err.message||"Couldn't read that build."}
 };
 
@@ -3309,6 +3577,7 @@ const EXAMPLE_CURRENT=EXAMPLE_XML
   initDesktop().then(initAccount);
   const h=location.hash.slice(1);
   showTab(TAB_LIST().includes(h)?h:store.get("tab","home"));
+  if(!store.get("setupDone",0)&&exG) setTimeout(openWizard,400);
 })();
 </script>
 </body>
