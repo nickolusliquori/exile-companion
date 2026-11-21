@@ -7,7 +7,7 @@ const path = require("path");
 const { parseEvents, detectLogPaths, readTail, Tail } = require("./lib/logtail");
 const { GGG } = require("./lib/ggg");
 const { DiscordRPC } = require("./lib/discord");
-const { markItemText } = require("./lib/clip");
+const { createClipWatcher } = require("./lib/clip");
 const { redact, sanitizeCfg } = require("./lib/diag");
 const os = require("os");
 
@@ -184,7 +184,7 @@ function registerHotkeys() {
   bind(cfg.interactHotkey, () => setOverlayInteractive(!overlayInteractive), "overlay interact");
   bind(cfg.copyHotkey, () => {
     const s = lastOverlayData && lastOverlayData.regex;
-    if (s) { ignoreClipboard = s; clipWrite(s); overlayWin && overlayWin.webContents.send("overlay:toast", "Search copied: paste it with Ctrl+V"); }
+    if (s) { ignoreClip(s); clipWrite(s); overlayWin && overlayWin.webContents.send("overlay:toast", "Search copied: paste it with Ctrl+V"); }
   }, "copy search");
   bind(cfg.wikiHotkey, async () => {
     const cur = await clipRead();
@@ -234,28 +234,14 @@ const clipWrite = async (t) => { try { const r = clipboard.writeText(String(t ||
 
 /* ---------------- clipboard watcher (price check on Ctrl+C) ---------------- */
 // Reads the clipboard only. It never sends input to the game.
-let lastClip = "", ignoreClipboard = null, clipTimer = null;
+let clipTimer = null;
 const isItemText = (t) => typeof t === "string" && /^Item Class: /m.test(t) && t.includes("--------") && /^Rarity: /m.test(t);
+const clipWatch = createClipWatcher({ read: clipRead, write: clipWrite, isItem: isItemText, enabled: () => cfg.priceOnCopy, onItem: (t) => showPrice(t) });
+// anything the app itself copies (searches, trade replies) must not look like a new copy from the game
+const ignoreClip = (t) => clipWatch.expect(t);
 async function startClipboardWatch() {
-  lastClip = await clipRead();
-  let busy = false;
-  clipTimer = setInterval(async () => {
-    if (busy) return;
-    busy = true;
-    try {
-      const t = await clipRead();
-      if (t === lastClip) return;
-      lastClip = t;
-      if (t === ignoreClipboard) return;
-      if (cfg.priceOnCopy && isItemText(t)) {
-        showPrice(t);
-        // let the same item be checked again with another Ctrl+C
-        const marked = markItemText(t);
-        ignoreClipboard = marked; lastClip = marked;
-        await clipWrite(marked);
-      }
-    } finally { busy = false; }
-  }, 250);
+  await clipWatch.prime();
+  clipTimer = setInterval(() => { clipWatch.poll().catch(() => {}); }, 250);
 }
 
 /* ---------------- live log ---------------- */
@@ -466,7 +452,7 @@ ipcMain.handle("http", (e, req) => http(req));
 ipcMain.handle("league:detect", () => detectLeague());
 ipcMain.on("overlay:publish", (e, data) => { lastOverlayData = data; if (overlayWin) overlayWin.webContents.send("overlay:data", data); });
 ipcMain.on("overlay:action", (e, a) => {
-  if (a && a.type === "copy" && a.text) { ignoreClipboard = a.text; clipWrite(a.text); overlayWin && overlayWin.webContents.send("overlay:toast", "Copied: paste it with Ctrl+V"); return; }
+  if (a && a.type === "copy" && a.text) { ignoreClip(a.text); clipWrite(a.text); overlayWin && overlayWin.webContents.send("overlay:toast", "Copied: paste it with Ctrl+V"); return; }
   if (a && a.type === "interactive") { setOverlayInteractive(a.value); return; }
   sendMain("overlay:action", a);
 });
@@ -475,7 +461,7 @@ ipcMain.on("overlay:interactive", (e, v) => setOverlayInteractive(v));
 ipcMain.on("overlay:reset", () => { cfg.overlayBounds = null; saveCfg(); if (overlayWin) overlayWin.setBounds(defaultOverlayBounds()); });
 ipcMain.on("price:close", () => priceWin && priceWin.hide());
 ipcMain.on("price:test", (e, text) => showPrice(text));
-ipcMain.on("clip:write", (e, t) => { ignoreClipboard = t; clipWrite(t); });
+ipcMain.on("clip:write", (e, t) => { ignoreClip(t); clipWrite(t); });
 ipcMain.handle("diag:get", () => {
   const ctx = { home: os.homedir(), user: (() => { try { return os.userInfo().username; } catch (e) { return ""; } })() };
   const displays = screen.getAllDisplays().map((d) => `${d.size.width}x${d.size.height}@${d.scaleFactor}x`);

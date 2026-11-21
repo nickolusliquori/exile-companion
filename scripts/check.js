@@ -7,6 +7,7 @@ const assert = require("assert");
 
 const root = path.join(__dirname, "..");
 let failures = 0;
+const pending = [];
 const fail = (msg) => { console.error("✗ " + msg); failures++; };
 const ok = (msg) => console.log("✓ " + msg);
 
@@ -51,14 +52,29 @@ try {
 } catch (e) { fail("log parser: " + e.message); }
 
 try {
-  const { markItemText } = require(path.join(root, "lib", "clip.js"));
+  const { createClipWatcher } = require(path.join(root, "lib", "clip.js"));
   const item = "Item Class: Rings\r\nRarity: Rare\r\nDread Spiral\r\nVermillion Ring\r\n--------\r\nItem Level: 84";
-  for (const t of [item, item + "\r\n", item + "\n"]) {
-    const m = markItemText(t);
-    assert.notStrictEqual(m, t, "marked text must differ from the copied text");
-    assert.strictEqual(m.trim(), t.trim(), "marking must not change the item text");
-  }
-  ok("repeat price-check marking works");
+  const isItem = (t) => /^Item Class: /m.test(t) && /^Rarity: /m.test(t);
+  // Electron 33 returns text unchanged; Electron 44+ may turn \r\n into \n and drop a trailing break
+  const models = { "as-is": (s) => s, normalising: (s) => s.replace(/\r\n/g, "\n").replace(/\n+$/, "") };
+  pending.push((async () => {
+    for (const [name, readBack] of Object.entries(models)) {
+      for (const copied of [item, item + "\r\n"]) {
+        let board = "", shown = 0;
+        const w = createClipWatcher({ read: async () => readBack(board), write: async (t) => { board = t; }, isItem, onItem: () => shown++ });
+        await w.prime();
+        for (let i = 0; i < 4; i++) {
+          board = copied;                       // the game's Ctrl+C
+          for (let k = 0; k < 3; k++) await w.poll();
+        }
+        assert.strictEqual(shown, 4, `${name}: expected 4 price checks for 4 copies, got ${shown}`);
+        board = "some chat text"; await w.poll();
+        w.expect("search text"); board = "search text";
+        assert.strictEqual(await w.poll(), false, "app's own copy must not trigger");
+      }
+    }
+    ok("repeat price checks work with both clipboard behaviours");
+  })().catch((e) => fail("clip: " + e.message)));
 } catch (e) { fail("clip: " + e.message); }
 
 // problem reports must never leak secrets or the Windows user name
@@ -95,5 +111,7 @@ try {
   ok(`craft lab engine works (${ctx.CRAFTDATA.v}, ${Object.keys(ctx.CRAFTDATA.mods).length} mods)`);
 } catch (e) { fail("craft lab: " + e.message); }
 
-if (failures) { console.error(`\n${failures} check(s) failed`); process.exit(1); }
-console.log("\nAll checks passed");
+Promise.all(pending).then(() => {
+  if (failures) { console.error(`\n${failures} check(s) failed`); process.exit(1); }
+  console.log("\nAll checks passed");
+});
