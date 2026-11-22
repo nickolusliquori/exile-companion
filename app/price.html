@@ -357,13 +357,20 @@ function upgradeHtml(u){
 }
 
 /* ---------- search ---------- */
+async function tradeWaitMs(url){try{return D&&D.tradeWait?(+await D.tradeWait(url))||0:0}catch(e){return 0}}
 async function tradeSearch(query){
+  const g=GEN;
   const body={query:{status:{option:"online"},...query},sort:{price:"asc"}};
-  const r=await post(`${TRADE}/api/trade/search/${encodeURIComponent(league)}`,body);
+  const surl=`${TRADE}/api/trade/search/${encodeURIComponent(league)}`;
+  const w=await tradeWaitMs(surl);if(g!==GEN)throw new Error(STALE);
+  if(w>1500)setWait(Math.ceil(w/1000));
+  const r=await post(surl,body);setWait(0);
+  if(g!==GEN)throw new Error(STALE);
   if(r.status===429)throw new Error(`The trade site is rate-limiting requests. Try again in ${r.retryAfter||10}s.`);
   if(r.status>=400||!r.data)throw new Error((r.data&&r.data.error&&r.data.error.message)||`Trade search failed (${r.status}).`);
   lastSearchId=r.data.id;
   const ids=(r.data.result||[]).slice(0,10);
+  if(g!==GEN)throw new Error(STALE);
   if(!ids.length)return {total:0,listings:[]};
   const f=await get(`${TRADE}/api/trade/fetch/${ids.join(",")}?query=${r.data.id}`);
   if(f.status===429)throw new Error(`Rate-limited fetching listings. Try again in ${f.retryAfter||10}s.`);
@@ -447,8 +454,14 @@ function render(state){
 
 // "similar mods": how many of the ticked mods a listing must have
 function needFor(n){return n<=2?n:Math.max(2,Math.ceil(n*0.6))}
+/* Each price check gets a number. A newer check (the next Ctrl+D) makes older ones stale: they stop sending
+   trade requests and never draw over the new item. */
+let GEN=0;
+const STALE="__stale__";
+const renderIf=(g,st)=>{if(g===GEN)render(st)};
 async function searchRare(mods,auto){
-  const st={mods,status:"Searching the trade site…",unmatched:mods.filter(x=>!x.id&&x.kind!=="implicit").length};render(st);
+  const g=GEN;
+  const st={mods,status:"Searching the trade site…",unmatched:mods.filter(x=>!x.id&&x.kind!=="implicit").length};renderIf(g,st);
   const val=x=>{const v={};if(x.min!=null&&x.min!=="")v.min=+x.min;if(x.max!=null&&x.max!=="")v.max=+x.max;
     // a "reduced" mod is a negative value on the trade site: 10% reduced means at most -8 or so
     if(x.v!=null&&x.v<0&&v.min!=null&&v.max==null){v.max=v.min;delete v.min}return v};
@@ -470,39 +483,49 @@ async function searchRare(mods,auto){
       // a magic item's base guessed with its prefix still on: try again without it
       if(item.baseAlt&&q.type&&/base|type|unknown/i.test(e.message||"")){item.base=item.baseAlt;item.baseAlt=null;q.type=item.base;r=await tradeSearch(q)}else throw e}
     let note="";
-    // first automatic search found nothing: loosen step by step (fewer mods needed, then lower minimums) instead of giving up
-    if(auto&&!r.total&&modFilters.length){
-      const cg=q.stats.find(g=>g.filters===modFilters);
-      for(let n=need-1;n>=Math.min(2,modFilters.length)&&!r.total;n--){if(!cg)break;cg.type="count";cg.value={min:n};r=await tradeSearch(q);if(r.total){OPTS.match="count";OPTS.need=n;note=`Nothing had ${need} of these mods; showing items with ${n}.`}}
-      if(!r.total){modFilters.forEach(f=>{if(f.value.min!=null)f.value.min=Math.floor(f.value.min*0.8);delete f.value.max});r=await tradeSearch(q);if(r.total)note="Nothing close enough; minimums lowered by 20%."}
+    // first automatic search found nothing: loosen (fewer mods needed, then lower minimums), at most two more searches,
+    // and not at all when the trade site's rate limit is already close (each search also costs a fetch)
+    if(auto&&!r.total&&modFilters.length&&g===GEN){
+      const cg=q.stats.find(x=>x.filters===modFilters);let tries=0;
+      const room=async()=>tries<2&&g===GEN&&(await tradeWaitMs(`${TRADE}/api/trade/search/x`))<1500;
+      const n=Math.max(Math.min(2,modFilters.length),need-2);
+      if(cg&&n<need&&await room()){tries++;cg.type="count";cg.value={min:n};r=await tradeSearch(q);if(r.total){OPTS.match="count";OPTS.need=n;note=`Nothing had ${need} of these mods; showing items with ${n}.`}}
+      if(!r.total&&await room()){tries++;modFilters.forEach(f=>{if(f.value.min!=null)f.value.min=Math.floor(f.value.min*0.8);delete f.value.max});r=await tradeSearch(q);if(r.total)note=(note?note+" ":"")+"Minimums lowered by 20%."}
     }
     if(!modFilters.length)note=note||"None of this item's mods could be matched to the trade site, so this searched by base only.";
     const sum=summarize(r.listings);
-    render({mods,unmatched:st.unmatched,listings:r.listings,total:r.total,sum,status:r.total?note:"No matches. Untick a mod, lower the number to match or a minimum, then search again.",statusCls:r.total?(note&&!modFilters.length?"warn":""):"warn"})}
-  catch(e){render({mods,status:e.message,statusCls:"err"})}
+    renderIf(g,{mods,unmatched:st.unmatched,listings:r.listings,total:r.total,sum,status:r.total?note:"No matches. Untick a mod, lower the number to match or a minimum, then search again.",statusCls:r.total?(note&&!modFilters.length?"warn":""):"warn"})}
+  catch(e){if(e.message!==STALE)renderIf(g,{mods,status:e.message,statusCls:"err"})}
 }
 
 const UNIQUE_TYPE=c=>/Ring|Amulet|Belt/i.test(c)?"UniqueAccessory":/Flask/i.test(c)?"UniqueFlask":/Jewel/i.test(c)?"UniqueJewel":/Map/i.test(c)?"UniqueMap":/Body Armour|Helmet|Gloves|Boots|Shield|Quiver/i.test(c)?"UniqueArmour":"UniqueWeapon";
 
+let CUR_TEXT="",CUR_AT=0;
 async function check(text){
-  item=parseItem(text);
+  const g=++GEN,live=()=>g===GEN,R=st=>renderIf(g,st);
+  setWait(0);
+  try{item=parseItem(text)}catch(e){render({status:"This doesn't look like an item. Hover it in game, press Ctrl+C, then Ctrl+D.",statusCls:"err"});return}
+  CUR_TEXT=text;CUR_AT=Date.now();
   rates=null;lastSearchId=null;UPG=null;EXTRA="";WIKI="";TREND=null;LAST_STATE=null;
   loadWiki(item).catch(()=>{});
-  try{EXTRA=(await mapHtml(item))+craftHtml(item)}catch(e){EXTRA=""}
-  if(item.rarity==="rare"||item.rarity==="unique"||item.rarity==="magic"){try{UPG=await upgradeCheck(item)}catch(e){UPG=null}}
   const cls="r-"+(item.rarity==="divination card"?"divination":item.rarity);
   $("nm").className="nm "+cls;$("hdr").className="h-"+(item.rarity==="divination card"?"divination":item.rarity);$("nm").textContent=item.name||"Unknown item";
   $("base").textContent=[item.base!==item.name?item.base:"",item.cls,item.ilvl?`ilvl ${item.ilvl}`:"",item.gemLevel?`level ${item.gemLevel}/${item.quality}%`:"",item.mapTier?`tier ${item.mapTier}`:"",item.stack>1?`stack ${item.stack}`:"",item.corrupted?"corrupted":""].filter(Boolean).join(" · ");
   $("foot").textContent=`League: ${league||"detecting…"} · Esc closes`;
-  if(!league){league=await D.detectLeague();$("foot").textContent=`League: ${league||"unknown"} · Esc closes`}
-  if(!league){render({status:"Couldn't detect the league. Set it on the Desktop tab of the companion.",statusCls:"err"});return}
-  render({status:"Checking prices…"});
+  R({status:"Checking prices…"});
+  // map marks, crafting links and the upgrade check run alongside, not in front of, the price
+  const side=Promise.all([mapHtml(item).then(h=>h+craftHtml(item)).catch(()=>""),
+    (item.rarity==="rare"||item.rarity==="unique"||item.rarity==="magic")?upgradeCheck(item).catch(()=>null):null]).then(([ex,up])=>{if(!live())return;EXTRA=ex;UPG=up;if(LAST_STATE)render(LAST_STATE)});
+  if(!league){const l=await D.detectLeague();if(!live())return;league=l;$("foot").textContent=`League: ${league||"unknown"} · Esc closes`}
+  if(!league){R({status:"Couldn't detect the league. Set it on the Desktop tab of the companion.",statusCls:"err"});return}
   try{await loadRates()}catch(e){}
+  if(!live())return;
+  await Promise.race([side,new Promise(r=>setTimeout(r,400))]);if(!live())return;
   try{
     if(item.rarity==="currency"||/Stackable Currency|Map Fragments|Fragment/i.test(item.cls)){
       const v=item.name==="Chaos Orb"?1:(rates&&rates.__names&&rates.__names[item.name]);
       TREND=rates&&rates.__trend?rates.__trend[item.name]??null:null;
-      render({ninja:v,status:v==null?"poe.ninja has no price for this. Check the bulk exchange.":"Currency trades in bulk, so this uses poe.ninja's exchange rate.",exchange:true});
+      R({ninja:v,status:v==null?"poe.ninja has no price for this. Check the bulk exchange.":"Currency trades in bulk, so this uses poe.ninja's exchange rate.",exchange:true});
       return;
     }
     if(item.rarity==="unique"){
@@ -512,18 +535,18 @@ async function check(text){
       const q={name:item.name,type:item.base,filters:{misc_filters:{filters:item.corrupted?{}:{corrupted:{option:"false"}}}}};
       if(item.links>=5)q.filters.socket_filters={filters:{links:{min:item.links}}};
       let r=null,err=null;try{r=await tradeSearch(q)}catch(e){err=e.message}
-      render(r?{ninja,listings:r.listings,total:r.total,sum:summarize(r.listings)}:{ninja,status:err,statusCls:"warn"});
+      R(r?{ninja,listings:r.listings,total:r.total,sum:summarize(r.listings)}:{ninja,status:err,statusCls:"warn"});
       return;
     }
     if(item.rarity==="gem"){
       const mf={};if(item.gemLevel)mf.gem_level={min:item.gemLevel};if(item.quality)mf.quality={min:item.quality};mf.corrupted={option:item.corrupted?"true":"false"};
       const r=await tradeSearch({type:item.name,filters:{misc_filters:{filters:mf}}});
-      render({listings:r.listings,total:r.total,sum:summarize(r.listings)});
+      R({listings:r.listings,total:r.total,sum:summarize(r.listings)});
       return;
     }
     if(item.rarity==="divination card"){
       const r=await tradeSearch({type:item.name});
-      render({listings:r.listings,total:r.total,sum:summarize(r.listings)});
+      R({listings:r.listings,total:r.total,sum:summarize(r.listings)});
       return;
     }
     if((item.rarity==="rare"||item.rarity==="magic")&&item.cls!=="Maps"&&(item.mods||[]).length){
@@ -537,22 +560,26 @@ async function check(text){
     }
     if(item.cls==="Maps"){
       const r=await tradeSearch({type:item.base,filters:{map_filters:{filters:item.mapTier?{map_tier:{min:item.mapTier,max:item.mapTier}}:{}}}});
-      render({listings:r.listings,total:r.total,sum:summarize(r.listings)});
+      R({listings:r.listings,total:r.total,sum:summarize(r.listings)});
       return;
     }
     if(item.rarity==="normal"){
       const mf={};if(item.ilvl)mf.ilvl={min:item.ilvl};
       const r=await tradeSearch({type:item.base,filters:{misc_filters:{filters:mf},type_filters:{filters:{rarity:{option:"normal"}}}}});
-      render({listings:r.listings,total:r.total,sum:summarize(r.listings),status:"Base items: price shown is for this base at this item level or higher."});
+      R({listings:r.listings,total:r.total,sum:summarize(r.listings),status:"Base items: price shown is for this base at this item level or higher."});
       return;
     }
-    render({status:"Magic items rarely sell for much. Use the trade site if you think this one is special."});
-  }catch(e){render({status:e.message||"Price check failed.",statusCls:"err"})}
+    R({status:"Magic items rarely sell for much. Use the trade site if you think this one is special."});
+  }catch(e){if(e.message!==STALE)R({status:e.message||"Price check failed.",statusCls:"err"})}
 }
 
 $("close").onclick=()=>D&&D.closePrice();
 document.addEventListener("keydown",e=>{if(e.key==="Escape")D&&D.closePrice()});
-if(D){D.onPriceItem(({text,league:l})=>{if(l)league=l;check(text)})}
+function setWait(sec){const f=$("foot");if(!f)return;f.dataset.wait=sec?"1":"";if(sec)f.textContent=`Waiting about ${sec}s for the trade site's rate limit… · Esc closes`;else if(f.textContent.startsWith("Waiting"))f.textContent=`League: ${league||"unknown"} · Esc closes`}
+function footNote(msg){const f=$("foot");if(f)f.textContent=msg+" · Esc closes"}
+if(D){D.onPriceItem(({text,league:l,reused})=>{if(l)league=l;
+  if(text===CUR_TEXT&&(reused||Date.now()-CUR_AT<60e3)){footNote(reused?"No new item copied: hover an item, press Ctrl+C, then Ctrl+D":"Same item as before (prices from a moment ago)");return}
+  check(text)})}
 window.__parseItem=parseItem; // for testing
 window.__priceTest={enrichMods,pseudoPlan,minFor,loose,needFor,mapVerdict,markOf};
 </script>

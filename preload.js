@@ -102,6 +102,7 @@ contextBridge.exposeInMainWorld("exileDesktop", {
   onStash: on("stash:show"),
   onStashHotkey: on("stash:hotkey"),
   onStashStatus: on("stash:status"),
+  tradeWait: (url) => ipcRenderer.invoke("trade:wait", url),
   safeState: () => ipcRenderer.invoke("app:safe"),
   restartApp: (mode) => ipcRenderer.send("app:restart", mode === "safe" ? "safe" : "normal"),
   openLogFolder: () => ipcRenderer.send("log:open"),

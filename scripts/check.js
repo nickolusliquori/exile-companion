@@ -675,6 +675,18 @@ try {
   ok("fonts bundled (no Google Fonts requests), with their licenses");
 } catch (e) { fail("fonts: " + e.message); }
 
+// price popup: a newer check makes older ones stale; inside check() every render goes through the guard
+try {
+  const h = fs.readFileSync(path.join(root, "app", "price.html"), "utf8");
+  const k = h.indexOf("async function check(text){"), e = h.indexOf('$("close").onclick', k), body = h.slice(k, e);
+  assert(/const g=\+\+GEN,live=\(\)=>g===GEN,R=st=>renderIf\(g,st\)/.test(body), "check() numbers itself");
+  const bare = [...body.matchAll(/(?<![\w.])render\(/g)].map((m) => body.slice(m.index - 40, m.index + 20));
+  assert(bare.length <= 2 && bare.every((x) => /parseItem\(text\)\}catch|if\(LAST_STATE\)render/.test(x)), "unguarded render in check(): " + bare.join(" | "));
+  assert(/if\(g!==GEN\)throw new Error\(STALE\)/.test(h) && /reused/.test(h), "stale trade requests stop; re-shown items aren't searched again");
+  assert(/ipcMain\.handle\("trade:wait"/.test(fs.readFileSync(path.join(root, "main.js"), "utf8")), "rate-limit wait is reported");
+  ok("price popup: newer checks win, stale ones stop, no repeat search without a new item");
+} catch (e) { fail("price popup: " + e.message); }
+
 Promise.all(pending).then(() => {
   if (failures) { console.error(`\n${failures} check(s) failed`); process.exit(1); }
   console.log("\nAll checks passed");

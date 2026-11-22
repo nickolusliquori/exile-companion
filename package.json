@@ -1,7 +1,7 @@
 {
   "name": "exile-companion",
   "productName": "Exile Companion",
-  "version": "1.35.0",
+  "version": "1.35.1",
   "description": "Path of Exile 3.30 companion for Windows: build tracking from Path of Building, campaign and atlas guide, in-game overlay, Ctrl+C price checks, stash net worth and a crafting lab with real mod odds.",
   "main": "main.js",
   "license": "MIT",

@@ -212,7 +212,7 @@ function rememberItem(text) {
   clipHistory.length = Math.min(clipHistory.length, 20);
   sendMain("clip:history", clipHistory.map(({ title, rarity, at }) => ({ title, rarity, at })));
 }
-function showPrice(text) {
+function showPrice(text, reused) {
   if (!priceWin) createPrice();
   sizePrice();
   lastPriceText = text;
@@ -223,7 +223,7 @@ function showPrice(text) {
   const x = Math.min(Math.max(wa.x, pt.x + 24), wa.x + wa.width - w);
   const y = Math.min(Math.max(wa.y, pt.y - 60), wa.y + wa.height - h);
   priceWin.setPosition(Math.round(x), Math.round(y));
-  const send = () => priceWin.webContents.send("price:item", { text, league: cfg.league });
+  const send = () => priceWin.webContents.send("price:item", { text, league: cfg.league, reused: !!reused });
   if (priceWin.webContents.isLoading()) priceWin.webContents.once("did-finish-load", send); else send();
   priceWin.showInactive();
   // Escape closes the popup while it is open (released again on hide)
@@ -261,7 +261,7 @@ function registerHotkeys() {
   bind(cfg.mediaClickHotkey, () => setMediaClickThrough(!mediaClickThrough), "media click-through");
   bind(cfg.priceHotkey, async () => {
     const txt = await clipRead();
-    if (isItemText(txt)) showPrice(txt); else if (lastPriceText) showPrice(lastPriceText);
+    if (isItemText(txt)) showPrice(txt); else if (lastPriceText) showPrice(lastPriceText, true);
     else overlayWin && overlayWin.webContents.send("overlay:toast", "Hover an item in game and press Ctrl+C first");
   }, "price check");
 }
@@ -476,6 +476,10 @@ const userAgent = () => `ExileCompanion/${VERSION} (desktop companion for Path o
 let tradeBlockedUntil = 0;
 const { createLimiter, groupOf } = require("./lib/ratelimit");
 const tradeLimiter = createLimiter();
+// how long the next trade request to this URL would wait (the price popup says so instead of looking stuck)
+ipcMain.handle("trade:wait", (e, url) => {
+  try { const u = new URL(String(url)); if (!u.hostname.endsWith("pathofexile.com")) return 0; return Math.max(0, tradeLimiter.waitFor(groupOf(u.href)), tradeBlockedUntil - Date.now()); } catch (err) { return 0; }
+});
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 let tradeQueue = Promise.resolve();
 async function http({ url, method = "GET", body = null, cacheMs = 0, text = false }) {
@@ -1230,6 +1234,6 @@ else {
       startDiscord(); startStream();
     });
   });
-  app.on("will-quit", () => { LOG.info("app", "quit"); globalShortcut.unregisterAll(); clearInterval(clipTimer); if (tail) tail.stop(); if (discord) discord.close(); if (streamServer) streamServer.close(); });
+  app.on("will-quit", () => { LOG.info("app", "quit"); if (GUARD) GUARD.started(); /* a normal quit (or an update restart) is not a failed start */ globalShortcut.unregisterAll(); clearInterval(clipTimer); if (tail) tail.stop(); if (discord) discord.close(); if (streamServer) streamServer.close(); });
   app.on("window-all-closed", () => app.quit());
 }

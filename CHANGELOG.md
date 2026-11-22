@@ -2,6 +2,15 @@
 
 What changed in each release, newest first. Installed copies update themselves; see the [Releases page](https://github.com/nickolusliquori/exile-companion/releases) for the installers. Planned releases are on the [roadmap](README.md#roadmap).
 
+## [1.35.1] - 2026-11-22
+
+### Fixed
+- **Price check stuck on the previous item, or doing nothing.** Checks could overlap: a slow earlier check finished last and drew over the new item, and the new item's name only appeared once side lookups had finished. Now each Ctrl+D shows the new item at once, and an older check stops (no more trade requests) and can never draw over it.
+- The automatic "loosen the search" for rares now makes at most two extra searches and skips them when the trade site's rate limit is close, so a few checks in a row no longer use up GGG's limit.
+- When the trade site's rate limit makes a check wait, the popup says so with a countdown instead of looking stuck.
+- Ctrl+D without a new Ctrl+C now says "No new item copied" and keeps the current result instead of quietly searching the last item again; pressing it again on the same item within a minute doesn't search again.
+- Closing the app normally, or restarting for an update, could count as a failed start, so a couple of quick restarts started the app in safe mode with hotkeys off. Only real crashes count now.
+
 ## [1.35.0] - 2026-11-22
 
 ### Added
