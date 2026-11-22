@@ -2,6 +2,16 @@
 
 What changed in each release, newest first. Installed copies update themselves; see the [Releases page](https://github.com/nickolusliquori/exile-companion/releases) for the installers. Planned releases are on the [roadmap](README.md#roadmap).
 
+## [1.10.0] - 2026-11-21
+
+- **New: Trading page** (Economy → Trading).
+  - **Map search builder:** tick the map mods you won't run and set a minimum quantity, rarity or pack size; it writes the shortest search that hides every tier of those mods and nothing else, worked out from the 3.30 mod texts and all 232 map names (like poe.re). Shows the length against the game's 250-character limit, and saves searches.
+  - **Vendor and stash searches:** ready-made searches for 3- and 4-links, the chromatic recipe, movement speed, +1 gems and 6-sockets.
+  - **Dump-tab pricer:** prices every item in a stash tab with poe.ninja and gives a `~b/o` note (chaos or divines, with an undercut you choose) to copy onto each item; lists what's worth vendoring and what needs a Ctrl+C check (desktop).
+  - **Currency flip watcher:** currencies with the biggest gap between buyers and sellers, filtered by gap and number of listings, with optional notifications every 15 minutes (desktop).
+  - **Collections:** divination card set progress (and what it costs to finish) and the uniques you own, from your stash (desktop).
+- **Fixed** before release: two name clashes with the Maps page that would have mixed up checkboxes and data.
+
 ## [1.9.2] - 2026-11-21
 
 - **Fixed:** Cloudflare's "verify you are human" check still looped in the in-app browser. The browser presented itself as plain Chrome, and Cloudflare rejects that inside Electron apps because the browser's other signals don't match. It now uses Electron's own identity, which passes. A release check keeps it that way.
@@ -104,6 +114,7 @@ First public release of the Windows app, installed from GitHub with automatic up
 - **Account:** live character sync, stash net worth, stash finds, currency trends, price alerts and a sales tracker.
 - **Also:** notifications, Discord status, session recaps, backups, phone sync and an OBS stream overlay.
 
+[1.10.0]: https://github.com/nickolusliquori/exile-companion/releases/tag/v1.10.0
 [1.9.2]: https://github.com/nickolusliquori/exile-companion/releases/tag/v1.9.2
 [1.9.1]: https://github.com/nickolusliquori/exile-companion/releases/tag/v1.9.1
 [1.9.0]: https://github.com/nickolusliquori/exile-companion/releases/tag/v1.9.0

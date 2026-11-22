@@ -184,6 +184,28 @@ try {
   ok("loot filter editor works (parse, round trip, edits, preview, re-tiering)");
 } catch (e) { fail("loot filter: " + e.message); }
 
+// trading tools: map search fragments, number rules, buyout notes
+try {
+  const ctx = { console, S: {}, save() {}, toast() {}, emptyBox: (m) => m, $: () => null, DESK: null };
+  ctx.window = ctx; vm.createContext(ctx);
+  vm.runInContext(fs.readFileSync(path.join(appDir, "mapmods.js"), "utf8"), ctx);
+  vm.runInContext(fs.readFileSync(path.join(appDir, "tradetools.js"), "utf8"), ctx);
+  const T = ctx.TradeTools._test, all = ctx.MAPMOD_DATA.mods;
+  const chosen = all.filter((f) => /Thorns reflecting|cannot Regenerate|less Recovery Rate of Life|to all maximum Resistances/.test(f.x));
+  assert(chosen.length >= 4, "map mods missing");
+  const r = T.avoidTokens(chosen, all);
+  assert(!r.missed.length, "every chosen mod gets a fragment");
+  const norm = (t) => t.toLowerCase().replace(/[+-]?\d+(\.\d+)?/g, "#");
+  assert(chosen.every((f) => f.v.every((v) => r.tokens.some((t) => norm(v).includes(t)))), "fragments hit every tier of a chosen mod");
+  const clash = all.filter((f) => !chosen.includes(f)).concat(ctx.MAPMOD_DATA.names.map((n) => ({ v: [n] }))).filter((f) => f.v.some((v) => r.tokens.some((t) => norm(v).includes(t))));
+  assert(!clash.length, "fragments must not hit other mods or map names: " + JSON.stringify(clash.slice(0, 3)));
+  for (const n of [1, 9, 10, 85, 100, 250]) { const re = new RegExp("^" + T.geq(n) + "$"); for (let i = 0; i < 1100; i++) assert.strictEqual(re.test(String(i)), i >= n, `geq(${n}) wrong at ${i}`); }
+  assert.strictEqual(T.noteFor(12.7, { div: 200 }, 5).text, "~b/o 12 chaos");
+  assert(/divine$/.test(T.noteFor(450, { div: 200 }, 5).text), "large prices are noted in divines");
+  assert.strictEqual(T.noteFor(0.5, { div: 200 }, 0), null, "items under 1 chaos get no note");
+  ok(`trading tools work (${all.length} map mod families, ${ctx.MAPMOD_DATA.names.length} map names)`);
+} catch (e) { fail("trading tools: " + e.message); }
+
 Promise.all(pending).then(() => {
   if (failures) { console.error(`\n${failures} check(s) failed`); process.exit(1); }
   console.log("\nAll checks passed");

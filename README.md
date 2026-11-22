@@ -89,6 +89,7 @@ Your character at a glance: progress toward the goal build, what to do next (cam
 | **Crafting** | A crafting plan for each gear slot, crafts that tend to sell for profit, a cost calculator and a 3.30 crafting cheat sheet. |
 | **Craft lab** | Mod pools from the game files (patch 3.30.0.4) for any base, item level and influence, with tiers, roll ranges and weights. Tick the mods you want to see the chance and cost of chaos spam, essences, fossils and alteration methods; practise on an **emulator** item; or **simulate** a whole plan 2,000 times for its average and unlucky cost. |
 | **Loot filter** | Edit the NeverSink filter you use: show or hide rules, restyle them (size, colours, sound, beam, minimap icon), preview 36 typical drops through it, re-tier currency, cards and uniques with today's poe.ninja prices, and add highlights for your build. Saves a separate `ExileCompanion-…` copy; your original is never changed. |
+| **Trading** | A map search builder that hides every tier of the mods you won't run (like poe.re), ready-made vendor searches, a dump-tab pricer that writes `~b/o` notes to copy onto items, a currency flip watcher, and divination card and unique collections. |
 | **Browser** (desktop) | The trade site, poe.ninja, the wiki, poedb, poelab, Craft of Exile, FilterBlade, poe.re and pobb.in inside the app, signed in, with quick links and a wiki search. Links from the price window and elsewhere open here. Pages are sandboxed away from the app and your saved secrets; other sites open in your own browser. |
 | **Account** (desktop) | Live character sync from your GGG profile, stash net worth over time, stash finds (upgrades and items worth selling), currency trends and a sales tracker. |
 
@@ -130,11 +131,10 @@ All of these can be changed in **Settings → Hotkeys**.
 
 ## Roadmap
 
-The loot filter editor shipped in 1.8 and the in-app browser in 1.9. Planned releases, in order. Each ships as a regular release through auto-update, gets tested in game afterwards, and any problems found are fixed in a follow-up patch (for example 1.8.1).
+The loot filter editor shipped in 1.8, the in-app browser in 1.9 and the trading tools in 1.10. Planned releases, in order. Each ships as a regular release through auto-update, gets tested in game afterwards, and any problems found are fixed in a follow-up patch (for example 1.8.1).
 
 | Version | Feature |
 |---|---|
-| **1.10** | **Trading and money:** a search-string builder (like poe.re), a dump-tab pricer that writes `~b/o` notes for you to copy, a currency flip watcher, and divination card and unique collection trackers.|
 | **1.11** | **Mapping and league content:** scarab and map-device return on investment from your own maps, a Betrayal board helper, Heist and Expedition helpers, and the daily Lab layout with enchant prices.|
 | **1.12** | **Build tools:** a meta comparison from poe.ninja builds, timeless and cluster jewel helpers, and gem levelling profit.|
 | **1.13** | **Quality of life:** clipboard history, session goals, and the in-app browser pinned over the game with a hotkey.|
@@ -183,6 +183,8 @@ npm run dist:local # build an installer on your own PC
 | `scripts/craftdata.py` | Regenerates `app/craftdata.js` from a [RePoE](https://repoe-fork.github.io) export after a patch |
 
 **Releasing:** bump `version` in `package.json` and push to `main`. GitHub Actions runs the checks, builds the Windows installer and publishes the release with notes from [CHANGELOG.md](CHANGELOG.md); installed apps update themselves. A version with a suffix such as `1.8.0-beta.1` is published as a pre-release, which auto-update ignores. See [CONTRIBUTING.md](CONTRIBUTING.md) for more.
+
+**Updating map-mod data after a patch:** run `python3 scripts/mapmods.py <folder> <patch version>` with the same export (it needs `mods.json` and `base_items.json`).
 
 **Updating crafting data after a patch:** download `mods.json`, `base_items.json`, `essences.json`, `fossils.json`, `crafting_bench_options.json` and `item_classes.json` from the RePoE export, then run `python3 scripts/craftdata.py <folder> <patch version>`.
 
