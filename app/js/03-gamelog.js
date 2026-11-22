@@ -284,6 +284,8 @@ function searchStrings(frags,limit=250){
 function gemSearchFor(gemNames){const fr=[...new Set(gemNames.map(n=>{const i=gemInfo(n);return gemFragment(i&&i.i!=null?i.name:n)}))];return searchStrings(fr)}
 function copyBox(id,label,str){return `<div style="display:grid;gap:4px"><span class="small muted">${esc(label)}</span><div class="row" style="flex-wrap:nowrap;align-items:stretch"><div class="code" style="flex:1" id="${id}">${esc(str)}</div><button class="btn ghost small" data-copy="${id}">Copy</button></div></div>`}
 function bindCopy(root){(root||document).querySelectorAll("[data-copy]").forEach(b=>b.onclick=async()=>{const t=$(b.dataset.copy).textContent;try{await navigator.clipboard.writeText(t);b.textContent="Copied"}catch(e){b.textContent="Select & copy"}setTimeout(()=>b.textContent="Copy",1500)})}
+// searches for every gem in the goal build (stash or vendor), for the trading tools and the overlay
+function buildGemSearches(){try{if(!G)return [];const names=[...new Set(currentSkills(G).filter(s=>s.enabled).flatMap(s=>s.gems.filter(g=>g.enabled).map(g=>g.name)))];return names.length?gemSearchFor(names):[]}catch(e){return []}}
 const LEVEL_RX=[["3-link (any colours)",'"[rgbw]-[rgbw]-[rgbw]"'],["4-link (any colours)",'"[rgbw]-[rgbw]-[rgbw]-[rgbw]"'],["Movement speed boots",'"movement speed"']];
 /* splits */
 function splitTotals(r){let cum=0;const rows=[];for(let a=1;a<=10;a++){const v=r.ms[a];if(v==null)continue;cum+=v;rows.push({act:a,ms:v,cum})}return rows}

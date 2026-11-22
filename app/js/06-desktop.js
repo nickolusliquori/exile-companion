@@ -238,7 +238,7 @@ async function ninjaPrices(force){
   }
   for(const t of ["UniqueWeapon","UniqueArmour","UniqueAccessory","UniqueFlask","UniqueJewel","UniqueMap","SkillGem","ClusterJewel","Invitation","Memory"]){
     const d=await get(`https://poe.ninja/poe1/api/economy/stash/current/item/overview?league=${encodeURIComponent(lg)}&type=${t}`);
-    (d&&d.lines||[]).forEach(l=>{(P.items[l.name]=P.items[l.name]||[]).push(l)});
+    (d&&d.lines||[]).forEach(l=>{l.__type=t;(P.items[l.name]=P.items[l.name]||[]).push(l)});
   }
   NINJA=P;return P;
 }

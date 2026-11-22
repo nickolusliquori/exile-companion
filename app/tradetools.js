@@ -62,15 +62,81 @@ const nm=raw=>(typeof stripTags==="function"?stripTags(raw.name)||stripTags(raw.
 /* ---------- state ---------- */
 function st(){const s=S.trade||(S.trade={avoid:[],min:{},saved:[],under:5,flip:{gap:10,count:20,watch:false,seen:{}},collect:null});s.min=s.min||{};s.saved=s.saved||[];s.flip=s.flip||{gap:10,count:20,watch:false,seen:{}};s.flip.seen=s.flip.seen||{};return s}
 
+/* ---------- Gwennen gambling search ----------
+   Gwennen sells unidentified uniques: you only see the base type. From poe.ninja's unique prices we pick the bases
+   that can turn into something valuable, then find a short piece of each base name that no other unique base
+   (and no common tooltip word) contains, and join them into searches that fit the search box. */
+const TIP_WORDS=["item class","rarity","unique","unidentified","requires","level","quality","armour","evasion rating","energy shield","ward","physical damage",
+  "elemental damage","critical strike chance","attacks per second","weapon range","item level","str","dex","int","chance to block","sockets","charges","lasts",
+  "seconds","consumes","currently has","life","mana","recovers","radius","limited to","chaos orb","cost","corrupted","one hand","two hand"];
+function gwennenBases(lines){
+  const by={};
+  for(const l of lines||[]){
+    if(!l||!l.baseType||l.chaosValue==null)continue;
+    if((l.links||0)>0||/^Replica /.test(l.name||"")||/relic/i.test(String(l.detailsId||""))||l.itemClass===9)continue;
+    const b=(by[l.baseType]=by[l.baseType]||{base:l.baseType,uniques:{}});
+    const v=+l.chaosValue;if(b.uniques[l.name]==null||v<b.uniques[l.name])b.uniques[l.name]=v;   // cheapest variant of each unique
+  }
+  return Object.values(by).map(b=>{const list=Object.entries(b.uniques).map(([name,c])=>({name,c})).sort((x,y)=>y.c-x.c);
+    return {base:b.base,list,best:list[0].c,worst:list[list.length-1].c}});
+}
+function gwennenFragment(base,others){
+  const n=base.toLowerCase(),pool=others.map(o=>o.toLowerCase()).filter(o=>o!==n).concat(TIP_WORDS);
+  for(const wordStart of [true,false])for(let len=3;len<=n.length;len++)for(let i=0;i+len<=n.length;i++){
+    if(wordStart&&i>0&&n[i-1]!==" ")continue;const f=n.slice(i,i+len);if(/^ | $/.test(f))continue;
+    if(!pool.some(o=>o.includes(f)))return {frag:f,clean:true};
+  }
+  return {frag:n,clean:false,also:others.filter(o=>o.toLowerCase()!==n&&o.toLowerCase().includes(n))};
+}
+function gwennenSearch(lines,{min=100,mode="any"}={}){
+  const bases=gwennenBases(lines);
+  const want=bases.filter(b=>mode==="all"?b.worst>=min:b.best>=min).sort((a,b)=>b.best-a.best);
+  const wanted=new Set(want.map(b=>b.base)),others=bases.filter(b=>!wanted.has(b.base)).map(b=>b.base);
+  const picks=want.map(b=>({...b,...gwennenFragment(b.base,others)}));
+  const frags=[...new Set(picks.map(p=>p.frag))];
+  const strings=[];let cur=[];const esc3=f=>f.replace(/[.*+?^${}()|[\]\\]/g,"\\$&");
+  for(const f of frags){const e=esc3(f);if(cur.length&&(cur.concat(e).join("|").length+2)>MAXLEN){strings.push(cur);cur=[]}cur.push(e)}
+  if(cur.length)strings.push(cur);
+  return {picks,strings:strings.map(a=>`"${a.join("|")}"`),total:bases.length};
+}
+let GW=null;
+function renderGwennen(){
+  const el=$("ttGwen");if(!el)return;const s=st();s.gw=s.gw||{min:100,mode:"any"};
+  if(!DESK){el.innerHTML=`<h2>Gwennen gambling search</h2>${emptyBox("Needs the desktop app: it uses current poe.ninja prices.")}`;return}
+  const r=GW&&GW.lines?gwennenSearch(GW.lines,s.gw):null;
+  el.innerHTML=`<h2>Gwennen gambling search</h2>
+    <p class="small" style="margin:0">Gwennen (Expedition) sells unidentified uniques, so you only see the base. This highlights the bases that can be a valuable unique, using today's poe.ninja prices. Paste it into Gwennen's search box.</p>
+    <div class="row"><label class="small row" style="gap:4px">Worth at least <input type="number" id="gwMin" min="5" max="100000" value="${s.gw.min}" style="width:90px"> chaos</label>
+      <select id="gwMode" aria-label="Which uniques count"><option value="any"${s.gw.mode==="any"?" selected":""}>if any unique on the base is</option><option value="all"${s.gw.mode==="all"?" selected":""}>only if every unique on the base is</option></select>
+      <button class="btn${r?" ghost":" primary"} small" id="gwLoad">${r?"Refresh prices":"Get prices"}</button></div>
+    ${r?`${r.strings.length?r.strings.map((x,i)=>`<div class="ttout"><code>${esc2(x)}</code></div><div class="row"><button class="btn primary small" data-gwcopy="${i}">Copy${r.strings.length>1?` search ${i+1} of ${r.strings.length}`:" search"}</button><span class="small muted">${x.length}/${MAXLEN}</span></div>`).join(""):emptyBox("No base reaches that price. Try a lower amount.")}
+      ${r.picks.length?`<details class="small"${r.picks.length<=12?" open":""}><summary style="cursor:pointer">${r.picks.length} of ${r.total} unique bases match</summary><div class="tw"><table><thead><tr><th>Base</th><th>Best unique</th><th>Uniques on it</th><th>Search piece</th></tr></thead><tbody>
+        ${r.picks.map(p=>`<tr><td>${esc2(p.base)}</td><td>${esc2(p.list[0].name)} <span class="muted">${fmt(p.best)}c</span></td><td class="num">${p.list.length}${p.list.length>1?` <span class="muted">(${fmt(p.worst)}c lowest)</span>`:""}</td><td><code>${esc2(p.frag)}</code>${p.clean?"":` <span class="pill warn" title="Also matches ${esc2((p.also||[]).join(", "))}">also matches others</span>`}</td></tr>`).join("")}</tbody></table></div></details>`:""}
+      <p class="note" style="margin:0">Prices from poe.ninja (${new Date(GW.at).toLocaleTimeString()}). Which unique you get is random and rarer uniques show up less often, so "any" is a gamble and "every" is the safe pick. 6-links, replicas and relics aren't counted.</p>`
+    :`<p class="small muted" style="margin:0">Press Get prices to build the search.</p>`}`;
+  $("gwMin").onchange=e=>{s.gw.min=Math.max(5,+e.target.value||100);save();renderGwennen();publishGw()};
+  $("gwMode").onchange=e=>{s.gw.mode=e.target.value;save();renderGwennen();publishGw()};
+  $("gwLoad").onclick=async()=>{const b=$("gwLoad");b.disabled=true;b.textContent="Getting prices…";
+    try{const P=await ninjaPrices(true);const lines=[];for(const v of Object.values(P.items||{}))for(const l of v)if(/^Unique(Weapon|Armour|Accessory|Flask|Jewel)$/.test(l.__type||""))lines.push(l);
+      GW={lines,at:Date.now()};}catch(e){toast&&toast("Couldn't reach poe.ninja. Try again in a minute.")}
+    renderGwennen();publishGw()};
+  el.querySelectorAll("[data-gwcopy]").forEach(b=>b.onclick=()=>copy(r.strings[+b.dataset.gwcopy]));
+}
+// the latest Gwennen searches also go to the overlay's Tools page
+function publishGw(){const s=st();const r=GW&&GW.lines?gwennenSearch(GW.lines,s.gw||{}):null;S.searchSets=S.searchSets||{};
+  S.searchSets.gwennen=r?r.strings.map((x,i)=>({name:`Gwennen ≥${fmt((s.gw||{}).min||100)}c${r.strings.length>1?` (${i+1}/${r.strings.length})`:""}`,text:x})):[];save();
+  if(typeof publishOverlay==="function")publishOverlay()}
+
 /* ---------- UI ---------- */
 async function render(){
   const root=$("tradeTools");if(!root)return;
   if(!window.MAPMOD_DATA){try{await loadScriptOnce("mapmods.js","MAPMOD_DATA")}catch(e){}}
   root.innerHTML=`<div class="grid"><div class="card hl" id="ttSearch"></div><div class="card" id="ttVendor"></div></div>
+    <div class="card" id="ttGwen"></div>
     <div class="card" id="ttDump"></div>
     <div class="grid"><div class="card" id="ttFlip"></div><div class="card" id="ttCollect"></div></div>
     <div class="card" id="ttSaved"></div>`;
-  renderSearch();renderVendor();renderDump();renderFlip();renderCollect();renderSaved();
+  renderSearch();renderVendor();renderGwennen();renderDump();renderFlip();renderCollect();renderSaved();
 }
 function renderSearch(){
   const el=$("ttSearch");if(!el)return;const s=st();const all=(window.MAPMOD_DATA&&MAPMOD_DATA.mods)||[];
@@ -101,7 +167,10 @@ function renderVendor(){
   el.innerHTML=`<h2>Vendor and stash searches</h2>
     <p class="small" style="margin:0">Common searches for vendor windows and stash tabs. Click to copy, then paste with Ctrl+V.</p>
     <ul class="clean" style="display:grid;gap:6px">${VENDOR.map(([l,r],i)=>`<li class="row" style="justify-content:space-between;flex-wrap:nowrap"><span class="small">${esc2(l)}<br><code class="muted">${esc2(r)}</code></span><button class="btn ghost small" data-vcopy="${i}">Copy</button></li>`).join("")}</ul>
-    <p class="small muted" style="margin:0">Your build's gems already have vendor searches on the Shopping list.</p>`;
+    ${(()=>{const gs=typeof buildGemSearches==="function"?buildGemSearches():[];return gs.length?`<h3>Every gem in your goal build</h3><p class="small muted" style="margin:0">Finds your build's gems in a stash tab or vendor.${exG?" (These are for the example build until you import yours.)":""}</p>
+      ${gs.map((x,i)=>`<div class="row" style="flex-wrap:nowrap"><code class="muted" style="flex:1;word-break:break-all">${esc2(x)}</code><button class="btn ghost small" data-gcopy="${i}">Copy${gs.length>1?` ${i+1}/${gs.length}`:""}</button></div>`).join("")}`:""})()}
+    <p class="small muted" style="margin:0">Gems you can buy by your current act are on the Campaign page.</p>`;
+  el.querySelectorAll("[data-gcopy]").forEach(b=>b.onclick=()=>copy(buildGemSearches()[+b.dataset.gcopy]));
   el.querySelectorAll("[data-vcopy]").forEach(b=>b.onclick=()=>copy(VENDOR[+b.dataset.vcopy][1]));
 }
 
@@ -218,5 +287,5 @@ function renderSaved(){
   el.querySelectorAll('[data-fix="openTrade"]').forEach(b=>b.onclick=e=>{e.stopPropagation();go("https://www.pathofexile.com/trade")});
 }
 TT.render=render;TT.startFlipWatch=startFlipWatch;
-TT._test={avoidTokens,geq,buildSearch,noteFor,familyLines};
+TT._test={avoidTokens,geq,buildSearch,noteFor,familyLines,gwennenSearch,gwennenBases,gwennenFragment};
 })();

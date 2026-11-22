@@ -236,7 +236,25 @@ try {
   assert.strictEqual(T.noteFor(12.7, { div: 200 }, 5).text, "~b/o 12 chaos");
   assert(/divine$/.test(T.noteFor(450, { div: 200 }, 5).text), "large prices are noted in divines");
   assert.strictEqual(T.noteFor(0.5, { div: 200 }, 0), null, "items under 1 chaos get no note");
-  ok(`trading tools work (${all.length} map mod families, ${ctx.MAPMOD_DATA.names.length} map names)`);
+  // Gwennen: bases with a valuable unique, fragments that hit only those bases and no tooltip words
+  const L = (name, baseType, c, extra) => ({ name, baseType, chaosValue: c, ...(extra || {}) });
+  const lines = [L("Headhunter", "Leather Belt", 9000), L("Wurm's Molt", "Leather Belt", 1), L("Mageblood", "Heavy Belt", 20000), L("Bisco's Leash", "Heavy Belt", 2),
+    L("Kaom's Heart", "Glorious Plate", 300), L("Tabula Rasa", "Simple Robe", 40), L("Belly of the Beast", "Full Wyrmscale", 15),
+    L("Lifesprig", "Driftwood Wand", 1), L("Replica Headhunter", "Leather Belt", 500), L("Kaom's Heart", "Glorious Plate", 5000, { links: 6 }),
+    L("Ventor's Gamble", "Gold Ring", 30), L("Andvarius", "Gold Ring", 5), L("Le Heup of All", "Iron Ring", 4), L("Relic Thing", "Simple Robe", 900, { detailsId: "relic-thing" })];
+  const g = T.gwennenSearch(lines, { min: 100, mode: "any" });
+  assert.strictEqual(JSON.stringify(g.picks.map((p) => p.base).sort()), JSON.stringify(["Glorious Plate", "Heavy Belt", "Leather Belt"]), "bases with a unique worth 100c+ (6-links, replicas, relics ignored): " + g.picks.map((p) => p.base));
+  const allBases = [...new Set(lines.map((l) => l.baseType))];
+  const re = new RegExp(g.strings[0].slice(1, -1), "i");
+  for (const b of allBases) assert.strictEqual(re.test(b), ["Glorious Plate", "Heavy Belt", "Leather Belt"].includes(b), "search vs base " + b);
+  for (const w of ["Armour: 553", "Item Class: Belts", "Rarity: Unique", "Unidentified", "Requires Level 68", "Chaos Orb"]) assert(!re.test(w), "search must not hit tooltip text: " + w);
+  assert.strictEqual(JSON.stringify(T.gwennenSearch(lines, { min: 100, mode: "all" }).picks.map((p) => p.base)), '["Glorious Plate"]', "'every unique' mode");
+  const sub = T.gwennenFragment("Ring", ["Gold Ring", "Iron Ring"]); assert(!sub.clean && sub.also.length === 2, "a base inside other bases' names is flagged");
+  const many = Array.from({ length: 160 }, (_, i) => L("U" + i, "Base Number " + i + " Thing", i % 2 ? 1 : 500));
+  const gm = T.gwennenSearch(many, { min: 100 }); assert(gm.strings.length > 1 && gm.strings.every((x) => x.length <= 250), "long lists split under the 250-character limit");
+  const res = gm.strings.map((x) => new RegExp(x.slice(1, -1), "i"));
+  for (let i = 0; i < 160; i++) assert.strictEqual(res.some((r) => r.test("Base Number " + i + " Thing")), i % 2 === 0, "split searches hit exactly the wanted bases (" + i + ")");
+  ok(`trading tools work (${all.length} map mod families, ${ctx.MAPMOD_DATA.names.length} map names; Gwennen search)`);
 } catch (e) { fail("trading tools: " + e.message); }
 
 // league tools: Thread costs, map return, Betrayal board

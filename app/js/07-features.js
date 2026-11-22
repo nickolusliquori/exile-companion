@@ -511,8 +511,12 @@ function overlayPages(){
     pages.atlas={done:MAP_POOL.length?MAP_POOL.filter(m=>done[m.key]).length:Object.keys(done).length,total:MAP_POOL.length||0,strat:strat.name,threads:Object.entries(strat.threads),next:mech?atlasNodesFor(mech).filter(n=>!have.has(String(n.id))).slice(0,4).map(n=>n.name):[],bosses:BOSSES.filter(b=>!S.bosses||!S.bosses[b.id]).slice(0,3).map(b=>b.name)};
     const maps=S.session.maps,timed=maps.filter(m=>m.dur),ms=timed.reduce((a,m)=>a+m.dur,0),profit=maps.reduce((a,m)=>a+(+m.profit||0),0);
     const live=makeRecap();
+    const gemRx=typeof buildGemSearches==="function"?buildGemSearches():[];
     pages.tools={searches:[...((S.trade&&S.trade.saved)||[]).map(x=>({name:x.name,text:x.text})),
-      {name:"Chaos recipe pieces",text:'"rarity: rare" "item level: (6\\d|7[0-4])"'},{name:"Regal recipe pieces",text:'"rarity: rare" "item level: (7[5-9]|8\\d)"'},{name:"Unidentified rares",text:'"rarity: rare" unidentified'}].slice(0,16)};
+      ...((S.searchSets&&S.searchSets.gwennen)||[]),
+      ...gemRx.map((x,i)=>({name:`Build gems${gemRx.length>1?` (${i+1}/${gemRx.length})`:""}`,text:x})),
+      ...(typeof LEVEL_RX!=="undefined"?LEVEL_RX.map(([l,x])=>({name:l,text:x})):[]),
+      {name:"Chaos recipe pieces",text:'"rarity: rare" "item level: (6\\d|7[0-4])"'},{name:"Regal recipe pieces",text:'"rarity: rare" "item level: (7[5-9]|8\\d)"'},{name:"Unidentified rares",text:'"rarity: rare" unidentified'}].slice(0,24)};
     pages.session={goal:goalState(),maps:maps.length,mapMs:ms,div:ms>60000&&profit?profit/(ms/3.6e6)/S.divine:null,profit,net:S.netLatest&&S.netLatest.div?S.netLatest.total/S.netLatest.div:null,sales:(S.sales||[]).filter(x=>Date.now()-x.t<86400e3).reduce((a,x)=>a+(x.chaos||0),0),recap:live?recapLine(live):null};
     pages.trades={alerts:Object.values(S.watch||{}).filter(w=>w.last!=null&&w.last<=w.target).map(w=>`${w.name}: ${fmt(w.last)}c (≤ ${fmt(w.target)}c)`),sold:(S.sales||[]).slice(-3).reverse().map(x=>`${x.name}: ${x.amount} ${x.cur}`)};
   }catch(e){console.error(e)}

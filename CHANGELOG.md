@@ -2,6 +2,13 @@
 
 What changed in each release, newest first. Installed copies update themselves; see the [Releases page](https://github.com/nickolusliquori/exile-companion/releases) for the installers. Planned releases are on the [roadmap](README.md#roadmap).
 
+## [1.31.0] - 2026-11-22
+
+### Added
+- **Gwennen gambling search** (Economy → Trading): from today's poe.ninja prices, a search for Gwennen's shop that highlights only the bases that can be a valuable unique. Choose the price and whether any unique or every unique on the base must reach it; the table shows each base's best unique and how many uniques share it. 6-links, replicas and relics aren't counted, and the search never matches common tooltip words.
+- **Every gem in your goal build** as stash/vendor searches in the trading tools (the Campaign page still has the ones you can buy by your current act).
+- **More searches on the overlay's Tools page:** your latest Gwennen search, your build's gems and the leveling vendor searches sit next to your saved searches, ready to copy in game.
+
 ## [1.30.0] - 2026-11-22
 
 ### Changed
