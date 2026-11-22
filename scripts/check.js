@@ -239,6 +239,52 @@ try {
   ok("league tools work (Thread costs, map return, Betrayal board)");
 } catch (e) { fail("league tools: " + e.message); }
 
+// build tools: timeless jewels (against the raw table), cluster notables, gem profit
+try {
+  const zlib = require("zlib");
+  const ctx = { console, S: {}, save() {}, toast() {}, emptyBox: (m) => m, $: () => null, DESK: null, atob, DecompressionStream, Response, Blob, Uint8Array };
+  ctx.window = ctx; vm.createContext(ctx);
+  for (const f of ["timelessdata.js", "clusterdata.js", "buildtools.js"]) vm.runInContext(fs.readFileSync(path.join(appDir, f), "utf8"), ctx);
+  const B = ctx.BuildTools._test, T = ctx.TIMELESS;
+  assert.deepStrictEqual(Object.keys(T.jewels).sort(), ["Brutal Restraint", "Elegant Hubris", "Heroic Tragedy", "Lethal Pride", "Militant Faith"]);
+  assert(B.seedOk(T.jewels["Elegant Hubris"], 2000) && B.seedOk(T.jewels["Elegant Hubris"], 160000) && !B.seedOk(T.jewels["Elegant Hubris"], 2010), "Elegant Hubris seeds step by 20");
+  assert(!B.seedOk(T.jewels["Lethal Pride"], 9999) && B.seedOk(T.jewels["Lethal Pride"], 18000));
+  assert.deepStrictEqual(Object.assign({}, B.parseTimeless("Carved to glorify 7253 new faithful converted by High Templar Avarius")), { jewel: "Militant Faith", seed: 7253, conq: "Avarius" });
+  assert.strictEqual(B.parseTimeless("Commissioned 81320 coins to commemorate Cadiro").jewel, "Elegant Hubris");
+  assert.strictEqual(B.parseTimeless("Commanded leadership over 10531 warriors under Akoya").conq, "Akoya");
+  assert.strictEqual(B.parseTimeless("Adds 10 to 20 Fire Damage"), null);
+  const kinds = {}; let checked = 0;
+  for (const [name, j] of Object.entries(T.jewels)) {
+    const raw = zlib.inflateSync(Buffer.from(j.data, "base64")); const size = (j.max - j.min) / j.step + 1;
+    assert.strictEqual(raw.length, size * T.notables.length, name + " table size");
+    for (let k = 0; k < 400; k++) {
+      const r = (k * 7919) % T.notables.length, seed = j.min + j.step * ((k * 104729) % size);
+      const res = B.lookup(T, raw, name, seed, T.notables[r]);
+      const b = raw[r * size + (seed - j.min) / j.step], g = j.l2g[b] != null ? j.l2g[b] : b;
+      assert.strictEqual(res.gid, g); assert(res.node && res.node.id, "result has a passive");
+      (kinds[name] = kinds[name] || new Set()).add(res.kind); checked++;
+    }
+  }
+  assert.deepStrictEqual([...kinds["Lethal Pride"]], ["add"], "Lethal Pride only adds stats to notables");
+  assert.deepStrictEqual([...kinds["Elegant Hubris"]], ["replace"], "Elegant Hubris replaces notables");
+  assert(Object.values(T.keystones).every((v) => v && v.n && v.s.length), "every conqueror has a named keystone");
+  assert(!B.clusterSuggest({ elems: ["lightning"] }).some((x) => /Resistance/.test(x.name)), "only damage enchants are suggested");
+  assert(Object.values(T.jewels).every((j) => j.trade.length === 3));
+  pending.push((async () => {
+    const r = await B.seedSearch(T, "Militant Faith", Object.keys(T.sockets).find((k) => T.sockets[k].length > 20), ["templar_notable_devotion"], null);
+    assert(r.length && r[0].n >= r[r.length - 1].n, "seed search returns ranked seeds");
+    ok(`build tools work (${checked} timeless lookups match the raw tables, ${ctx.CLUSTERDATA.notables.length} cluster notables, gem profit)`);
+  })().catch((e) => fail("build tools (seed search): " + e.message)));
+  const L = B.clusterNotables("affliction_lightning_damage");
+  assert(L.length > 5 && L.some((n) => n.n === "Stormrider"), "lightning large cluster notables");
+  const sumP = L.filter((n) => n.t === "P").reduce((a, n) => a + n.share, 0); assert(Math.abs(sumP - 1) < 1e-9, "prefix shares add up to 100%");
+  assert(B.clusterSuggest({ elems: ["lightning"], minion: false, dot: false }).some((x) => x.name === "Lightning Damage" && x.size === "Large"));
+  const gems = B.gemProfits({ "Arc": [{ variant: "1", chaosValue: 1, listingCount: 50 }, { variant: "20", chaosValue: 10, listingCount: 40 }, { variant: "20/20", chaosValue: 30, listingCount: 30 }, { variant: "21/20c", chaosValue: 200, listingCount: 30 }], "Thin": [{ variant: "1", chaosValue: 1, listingCount: 2 }, { variant: "20", chaosValue: 99, listingCount: 2 }] }, 0.5, 10);
+  assert.strictEqual(gems.length, 1, "thin markets are filtered out");
+  assert.strictEqual(gems[0].profit, 19, "best plan: level 1 to 20/20 with 20 Gemcutter's (30 - 1 - 10)");
+  assert.deepStrictEqual(Object.assign({}, B.gemVariant({ variant: "21/20c", chaosValue: 5 })), { lvl: 21, q: 20, c: true, price: 5, n: 0 });
+} catch (e) { fail("build tools: " + e.message); }
+
 Promise.all(pending).then(() => {
   if (failures) { console.error(`\n${failures} check(s) failed`); process.exit(1); }
   console.log("\nAll checks passed");

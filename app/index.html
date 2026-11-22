@@ -242,6 +242,8 @@ section.tab .card{scroll-margin-top:140px}
 .ttout{background:#0b0806;border:1px solid var(--gold-dim);border-radius:3px;padding:10px 12px;font-size:.92rem;overflow-wrap:anywhere;min-height:2.4em}
 .ttout code{color:var(--gold)}
 .tt-mods{max-height:300px;overflow:auto;display:grid;gap:2px;padding-right:4px}
+.bt-fit td{background:color-mix(in srgb,var(--good, #6c6) 10%,transparent)}
+.bt-want{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:4px 12px;max-height:240px;overflow:auto;padding-right:4px}
 .lg-syn td{vertical-align:top;min-width:120px}.lg-syn td select{min-width:110px}
 .lg-new{background:color-mix(in srgb,var(--gold, #c8a75a) 14%,transparent)}
 .lg-want{box-shadow:inset 0 0 0 2px var(--accent, #6aa0ff)}.lg-here{font-weight:600}
@@ -428,6 +430,7 @@ header{transition:transform .2s ease}
     <button role="tab" data-tab="progress" data-g="char" aria-selected="false">Progress</button>
     <button role="tab" data-tab="shop" data-g="char" aria-selected="false">Shopping list</button>
     <button role="tab" data-tab="trees" data-g="char" aria-selected="false">Trees</button>
+    <button role="tab" data-tab="buildtools" data-g="char" aria-selected="false">Build tools</button>
     <button role="tab" data-tab="campaign" data-g="play" aria-selected="false">Campaign</button>
     <button role="tab" data-tab="maps" data-g="play" aria-selected="false">Maps</button>
     <button role="tab" data-tab="atlas" data-g="play" aria-selected="false">Atlas</button>
@@ -565,6 +568,11 @@ header{transition:transform .2s ease}
   <!-- LOOT FILTER EDITOR (loads when opened) -->
   <section class="tab" id="tab-filter" role="tabpanel">
     <div id="filterLab" style="display:grid;gap:16px"></div>
+  </section>
+
+  <!-- BUILD TOOLS (loads when opened) -->
+  <section class="tab" id="tab-buildtools" role="tabpanel">
+    <div id="buildTools" style="display:grid;gap:16px"></div>
   </section>
 
   <!-- LEAGUE CONTENT (loads when opened) -->
@@ -803,8 +811,9 @@ function parsePob(xml){
     T.querySelectorAll(":scope > Spec").forEach((sp,i)=>{
       const nodes=(sp.getAttribute("nodes")||"").split(",").filter(Boolean);
       const url=(sp.querySelector("URL")?.textContent||"").trim();
-      const jewels=[...sp.querySelectorAll("Sockets > Socket")].map(s=>s.getAttribute("itemId")).filter(x=>x&&x!=="0");
-      build.specs.push({title:sp.getAttribute("title")||"Tree "+(i+1),version:sp.getAttribute("treeVersion")||"",nodes:nodes.length,ids:nodes,url,jewels});
+      const sockets=[...sp.querySelectorAll("Sockets > Socket")].map(s=>({node:s.getAttribute("nodeId"),itemId:s.getAttribute("itemId")})).filter(x=>x.itemId&&x.itemId!=="0");
+      const jewels=sockets.map(x=>x.itemId);
+      build.specs.push({title:sp.getAttribute("title")||"Tree "+(i+1),version:sp.getAttribute("treeVersion")||"",nodes:nodes.length,ids:nodes,url,jewels,sockets});
     });
   }
   build.notes=(doc.querySelector("Notes")?.textContent||"").replace(/\^x?[0-9A-Fa-f]{1,6}/g,"").trim();
@@ -1272,6 +1281,10 @@ function craftPlan(item,slot){
 function openTradeTools(){
   const el=$("tradeTools");if(el&&!el.firstChild)el.innerHTML='<div class="card hl"><h2>Trading</h2><p class="small muted" style="margin:0">Loading…</p></div>';
   loadScriptOnce("tradetools.js","TradeTools").then(()=>TradeTools.render()).catch(e=>{if(el)el.innerHTML=`<div class="card"><h2>Trading</h2>${emptyBox("Couldn't load the trading tools: "+(e.message||e))}</div>`});
+}
+function openBuildTools(){
+  const el=$("buildTools");if(el&&!el.children.length)el.innerHTML='<div class="card"><h2>Build tools</h2><p class="small muted" style="margin:0">Loading…</p></div>';
+  loadScriptOnce("buildtools.js","BuildTools").then(()=>BuildTools.render()).catch(e=>{if(el)el.innerHTML=`<div class="card"><h2>Build tools</h2>${emptyBox("Couldn't load the build tools: "+(e.message||e))}</div>`});
 }
 function openLeague(){
   const el=$("leagueTools");if(el&&!el.children.length)el.innerHTML='<div class="card"><h2>League</h2><p class="small muted" style="margin:0">Loading…</p></div>';
@@ -3379,6 +3392,7 @@ function showTab(name){
   if(name==="filter") setTimeout(openFilterLab,0);
   if(name==="trading") setTimeout(openTradeTools,0);
   if(name==="league") setTimeout(openLeague,0);
+  if(name==="buildtools") setTimeout(openBuildTools,0);
   if(name==="browser") setTimeout(()=>{renderBrowser();brSync()},0);
   document.body.classList.toggle("browsing",name==="browser"&&!!DESK);
   if(typeof brSync==="function") setTimeout(brSync,0);
@@ -3479,7 +3493,7 @@ setInterval(()=>{if(CUR_TAB==="home"&&!document.hidden)renderHome()},10000);
 const cmdk=$("cmdk");let CMDK=[],CMDK_SEL=0,CMDK_ITEMS=[];
 function cmdkIndex(){
   const out=[], names={};document.querySelectorAll("#tabs [data-tab]").forEach(b=>names[b.dataset.tab]=b.textContent.trim());
-  const acts=[["Import goal build",()=>openImport("goal")],["Import current character",()=>openImport("current")],["Run setup wizard",()=>openWizard()],["Report a problem",()=>openReport()],["Edit my loot filter",()=>showTab("filter")],["Build a map search",()=>showTab("trading")],["Plan Threads per map",()=>showTab("league")],["Betrayal board",()=>{showTab("league");scrollToCard("lgBetrayal")}],["Price a dump tab",()=>{showTab("trading");scrollToCard("ttDump")}],["Open the trade site",()=>{showTab("browser");brGo("https://www.pathofexile.com/trade")}],["Open poe.ninja",()=>{showTab("browser");brGo("https://poe.ninja/economy")}],["Open the wiki",()=>{showTab("browser");brGo("https://www.poewiki.net/wiki/Path_of_Exile_Wiki")}],[S.compact?"Turn compact mode off":"Turn compact mode on",()=>setCompact(!S.compact)]];
+  const acts=[["Import goal build",()=>openImport("goal")],["Import current character",()=>openImport("current")],["Run setup wizard",()=>openWizard()],["Report a problem",()=>openReport()],["Edit my loot filter",()=>showTab("filter")],["Build a map search",()=>showTab("trading")],["Plan Threads per map",()=>showTab("league")],["Timeless jewel lookup",()=>showTab("buildtools")],["Cluster jewel notables",()=>{showTab("buildtools");scrollToCard("btCluster")}],["Gem levelling profit",()=>{showTab("buildtools");scrollToCard("btGems")}],["Betrayal board",()=>{showTab("league");scrollToCard("lgBetrayal")}],["Price a dump tab",()=>{showTab("trading");scrollToCard("ttDump")}],["Open the trade site",()=>{showTab("browser");brGo("https://www.pathofexile.com/trade")}],["Open poe.ninja",()=>{showTab("browser");brGo("https://poe.ninja/economy")}],["Open the wiki",()=>{showTab("browser");brGo("https://www.poewiki.net/wiki/Path_of_Exile_Wiki")}],[S.compact?"Turn compact mode off":"Turn compact mode on",()=>setCompact(!S.compact)]];
   if(DESK)acts.push(["Change hotkeys",()=>{showTab("settings");scrollToCard("setHotkeys")}]);
   if($("sessToggle"))acts.push([S.session.start?"Pause session timer":"Start session timer",()=>$("sessToggle").click()]);
   if(DESK){acts.push([LIVE.overlayVisible?"Hide overlay":"Show overlay",()=>DESK.toggleOverlay(!LIVE.overlayVisible)]);
@@ -3551,6 +3565,8 @@ const FIX={
 document.addEventListener("click",e=>{const b=e.target.closest("[data-fix]");if(b&&FIX[b.dataset.fix]){e.preventDefault();if(b.closest("#setup"))$("setup").close();FIX[b.dataset.fix]()}});
 
 const HELP={
+  btTimeless:"Pick a timeless jewel, seed, conqueror and socket to see what each notable in its radius becomes. Find seeds ranks every seed by how many notables get the results you tick. Data from Path of Building.",
+  btGems:"Uncorrupted gem prices from poe.ninja: what a gem costs at low level and what it sells for levelled (and with 20% quality). Listings filter out thin markets.",
   lgThreads:"Set how many of each Thread you put in the map device. Prices come from poe.ninja; free Threads from a Shaped Region of the same type are taken off the cost.",
   lgBetrayal:"Track where each Syndicate member is and where you want them. Pick a plan to fill in the targets, then follow the moves listed above the table.",
   homeChar:"Your character at a glance. The percentage compares your current character with the goal build: passive tree, gear, gems and level.",
@@ -3832,7 +3848,7 @@ const ICONS={
   wand:'<path d="M4 20L16 8"/><path d="M15 3v3M18 6h3M19 2l-1 2M13 5l2 1"/>',
 };
 const svgIcon=(n,cls)=>ICONS[n]?`<svg class="${cls||"ico-s"}" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">${ICONS[n]}</svg>`:"";
-const TAB_ICONS={league:"chest",trading:"trade",browser:"search",filter:"filter",craftlab:"wand",home:"home",build:"sword",progress:"chart",shop:"bag",trees:"tree",campaign:"flag",maps:"map",atlas:"compass",session:"hourglass",craft:"hammer",account:"coins",settings:"gear",desktop:"monitor"};
+const TAB_ICONS={buildtools:"gem",league:"chest",trading:"trade",browser:"search",filter:"filter",craftlab:"wand",home:"home",build:"sword",progress:"chart",shop:"bag",trees:"tree",campaign:"flag",maps:"map",atlas:"compass",session:"hourglass",craft:"hammer",account:"coins",settings:"gear",desktop:"monitor"};
 const GROUP_ICONS={home:"home",char:"user",play:"map",trade:"coins",app:"gear"};
 function decorateNav(){
   document.querySelectorAll("#tabs [data-tab]").forEach(b=>{if(!b.querySelector("svg"))b.insertAdjacentHTML("afterbegin",svgIcon(TAB_ICONS[b.dataset.tab]))});
@@ -3840,7 +3856,7 @@ function decorateNav(){
   const sb=$("openSearch");if(sb&&!sb.querySelector("svg")){const g=sb.querySelector('span[aria-hidden]');if(g)g.remove();sb.insertAdjacentHTML("afterbegin",svgIcon("search"))}
 }
 decorateNav();
-const CARD_ICONS={lgThreads:"coins",lgReturn:"chart",lgBetrayal:"skull",lgExped:"compass",lgHeist:"key",lgLab:"route",lgDrops:"map",homeChar:"user",homeNext:"route",homeSession:"hourglass",homeLive:"bolt",homeQuick:"wand",
+const CARD_ICONS={btTimeless:"gem",btCluster:"gem",btMeta:"chart",btGems:"coins",lgThreads:"coins",lgReturn:"chart",lgBetrayal:"skull",lgExped:"compass",lgHeist:"key",lgLab:"route",lgDrops:"map",homeChar:"user",homeNext:"route",homeSession:"hourglass",homeLive:"bolt",homeQuick:"wand",
   buildSummary:"user",buildDefence:"shield",buildSkills:"gem",buildGear:"sword",buildNotes:"news",
   progSummary:"chart",progNext:"list",progCost:"coins",progStats:"chart",progTree:"tree",progGems:"gem",progItems:"sword",
   shopSummary:"bag",shopGems:"gem",shopItems:"sword",shopFilter:"filter",

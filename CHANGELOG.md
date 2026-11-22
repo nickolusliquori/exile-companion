@@ -2,6 +2,19 @@
 
 What changed in each release, newest first. Installed copies update themselves; see the [Releases page](https://github.com/nickolusliquori/exile-companion/releases) for the installers. Planned releases are on the [roadmap](README.md#roadmap).
 
+## [1.12.0] - 2026-11-21
+
+### Added
+- **Build tools page** (Character → Build tools):
+  - **Timeless jewels:** pick Lethal Pride, Brutal Restraint, Militant Faith, Elegant Hubris or Heroic Tragedy, a seed, a conqueror and a jewel socket. You see what every notable and keystone in its radius becomes, and what the small passives get. Timeless jewels in your goal build fill in with one click. **Find seeds** ranks all seeds by how many notables (or only the ones in your goal tree) get the results you tick. **Search this seed on trade** opens the trade search. Uses Path of Building's lookup tables, loaded only when you open the tool (8 MB). Glorious Vanity isn't included yet.
+  - **Cluster jewels:** every enchant for small, medium and large cluster jewels, the notables each one can roll, how likely each notable is and the item level it needs. Enchants that fit your goal build's skill are suggested, and notables that match its damage type are highlighted.
+  - **Gem levelling profit:** gems worth buying low and selling levelled, or levelled with 20% quality, from uncorrupted poe.ninja prices including the Gemcutter's Prism cost. Filter by skill, support or awakened gems, and set a minimum number of listings.
+  - **Meta check:** opens poe.ninja's builds for your goal build's main skill, next to a summary of your build's main links, uniques and keystones to compare. poe.ninja doesn't allow apps to read its build data, so the comparison happens on their page.
+- Search (Ctrl+K) entries for the timeless jewel lookup, cluster jewel notables and gem levelling profit.
+
+### Changed
+- Imported Path of Building builds now remember which tree socket each jewel sits in.
+
 ## [1.11.0] - 2026-11-21
 
 ### Added
