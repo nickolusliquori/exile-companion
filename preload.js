@@ -1,6 +1,6 @@
 // Bridge between the windows and the main process. Exposed as window.exileDesktop.
 "use strict";
-const { contextBridge, ipcRenderer } = require("electron");
+const { contextBridge, ipcRenderer, webFrame } = require("electron");
 
 const on = (channel) => (cb) => {
   const fn = (_e, data) => cb(data);
@@ -90,6 +90,7 @@ contextBridge.exposeInMainWorld("exileDesktop", {
   onMediaView: on("media:view"),
   onMediaBlocked: on("media:blocked"),
   onMediaClick: on("media:click"),
+  setZoom: (f) => { const z = Math.min(2, Math.max(0.75, Number(f) || 1)); webFrame.setZoomFactor(z); return z; },
   safeState: () => ipcRenderer.invoke("app:safe"),
   restartApp: (mode) => ipcRenderer.send("app:restart", mode === "safe" ? "safe" : "normal"),
   openLogFolder: () => ipcRenderer.send("log:open"),

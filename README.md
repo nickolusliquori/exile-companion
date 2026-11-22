@@ -112,7 +112,7 @@ Your character at a glance: progress toward the goal build, what to do next (cam
 
 ### Settings
 
-General options and your builds, a **hotkey recorder**, **Look and feel** (three themes: Dark minimal, Modern and Path of Exile; animations that respect Windows "reduce motion"; minimal sounds with a volume slider), your GGG account, Discord status and notifications, updates, backups (plus automatic daily ones), sync with the web version on your phone, the OBS stream overlay, display options and **Report a problem**.
+General options and your builds, a **hotkey recorder**, **Look and feel** (three themes: Dark minimal, Modern and Path of Exile; animations that respect Windows "reduce motion"; minimal sounds with a volume slider; **text size** from 90% to 150% with Ctrl + plus / minus / 0; **higher contrast**; **colorblind-friendly colors** that also apply to the overlay and price check; starter mode and the tour), your GGG account, Discord status and notifications, updates, backups (plus automatic daily ones), sync with the web version on your phone, the OBS stream overlay, display options and **Report a problem**.
 
 - **Desktop tools:** the game log, overlay, price check, trade requests, price alerts, cheat sheets and recent price checks.
 - **Media:** a YouTube / YouTube Music / Twitch / Kick / SoundCloud **mini player** that stays on top of the game (with click-through, volume and see-through), and **Now playing** controls for whatever plays in Windows (Spotify, Apple Music, Netflix or YouTube in your browser, Stremio…). Netflix, Hulu, Disney+, Apple Music and similar can't play inside the app because they need copy protection (Widevine) it doesn't have.
@@ -128,6 +128,7 @@ General options and your builds, a **hotkey recorder**, **Look and feel** (three
 ### Everywhere
 
 Notifications (level-up gem and tree reminders, new acts, buyers, goals, milestones), Discord status, a loading bar, a phone-friendly web version, undo for removals, Ctrl+K search, and empty states that tell you what to do next.
+- **Keyboard and screen readers:** a skip link, arrow keys between sections and pages, labelled fields and buttons, and announced notices.
 
 ## Hotkeys
 
@@ -174,12 +175,11 @@ If GGG asks for any change, it will be made. Contact: open an issue on this repo
 
 ## Roadmap
 
-Shipped so far: the loot filter editor (1.8), in-app browser (1.9), trading tools (1.10), League page (1.11), build tools (1.12), quality of life (1.13), themes and motion (1.14), upgrade finder (1.15), deeper price checks (1.16), media (1.17), league data updates and saved searches (1.18), map marks and item links (1.19), trade companion and recipe tracker (1.20), overlay tools (1.21), the clipboard-rule update (1.22), new-league handling (1.23), an automatic game data pipeline (1.24), the first-time experience (1.25) and crash recovery with safe mode (1.26). Every release ships through auto-update and gets tested in game afterwards; problems found are fixed in a follow-up patch. See the [changelog](CHANGELOG.md) for details.
+Shipped so far: the loot filter editor (1.8), in-app browser (1.9), trading tools (1.10), League page (1.11), build tools (1.12), quality of life (1.13), themes and motion (1.14), upgrade finder (1.15), deeper price checks (1.16), media (1.17), league data updates and saved searches (1.18), map marks and item links (1.19), trade companion and recipe tracker (1.20), overlay tools (1.21), the clipboard-rule update (1.22), new-league handling (1.23), an automatic game data pipeline (1.24), the first-time experience (1.25), crash recovery with safe mode (1.26) and accessibility options (1.27). Every release ships through auto-update and gets tested in game afterwards; problems found are fixed in a follow-up patch. See the [changelog](CHANGELOG.md) for details.
 
 | Version | Feature |
 |---|---|
 | Pending GGG | **Sign in with your GGG account (OAuth)** to replace the POESESSID, and upload edited loot filters straight to your account, once GGG issues a client ID. |
-| Next | **Accessibility:** text size, full keyboard use, screen-reader labels and colorblind-friendly colors. |
 | Next | Ideas welcome: open a feature request on GitHub or use Settings → Report a problem.|
 
 Not planned: anything that sends input to the game (auto-typed whispers, chat macros, auto-setting stash notes), reads game memory, or watches the screen or clipboard in the background.

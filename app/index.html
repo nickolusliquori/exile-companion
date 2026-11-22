@@ -68,9 +68,9 @@ section.tab.on{display:grid}
 .stat .k{font-size:.75rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
 .stat .v{font-size:1.15rem;font-weight:700}
 .pill{display:inline-block;font-size:.75rem;padding:2px 8px;border-radius:99px;border:1px solid var(--line);color:var(--muted);white-space:nowrap}
-.pill.good{color:var(--good);border-color:#71c27a66}
+.pill.good{color:var(--good);border-color:color-mix(in srgb,var(--good) 40%,transparent)}
 .pill.warn{color:var(--warn);border-color:#e2a63c66}
-.pill.bad{color:var(--bad);border-color:#e0584b66}
+.pill.bad{color:var(--bad);border-color:color-mix(in srgb,var(--bad) 40%,transparent)}
 .pill.gold{color:var(--gold);border-color:var(--gold-dim)}
 ul.clean{list-style:none;margin:0;padding:0;display:grid;gap:6px}
 ol.steps{margin:0;padding-left:20px;display:grid;gap:6px}
@@ -118,10 +118,10 @@ dialog::backdrop{background:#000a}
 .kv dt{color:var(--muted)} .kv dd{margin:0}
 .actseg{display:flex;gap:4px;overflow-x:auto;padding-bottom:2px}
 .actseg button{flex:none;min-width:44px;background:var(--panel2);border:1px solid var(--line);border-radius:4px;padding:6px 8px;color:var(--muted)}
-.actseg button.done{color:var(--good);border-color:#71c27a66}
+.actseg button.done{color:var(--good);border-color:color-mix(in srgb,var(--good) 40%,transparent)}
 .actseg button[aria-pressed="true"]{background:var(--gold);color:#1a140c;border-color:var(--gold);font-weight:700}
 .tag{font-size:.7rem;padding:1px 6px;border-radius:3px;margin-left:6px;vertical-align:1px;white-space:nowrap}
-.tag.pt{background:#71c27a22;color:var(--good)}.tag.trial{background:#c9a45c22;color:var(--gold)}.tag.boss{background:#e0584b22;color:var(--bad)}
+.tag.pt{background:color-mix(in srgb,var(--good) 13%,transparent);color:var(--good)}.tag.trial{background:#c9a45c22;color:var(--gold)}.tag.boss{background:color-mix(in srgb,var(--bad) 13%,transparent);color:var(--bad)}
 .have{display:flex;gap:8px;align-items:flex-start}
 .have input{accent-color:var(--gold);width:18px;height:18px;margin-top:2px;flex:none}
 .got{opacity:.55}
@@ -254,6 +254,9 @@ section.tab .card{scroll-margin-top:140px}
 .rep-list{display:grid;gap:4px;margin:6px 0}
 .appfoot{max-width:1200px;margin:0 auto;padding:8px 16px 24px;text-align:center;font-size:.75rem}
 .starter-hide{display:none!important}
+.skip{position:absolute;left:8px;top:-60px;z-index:100;background:var(--gold);color:#1d1408;padding:8px 12px;border-radius:6px;font-weight:700}
+.skip:focus{top:8px}
+main:focus{outline:none}
 .more-btn{background:none;border:1px dashed var(--line-hi,var(--line));color:var(--muted);border-radius:8px;padding:5px 10px;font:inherit;font-size:.85rem;cursor:pointer;margin-left:auto}
 #groups .more-btn+.kbtn{margin-left:8px}
 .more-btn:hover{color:var(--text);border-color:var(--gold)}
@@ -338,7 +341,7 @@ body.browsing #exampleBanner{display:none!important}
 .cl-row select{width:auto;padding:4px 6px}
 .cl-t{font-size:.78rem;margin-top:4px}.cl-t td,.cl-t th{padding:2px 6px}
 .cl-odds td{vertical-align:top}
-.cl-odds tr.best td{background:rgba(113,194,122,.07)}
+.cl-odds tr.best td{background:color-mix(in srgb,var(--good) 7%,transparent)}
 #clItem input[list],#clIlvl{width:100%}
 /* update 3: icons, tooltips, compact, phone */
 .ico-s{width:15px;height:15px;flex:none;vertical-align:-2px;margin-right:6px;opacity:.85}
@@ -419,7 +422,7 @@ header{transition:transform .2s ease}
 .wiz-dots{list-style:none;margin:0;padding:0;display:flex;gap:6px;flex-wrap:wrap}
 .wiz-dots li{font-size:.75rem;padding:3px 10px;border-radius:99px;border:1px solid var(--line);color:var(--muted)}
 .wiz-dots li.on{border-color:var(--gold);color:var(--gold)}
-.wiz-dots li.ok{border-color:#71c27a66;color:var(--good)}
+.wiz-dots li.ok{border-color:color-mix(in srgb,var(--good) 40%,transparent);color:var(--good)}
 .wiz-body{padding:16px 18px;display:grid;gap:12px;min-height:230px;align-content:start}
 .wiz-body textarea{width:100%;min-height:90px;background:#0b0806;border:1px solid var(--line);border-radius:3px;padding:8px;font-size:.85rem}
 .wiz-foot{padding:12px 18px;border-top:1px solid var(--line);display:flex;gap:8px;align-items:center}
@@ -429,10 +432,25 @@ header{transition:transform .2s ease}
 .hk .dup{color:var(--warn)}
 
 @media (max-width:600px){#groups button{padding:9px 10px;font-size:.88rem}#groups .kbtn kbd,#groups .kbtn .lbl{display:none}#groups .kbtn{font-size:1.1rem}}
+/* accessibility options (Settings → Look and feel): higher contrast and colorblind-friendly colors */
+html[data-contrast="high"][data-contrast]{--muted:#d2c9bb;--line:#5f503d;--line-hi:#77654d}
+html[data-contrast="high"][data-theme="minimal"]{--muted:#c9c5bd;--line:#4a4a52;--line-hi:#5c5c66}
+html[data-contrast="high"][data-theme="modern"]{--muted:#ccced5;--line:#50535c;--line-hi:#62656f}
+html[data-contrast="high"] .got,html[data-contrast="high"] .gem.got{opacity:.85}
+html[data-contrast="high"] :focus-visible{outline:3px solid var(--gold)!important;outline-offset:2px}
+html[data-cb="1"][data-cb]{--good:#56b4e9;--warn:#f0e442;--bad:#ff8a3d}
 </style>
 <link rel="stylesheet" href="theme.css">
+<script>
+/* accessibility options from Settings (text size, contrast, colorblind colors); follows changes made in other windows */
+(function(){function A(){try{var u=(JSON.parse(localStorage.getItem("ec330.state")||"{}").ui)||{},h=document.documentElement;
+h.dataset.contrast=u.contrast?"high":"";h.dataset.cb=u.cb?"1":"";
+var z=Math.min(2,Math.max(.75,(+u.scale||100)/100)),d=window.exileDesktop;if(d&&d.setZoom){d.setZoom(z);h.style.zoom=""}else h.style.zoom=z===1?"":String(z);}catch(e){}}
+A();addEventListener("storage",function(e){if(!e.key||e.key==="ec330.state")A()});window.__applyA11y=A})();
+</script>
 </head>
 <body>
+<a class="skip" href="#main">Skip to the page</a>
 <div id="busy" aria-hidden="true"><i></i></div>
 <header>
   <div class="bar">
@@ -472,7 +490,7 @@ header{transition:transform .2s ease}
   </nav>
 </header>
 
-<main>
+<main id="main" tabindex="-1">
   <div class="banner" id="updateBanner" hidden></div>
   <div class="banner" id="exampleBanner" hidden>
     <p><b>You're looking at example builds.</b> Import your <b>goal</b> build (the guide) and your <b>current</b> character to see exactly what's left to do.</p>
@@ -1105,7 +1123,11 @@ Implicits: 0
 /* ---------------- state ---------------- */
 let B=null, T=null, isExample=true, selectedItem=null, selectedSlot=null;
 let G=null, TG=null, C=null, TC=null, exG=true, exC=true;
-const S=store.get("state",{progress:{},strat:null,prof:null,budget:1,clear:2,avoidOff:{},want:"",session:{start:null,elapsed:0,maps:[]},divine:150,calc:{cost:20,sell:300,chance:15}});
+const S_DEFAULT=()=>({progress:{},strat:null,prof:null,budget:1,clear:2,avoidOff:{},want:"",session:{start:null,elapsed:0,maps:[]},divine:150,calc:{cost:20,sell:300,chance:15}});
+const S=(()=>{let s=store.get("state",null);if(!s||typeof s!=="object"||Array.isArray(s))s={};
+  // fill in anything missing (an older or partly damaged save) so a page never crashes on it
+  const d=S_DEFAULT();for(const k in d){const v=s[k],dv=d[k];if(v===undefined||v===null&&dv!==null||(dv&&typeof dv==="object"&&(typeof v!=="object"||v===null||Array.isArray(v)!==Array.isArray(dv))))s[k]=dv}
+  if(!Array.isArray(s.session.maps))s.session.maps=[];return s})();
 const save=()=>store.set("state",S);
 
 function reanalyze(){TG=G?analyze(G):null;TC=C?analyze(C):null}
@@ -3124,7 +3146,7 @@ function renderAlerts(){
   const el=$("deskAlerts");if(!el) return;
   const ws=Object.values(S.watch||{});
   el.innerHTML=`<h2>Price alerts</h2>${ws.length?`<div class="tw"><table><thead><tr><th>Item</th><th>Now</th><th>Alert at</th><th></th></tr></thead><tbody>${ws.map(w=>`<tr><td>${esc(w.name)}</td><td class="num">${w.last!=null?`<span class="pill ${w.last<=w.target?"good":""}">${fmt(w.last)}c</span>${w.trend!=null?trendHtml({ch:w.trend,data:[]}):""}`:"–"}</td><td class="num">≤ ${fmt(w.target)}c</td><td><button class="btn ghost small" data-unwatch="${esc(w.name)}">Remove</button></td></tr>`).join("")}</tbody></table></div><div class="row"><button class="btn ghost small" id="alCheck">Check now</button></div>`:emptyBox("No price alerts yet. Set one next to any unique or gem on the Shopping list, or add one below. Prices are checked every 15 minutes while the app is open.",[["Open shopping list","shop"]])}
-    <h3>Add any item</h3><div class="row"><input type="text" id="alName" placeholder="Exact name, e.g. Headhunter" style="flex:2"><input type="number" id="alTarget" placeholder="chaos" style="flex:1"><select id="alKind"><option value="unique">Unique</option><option value="gem">Gem</option><option value="currency">Currency/other</option></select><button class="btn" id="alAdd">Add</button></div>`;
+    <h3>Add any item</h3><div class="row"><input type="text" id="alName" placeholder="Exact name, e.g. Headhunter" style="flex:2"><input type="number" id="alTarget" placeholder="chaos" style="flex:1"><select id="alKind" aria-label="Item kind"><option value="unique">Unique</option><option value="gem">Gem</option><option value="currency">Currency/other</option></select><button class="btn" id="alAdd">Add</button></div>`;
   el.querySelectorAll("[data-unwatch]").forEach(b=>b.onclick=()=>setWatch(b.dataset.unwatch,null,0));
   const ck=$("alCheck");if(ck)ck.onclick=()=>checkAlerts(true);
   $("alAdd").onclick=()=>{const n=$("alName").value.trim(),t=+$("alTarget").value;if(n&&t>0)setWatch(n,$("alKind").value,t)};
@@ -3272,7 +3294,8 @@ function tvState(id,sets){
   if(TV.kind==="skill"){const g=sets.a.has(id),c=sets.b.has(id);if(TV.mode==="goal")return g?"shared":"none";if(TV.mode==="current")return c?"shared":"none";return g&&c?"shared":g?"add":c?"remove":"none"}
   const al=sets.a.has(id),pl=sets.b.has(id);return al?"shared":pl?"add":"none";
 }
-const TV_COL={shared:"#c9a45c",add:"#71c27a",remove:"#e0584b",none:"#4a3e30"};
+const TV_COL={shared:"#c9a45c",get add(){return cssVar("--good")||"#71c27a"},get remove(){return cssVar("--bad")||"#e0584b"},none:"#4a3e30"};
+function cssVar(n){try{return getComputedStyle(document.documentElement).getPropertyValue(n).trim()}catch(e){return ""}}
 const TV_R={s:[14,1.4],n:[26,2.8],k:[40,4.2],m:[22,2.2],j:[26,2.8],c:[46,4]};
 function tvDraw(){
   cancelAnimationFrame(TV.raf);
@@ -3374,8 +3397,8 @@ function renderTreeSide(){
     const notable=ids=>d?ids.map(id=>d.nodes.find(x=>x[0]===id)).filter(n=>n&&(n[3]==="n"||n[3]==="k")).map(n=>n[4]):[];
     el.innerHTML=`<div class="row"><span class="pill gold">${shared} shared</span><span class="pill good">${add.length} to take</span><span class="pill bad">${rem.length} to refund</span></div>
       ${C&&C!==G?"":emptyBox("Import your current character (or sync it from your account) to see what's left to buy.",[["Import current character","importCurrent"]].concat(DESK?[["Sync from account","syncChar"]]:[]))}
-      ${notable(add).length?`<p class="small" style="margin:0"><b style="color:#71c27a">Notables to take:</b> ${notable(add).map(esc).join(", ")}</p>`:""}
-      ${notable(rem).length?`<p class="small" style="margin:0"><b style="color:#e0584b">Notables to refund:</b> ${notable(rem).map(esc).join(", ")}</p>`:""}`;
+      ${notable(add).length?`<p class="small" style="margin:0"><b style="color:var(--good)">Notables to take:</b> ${notable(add).map(esc).join(", ")}</p>`:""}
+      ${notable(rem).length?`<p class="small" style="margin:0"><b style="color:var(--bad)">Notables to refund:</b> ${notable(rem).map(esc).join(", ")}</p>`:""}`;
   } else {
     const sets=tvSets();const counts={};if(d)d.nodes.forEach(n=>{if(sets.a.has(n[0])&&n[3]!=="m")counts[n[8]]=(counts[n[8]]||0)+1});
     el.innerHTML=`<div class="row"><span class="pill gold">${sets.a.size} allocated</span>${TV.planned?`<span class="pill good">${TV.planned.filter(x=>!sets.a.has(x)).length} more in plan</span>`:""}</div>
@@ -3395,7 +3418,7 @@ async function renderTrees(){
     <div id="tvWrap" style="position:relative;height:min(70vh,720px);min-height:320px;border:1px solid var(--line);border-radius:6px;background:#0b0a08;overflow:hidden;touch-action:none">
       <canvas id="tvCanvas" style="width:100%;height:100%;display:block;cursor:grab" aria-label="${TV.kind==="skill"?"Passive skill tree":"Atlas passive tree"}"></canvas>
       <div id="tvTip" hidden style="position:absolute;max-width:300px;background:var(--panel);border:1px solid var(--gold-dim);border-radius:6px;padding:8px 10px;pointer-events:none;display:grid;gap:3px;z-index:2"></div>
-      <div class="small" style="position:absolute;left:8px;bottom:6px;display:flex;gap:10px;color:var(--muted)">${TV.kind==="skill"?'<span style="color:#c9a45c">● shared</span><span style="color:#71c27a">● to take</span><span style="color:#e0584b">● to refund</span>':'<span style="color:#c9a45c">● allocated</span><span style="color:#71c27a">● in plan</span><span>colours: mechanic</span>'}</div>
+      <div class="small" style="position:absolute;left:8px;bottom:6px;display:flex;gap:10px;color:var(--muted)">${TV.kind==="skill"?'<span style="color:#c9a45c">● shared</span><span style="color:var(--good)">● to take</span><span style="color:var(--bad)">● to refund</span>':'<span style="color:#c9a45c">● allocated</span><span style="color:var(--good)">● in plan</span><span>colours: mechanic</span>'}</div>
     </div>
     <p class="small muted" id="tvStatus" role="status" style="margin:0"></p>
     <div id="tvSide" style="display:grid;gap:6px"></div>
@@ -4064,6 +4087,9 @@ function renderSettings(){
     <div class="row"><button class="btn ghost small" id="stBrClear">Clear browser data</button><span class="small muted">Signs you out of pathofexile.com in the app and clears its cookies and cache.</span></div>`:""}
     <h3>Look and feel</h3>
     <div class="theme-pick" role="group" aria-label="Theme">${THEMES.map(([k,l,d])=>`<button class="theme-opt" data-theme-pick="${k}" aria-pressed="${UI.theme===k}"><span class="theme-sw t-${k}"><b></b><b></b></span><span><b>${l}</b><br><span class="small muted">${d}</span></span></button>`).join("")}</div>
+    <div class="row small" role="group" aria-label="Accessibility"><label for="stScale">Text size</label><select id="stScale">${[90,100,110,125,150].map(v=>`<option value="${v}"${(+UI.scale||100)===v?" selected":""}>${v}%</option>`).join("")}</select><span class="muted">Ctrl + plus / minus / 0</span></div>
+    <label class="row small"><input type="checkbox" id="stContrast"${UI.contrast?" checked":""}> Higher contrast (brighter secondary text and borders, stronger focus outline)</label>
+    <label class="row small"><input type="checkbox" id="stCb"${UI.cb?" checked":""}> Colorblind-friendly colors (blue for good, orange for bad, here and in the overlay and price check)</label>
     <label class="row small"><input type="checkbox" id="stStarter"${UI.mode==="starter"?" checked":""}> Starter mode: show only the main pages (others unlock when you open them)</label>
     <div class="row"><button class="btn ghost small" id="stTour" type="button">Take the tour</button><button class="btn ghost small" id="stHints" type="button">Show in-game hints again</button></div>
     <label class="row small"><input type="checkbox" id="stMotion"${UI.motion!==false?" checked":""}> Animations (menus, loading and buttons)${REDUCED_MOTION?' <span class="muted">· Windows "reduce motion" is on, so they stay off</span>':""}</label>
@@ -4082,6 +4108,9 @@ function renderSettings(){
   document.querySelectorAll("[data-theme-pick]").forEach(b=>b.onclick=()=>{setTheme(b.dataset.themePick);renderSettings()});
   $("stMotion").onchange=e=>{UI.motion=e.target.checked;save();applyMotion()};
   $("stStarter").onchange=e=>setMode(e.target.checked?"starter":"full");
+  $("stScale").onchange=e=>setScale(+e.target.value);
+  $("stContrast").onchange=e=>{UI.contrast=e.target.checked;save();applyA11y()};
+  $("stCb").onchange=e=>{UI.cb=e.target.checked;save();applyA11y()};
   $("stTour").onclick=()=>startTour();
   $("stHints").onclick=()=>{S.hints={};save();toast("In-game hints will show again as you play.")};
   $("stSound").onchange=e=>{UI.sound=e.target.checked;save();renderSettings();if(UI.sound)SND.click()};
@@ -4301,6 +4330,34 @@ const THEMES=[["minimal","Dark minimal","Near-black, one gold accent, quiet"],["
 const UI=S.ui||(S.ui={theme:"minimal",motion:true,sound:true,vol:0.4});
 const REDUCED_MOTION=matchMedia("(prefers-reduced-motion: reduce)").matches;
 function setTheme(t){if(!THEMES.some(x=>x[0]===t))return;UI.theme=t;save();document.documentElement.dataset.theme=t;toast(`Theme: ${THEMES.find(x=>x[0]===t)[1]}`)}
+// accessibility: settings are applied by the early script in <head> (also in the price popup and overlay)
+function applyA11y(){if(window.__applyA11y)window.__applyA11y()}
+const SCALES=[75,90,100,110,125,150,175,200];
+function setScale(v,quiet){v=Math.min(200,Math.max(75,Math.round(v)||100));UI.scale=v;save();applyA11y();if(!quiet)toast(`Text size ${v}%`)}
+document.addEventListener("keydown",e=>{
+  if(!(e.ctrlKey||e.metaKey)||e.altKey)return;
+  const cur=+UI.scale||100;
+  if(e.key==="="||e.key==="+"){e.preventDefault();setScale(SCALES.find(v=>v>cur)||200)}
+  else if(e.key==="-"||e.key==="_"){e.preventDefault();setScale([...SCALES].reverse().find(v=>v<cur)||75)}
+  else if(e.key==="0"){e.preventDefault();setScale(100)}
+});
+// arrow keys move between section and page buttons (standard tab-list keys)
+for(const id of ["groups","tabs"])document.getElementById(id).addEventListener("keydown",e=>{
+  if(!["ArrowLeft","ArrowRight","Home","End"].includes(e.key))return;
+  const bs=[...e.currentTarget.querySelectorAll("button")].filter(b=>!b.hidden&&b.offsetParent!==null&&getComputedStyle(b).display!=="none");
+  let i=bs.indexOf(document.activeElement);if(i<0)return;e.preventDefault();
+  i=e.key==="Home"?0:e.key==="End"?bs.length-1:(i+(e.key==="ArrowRight"?1:-1)+bs.length)%bs.length;bs[i].focus();
+});
+// fields described only by a placeholder get it as their accessible name
+function labelFields(root){(root||document).querySelectorAll("input:not([type=hidden]):not([type=checkbox]):not([type=radio]),textarea,select").forEach(el=>{
+  if(el.getAttribute("aria-label")||el.getAttribute("aria-labelledby")||(el.labels&&el.labels.length)||el.title)return;
+  const ph=(el.getAttribute("placeholder")||"").replace(/,?\s*e\.g\..*$/i,"").replace(/…$/,"").trim();
+  const near=el.closest("label,.row,div")&&el.previousElementSibling&&/^(LABEL|SPAN|B)$/.test(el.previousElementSibling.tagName)?el.previousElementSibling.textContent.trim():"";
+  const name=ph||near;if(name)el.setAttribute("aria-label",name.slice(0,80))})}
+{let lt=0;new MutationObserver(()=>{clearTimeout(lt);lt=setTimeout(()=>labelFields(),120)}).observe(document.body,{childList:true,subtree:true});setTimeout(()=>labelFields(),0)}
+// pages are tab panels of the page buttons
+document.querySelectorAll("section.tab").forEach(sec=>{const name=sec.id.replace(/^tab-/,""),b=document.querySelector(`#tabs [data-tab="${name}"]`);sec.setAttribute("role","tabpanel");
+  if(b){b.id=b.id||"tb-"+name;b.setAttribute("aria-controls",sec.id);sec.setAttribute("aria-labelledby",b.id)}});
 function applyMotion(){document.documentElement.classList.toggle("no-motion",UI.motion===false||REDUCED_MOTION)}
 document.documentElement.dataset.theme=UI.theme||"minimal";applyMotion();
 // tiny synthesized sounds (no audio files): a soft tick for buttons, a low two-note cue for a missing field
@@ -4378,7 +4435,9 @@ function tourRender(){
   box.innerHTML=`<div class="small muted">${TOURST.i+1} of ${steps.length}</div><h3 style="margin:2px 0 4px">${esc(st.title)}</h3><p class="small" style="margin:0">${esc(st.text)}</p>
     <div class="row" style="justify-content:space-between;margin-top:8px"><button class="btn ghost small" id="tourSkip">Skip tour</button><span class="row">${TOURST.i?'<button class="btn ghost small" id="tourBack">Back</button>':""}<button class="btn primary small" id="tourNext">${TOURST.i===steps.length-1?"Finish":"Next"}</button></span></div>`;
   const tok=TOURST.tok=(TOURST.tok||0)+1;
-  const place=()=>{if(tok!==TOURST.tok||!TOURST.on)return;const r=el.getBoundingClientRect(),pad=6,bw=Math.min(320,innerWidth-24);box.style.width=bw+"px";const bh=box.offsetHeight||150;
+  const place=()=>{if(tok!==TOURST.tok||!TOURST.on)return;
+    // the web version sizes text with CSS zoom: positions are measured zoomed but set unzoomed
+    const z=parseFloat(document.documentElement.style.zoom)||1,R=el.getBoundingClientRect(),r={top:R.top/z,left:R.left/z,right:R.right/z,bottom:R.bottom/z,width:R.width/z,height:R.height/z},innerWidth=window.innerWidth/z,innerHeight=window.innerHeight/z,pad=6,bw=Math.min(320,innerWidth-24);box.style.width=bw+"px";const bh=box.offsetHeight||150;
     Object.assign(hole.style,{top:(r.top-pad)+"px",left:(r.left-pad)+"px",width:(r.width+pad*2)+"px",height:(r.height+pad*2)+"px"});
     const clampY=y=>Math.max(8,Math.min(innerHeight-bh-8,y)),clampX=x=>Math.max(12,Math.min(innerWidth-bw-12,x));
     let top,left;

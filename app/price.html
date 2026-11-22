@@ -35,11 +35,11 @@ th{color:var(--muted);font-weight:600;font-size:10px;text-transform:uppercase}
 .mod{display:grid;grid-template-columns:auto 1fr 56px 56px;gap:6px;align-items:center;font-size:12px}
 .mapmods{display:grid;gap:2px;margin:4px 0}
 .mm{all:unset;cursor:pointer;font-size:12px;padding:2px 6px;border-radius:4px;line-height:1.35}
-.mm:hover{background:rgba(255,255,255,.06)}.mm.warn{color:#e8c25a;background:rgba(232,194,90,.08)}.mm.danger{color:#ff7a6b;background:rgba(224,88,75,.12);font-weight:600}
+.mm:hover{background:rgba(255,255,255,.06)}.mm.warn{color:#e8c25a;background:rgba(232,194,90,.08)}.mm.danger{color:#ff7a6b;background:color-mix(in srgb,var(--bad) 12%,transparent);font-weight:600}
 .mm i{color:var(--muted);font-weight:400}
 .mods-h{display:grid;grid-template-columns:auto 1fr 56px 56px;gap:6px;color:var(--muted);font-size:11px;padding-left:20px}
 .tier{display:inline-flex;align-items:center;gap:3px;font-size:10px;font-weight:700;border:1px solid var(--line);border-radius:3px;padding:0 4px;margin-right:5px;color:var(--muted);vertical-align:1px}
-.tier.t1{color:#1d1408;background:var(--gold);border-color:var(--gold)}.tier.t2{color:var(--good);border-color:#71c27a66}
+.tier.t1{color:#1d1408;background:var(--gold);border-color:var(--gold)}.tier.t2{color:var(--good);border-color:color-mix(in srgb,var(--good) 40%,transparent)}
 .tier i{display:inline-block;width:22px;height:4px;border-radius:2px;background:linear-gradient(90deg,currentColor var(--r),rgba(255,255,255,.15) var(--r))}
 .opts{gap:6px}.opts label{display:inline-flex;gap:4px;align-items:center}
 .b.sm{padding:1px 7px;font-size:11px}.b.sm.on{border-color:var(--gold);color:var(--gold)}
@@ -52,7 +52,7 @@ button.b{font:inherit;color:var(--gold);background:var(--panel);border:1px solid
 button.b.p{background:var(--gold);color:#1a140c;font-weight:700}
 .up{background:var(--panel);border:1px solid var(--line);border-radius:4px;padding:8px;display:grid;gap:4px}
 .deltas{display:flex;flex-wrap:wrap;gap:4px 10px;font-size:12px;font-variant-numeric:tabular-nums}.deltas .pos{color:var(--good)}.deltas .neg{color:var(--bad)}
-.pill{font-size:11px;padding:1px 7px;border-radius:99px;border:1px solid var(--line);white-space:nowrap}.pill.good{color:var(--good);border-color:#71c27a66}.pill.warn{color:var(--warn);border-color:#e2a63c66}.pill.bad{color:var(--bad);border-color:#e0584b66}
+.pill{font-size:11px;padding:1px 7px;border-radius:99px;border:1px solid var(--line);white-space:nowrap}.pill.good{color:var(--good);border-color:color-mix(in srgb,var(--good) 40%,transparent)}.pill.warn{color:var(--warn);border-color:#e2a63c66}.pill.bad{color:var(--bad);border-color:color-mix(in srgb,var(--bad) 40%,transparent)}
 h3{margin:0;font-family:var(--display);font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
 footer{padding:5px 10px;border-top:1px solid var(--line);color:var(--muted);font-size:11px}
 :focus-visible{outline:2px solid var(--gold);outline-offset:1px}
@@ -77,7 +77,21 @@ h3{color:#c8a96c;letter-spacing:.08em}
 .trend{font-size:12px}.trend.up{color:var(--good)}.trend.down{color:var(--bad)}
 .wiki .flavour{margin:0;color:#af6025;font-style:italic;font-size:12px;white-space:pre-line}
 footer{background:#0b0806;border-top-color:#3a2d1f}
+/* accessibility options (Settings → Look and feel): higher contrast and colorblind-friendly colors */
+html[data-contrast="high"][data-contrast]{--muted:#d2c9bb;--line:#5f503d;--line-hi:#77654d}
+html[data-contrast="high"][data-theme="minimal"]{--muted:#c9c5bd;--line:#4a4a52;--line-hi:#5c5c66}
+html[data-contrast="high"][data-theme="modern"]{--muted:#ccced5;--line:#50535c;--line-hi:#62656f}
+html[data-contrast="high"] .got,html[data-contrast="high"] .gem.got{opacity:.85}
+html[data-contrast="high"] :focus-visible{outline:3px solid var(--gold)!important;outline-offset:2px}
+html[data-cb="1"][data-cb]{--good:#56b4e9;--warn:#f0e442;--bad:#ff8a3d}
 </style>
+<script>
+/* accessibility options from Settings (text size, contrast, colorblind colors); follows changes made in other windows */
+(function(){function A(){try{var u=(JSON.parse(localStorage.getItem("ec330.state")||"{}").ui)||{},h=document.documentElement;
+h.dataset.contrast=u.contrast?"high":"";h.dataset.cb=u.cb?"1":"";
+var z=Math.min(2,Math.max(.75,(+u.scale||100)/100)),d=window.exileDesktop;if(d&&d.setZoom){d.setZoom(z);h.style.zoom=""}else h.style.zoom=z===1?"":String(z);}catch(e){}}
+A();addEventListener("storage",function(e){if(!e.key||e.key==="ec330.state")A()});window.__applyA11y=A})();
+</script>
 </head>
 <body>
 <header id="hdr"><div class="t"><div class="nm" id="nm">Price check</div><div class="base" id="base">Hover an item in game, press Ctrl+C, then Ctrl+D</div></div><button class="x" id="close" aria-label="Close">×</button></header>

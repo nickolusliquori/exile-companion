@@ -2,6 +2,18 @@
 
 What changed in each release, newest first. Installed copies update themselves; see the [Releases page](https://github.com/nickolusliquori/exile-companion/releases) for the installers. Planned releases are on the [roadmap](README.md#roadmap).
 
+## [1.27.0] - 2026-11-22
+
+### Added
+- **Text size** (Settings → Look and feel): 90% to 150%, or Ctrl + plus / minus / 0 anywhere in the app. Applies to the main window and the price check popup.
+- **Higher contrast:** brighter secondary text and borders, a stronger focus outline, and items you already own are no longer dimmed as much.
+- **Colorblind-friendly colors:** good/bad/warning become blue/orange/yellow across the app, the tree view, the overlay and the price check. Changes apply to open windows straight away.
+- **Keyboard and screen readers:** a "Skip to the page" link, arrow keys (and Home/End) to move between sections and pages, pages announced as tab panels, and every field now has a name screen readers can read.
+
+### Fixed
+- A saved state with missing parts (an old or damaged save) could crash the Home page; missing parts now get their defaults.
+- The tour's spotlight is placed correctly at any text size.
+
 ## [1.26.0] - 2026-11-22
 
 ### Added

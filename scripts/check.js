@@ -554,6 +554,24 @@ try {
   ok("crash log: redaction, repeats, rotation; safe mode after two unfinished starts");
 } catch (e) { fail("crash log: " + e.message); }
 
+// accessibility options reach every app window; good/bad colors come from variables so colorblind mode applies
+try {
+  for (const f of ["index.html", "price.html", "overlay.html"]) {
+    const h = fs.readFileSync(path.join(root, "app", f), "utf8");
+    assert(h.includes('html[data-cb="1"][data-cb]') && h.includes("window.__applyA11y"), f + " has the accessibility options");
+    assert(!/#71c27a(22|66)|#e0584b(22|66)|style="color:#(71c27a|e0584b)"/.test(h), f + " hardcodes good/bad colors");
+  }
+  const h = fs.readFileSync(path.join(root, "app", "index.html"), "utf8");
+  assert(/class="skip" href="#main"/.test(h) && /<main id="main"/.test(h), "skip link");
+  assert(/setZoom:/.test(fs.readFileSync(path.join(root, "preload.js"), "utf8")), "desktop zoom bridge");
+  // a saved state with parts missing still gets every default
+  const m = h.match(/const S_DEFAULT=[\s\S]*?return s\}\)\(\);/); assert(m, "state loader found");
+  const run = (saved) => vm.runInNewContext(m[0] + ";S", { store: { get: () => saved } });
+  for (const saved of [null, {}, { ui: { scale: 125 } }, { progress: null, session: { maps: "x" } }, [1, 2]]) { const st = run(saved); assert(st.progress && typeof st.progress === "object" && Array.isArray(st.session.maps), "defaults for " + JSON.stringify(saved)); }
+  assert(run({ progress: { p1: true }, divine: 200 }).progress.p1 === true && run({ divine: 200 }).divine === 200, "keeps saved values");
+  ok("accessibility options in all windows, colors via variables, skip link; damaged saves get defaults");
+} catch (e) { fail("accessibility: " + e.message); }
+
 Promise.all(pending).then(() => {
   if (failures) { console.error(`\n${failures} check(s) failed`); process.exit(1); }
   console.log("\nAll checks passed");

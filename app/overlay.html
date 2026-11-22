@@ -22,7 +22,7 @@ body.interactive header{-webkit-app-region:drag;cursor:move}
 .zone{font-family:var(--display);font-size:14px;color:var(--gold);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .sub{display:flex;gap:6px;flex-wrap:wrap;align-items:center;color:var(--muted);font-size:12px}
 .pill{font-size:11px;padding:1px 7px;border-radius:99px;border:1px solid var(--line);white-space:nowrap}
-.pill.good{color:var(--good);border-color:#71c27a66}.pill.warn{color:var(--warn);border-color:#e2a63c66}.pill.bad{color:var(--bad);border-color:#e0584b66}.pill.gold{color:var(--gold);border-color:var(--gold-dim)}
+.pill.good{color:var(--good);border-color:color-mix(in srgb,var(--good) 40%,transparent)}.pill.warn{color:var(--warn);border-color:#e2a63c66}.pill.bad{color:var(--bad);border-color:color-mix(in srgb,var(--bad) 40%,transparent)}.pill.gold{color:var(--gold);border-color:var(--gold-dim)}
 main{flex:1;overflow:auto;padding:8px 10px;display:grid;gap:8px;align-content:start}
 h3{margin:0;font-family:var(--display);font-size:12px;letter-spacing:.04em;color:var(--muted);text-transform:uppercase}
 ul{list-style:none;margin:0;padding:0;display:grid;gap:4px}
@@ -30,7 +30,7 @@ ul{list-style:none;margin:0;padding:0;display:grid;gap:4px}
 .step input{margin:2px 0 0;accent-color:var(--gold);flex:none;pointer-events:none}
 body.interactive .step input{pointer-events:auto;cursor:pointer}
 .tag{font-size:10px;padding:0 5px;border-radius:3px;margin-left:4px;white-space:nowrap}
-.tag.pt{background:#71c27a22;color:var(--good)}.tag.trial{background:#c9a45c22;color:var(--gold)}.tag.boss{background:#e0584b22;color:var(--bad)}
+.tag.pt{background:color-mix(in srgb,var(--good) 13%,transparent);color:var(--good)}.tag.trial{background:#c9a45c22;color:var(--gold)}.tag.boss{background:color-mix(in srgb,var(--bad) 13%,transparent);color:var(--bad)}
 .big{font-family:var(--display);font-size:22px;color:var(--text);font-variant-numeric:tabular-nums}
 .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
 .stat{background:var(--panel);border:1px solid var(--line);border-radius:4px;padding:4px 6px}
@@ -79,7 +79,20 @@ button{background:linear-gradient(#3c2d1a,#211810);border-color:#6e5430;color:#e
 .tabs button.on{background:linear-gradient(#3e2c17,#1b130b);color:#f2d99c;border-color:#8a6c38}
 .trade{background:linear-gradient(rgba(40,30,18,.95),rgba(20,15,10,.95));border-color:#8a6c38}
 .bar i{background:linear-gradient(90deg,#8a6c38,#e2bd6e);box-shadow:0 0 8px rgba(226,189,110,.5)}
+/* accessibility options (Settings → Look and feel): higher contrast and colorblind-friendly colors */
+html[data-contrast="high"][data-contrast]{--muted:#d2c9bb;--line:#5f503d;--line-hi:#77654d}
+html[data-contrast="high"][data-theme="minimal"]{--muted:#c9c5bd;--line:#4a4a52;--line-hi:#5c5c66}
+html[data-contrast="high"][data-theme="modern"]{--muted:#ccced5;--line:#50535c;--line-hi:#62656f}
+html[data-contrast="high"] .got,html[data-contrast="high"] .gem.got{opacity:.85}
+html[data-contrast="high"] :focus-visible{outline:3px solid var(--gold)!important;outline-offset:2px}
+html[data-cb="1"][data-cb]{--good:#56b4e9;--warn:#f0e442;--bad:#ff8a3d}
 </style>
+<script>
+/* accessibility options from Settings (text size, contrast, colorblind colors); follows changes made in other windows */
+(function(){function A(){try{var u=(JSON.parse(localStorage.getItem("ec330.state")||"{}").ui)||{},h=document.documentElement;
+h.dataset.contrast=u.contrast?"high":"";h.dataset.cb=u.cb?"1":"";}catch(e){}}
+A();addEventListener("storage",function(e){if(!e.key||e.key==="ec330.state")A()});window.__applyA11y=A})();
+</script>
 </head>
 <body>
 <div class="wrap">
