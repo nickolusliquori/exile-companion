@@ -1,0 +1,75 @@
+# Experiment: can Path of Building run headless on Windows and compare an item? (Not part of the app yet.)
+name: PoB feasibility
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  pob:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Get Path of Building (latest release source)
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $tag = gh api repos/PathOfBuildingCommunity/PathOfBuilding/releases/latest --jq .tag_name
+          Write-Host "Path of Building $tag"
+          git clone --depth 1 --branch $tag https://github.com/PathOfBuildingCommunity/PathOfBuilding.git pob
+          Get-ChildItem pob\runtime | Select-Object Name, Length | Format-Table -AutoSize | Out-String -Width 200 | Write-Host
+          Get-ChildItem pob\spec -Recurse -Filter *.xml | Select-Object -First 5 FullName | Out-String -Width 300 | Write-Host
+      - name: Build LuaJIT (MIT)
+        shell: cmd
+        run: |
+          git clone --depth 1 --branch v2.1 https://github.com/LuaJIT/LuaJIT.git luajit
+          for /f "usebackq tokens=*" %%i in (`"%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe" -latest -products * -property installationPath`) do set VS=%%i
+          call "%VS%\VC\Auxiliary\Build\vcvars64.bat"
+          cd luajit\src
+          call msvcbuild.bat
+          dir luajit.exe lua51.dll
+      - name: Run Path of Building headless
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Continue"
+          Copy-Item luajit\src\luajit.exe pob\src\
+          Copy-Item scripts\pob\pob-calc.lua pob\src\
+          $env:LUA_PATH = "..\runtime\lua\?.lua;..\runtime\lua\?\init.lua;.\?.lua"
+          $env:LUA_CPATH = "..\runtime\?.dll"
+          $env:PATH = "$PWD\pob\runtime;$env:PATH"
+          $xml = Get-ChildItem pob\spec -Recurse -Filter *.xml | Select-Object -First 1
+          Write-Host "Build: $($xml.FullName)"
+          Push-Location pob\src
+          Write-Host "--- with Path of Building's lua51.dll ---"
+          .\luajit.exe pob-calc.lua $xml.FullName 2>&1 | Select-Object -Last 15 | ForEach-Object { Write-Host $_ }
+          Write-Host "exit: $LASTEXITCODE"
+          @"
+          Rarity: RARE
+          Test Ring
+          Two-Stone Ring
+          --------
+          Item Level: 84
+          --------
+          +16% to Fire and Cold Resistances
+          --------
+          +80 to maximum Life
+          +45% to Lightning Resistance
+          +35% to Cold Resistance
+          Adds 10 to 20 Physical Damage to Attacks
+          "@ -replace "(?m)^\s+", "" | Set-Content -Path item.txt -Encoding utf8
+          Write-Host "--- item compare (Ring 1) ---"
+          .\luajit.exe pob-calc.lua $xml.FullName item.txt "Ring 1" 2>&1 | Select-Object -Last 15 | ForEach-Object { Write-Host $_ }
+          Write-Host "exit: $LASTEXITCODE"
+          Pop-Location
+          Write-Host "--- with LuaJIT's own lua51.dll ---"
+          Copy-Item luajit\src\lua51.dll pob\src\
+          Push-Location pob\src
+          .\luajit.exe pob-calc.lua $xml.FullName item.txt "Ring 1" 2>&1 | Select-Object -Last 15 | ForEach-Object { Write-Host $_ }
+          Write-Host "exit: $LASTEXITCODE"
+          Pop-Location
