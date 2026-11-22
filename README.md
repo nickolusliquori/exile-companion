@@ -60,6 +60,12 @@ A two-minute **setup wizard** walks you through:
 3. **The game log:** the app finds `Client.txt` for you.
 4. **The overlay and price check:** press the overlay hotkey to confirm it works, then try a price check (Ctrl+C on an item, then Ctrl+D).
 
+No build yet? The first step links to guide sites (Maxroll, Mobalytics, poe.ninja) and explains where to find the Path of Building code, or you can choose **Just leveling for now**: the campaign route, overlay, price checks and maps all work without a build.
+
+New installs start in **starter mode**, which shows only the main pages (Home, Build, Progress, Campaign, Maps, Session and Settings). Any page you open from Ctrl+K unlocks itself, and **＋ All pages** in the top bar (or Settings → Look and feel) shows everything. Updating from an older version keeps all pages showing.
+
+The wizard ends with an optional **1-minute tour** that points out the sections, search and the Home cards. The first time you enter a zone, and the first time you enter a map, the overlay shows a one-line hint with the relevant hotkeys. Replay the tour or reset the hints in Settings → Look and feel.
+
 You can rerun the wizard any time from **Settings** or with **Ctrl+K → "setup wizard"**.
 
 ## Features
@@ -168,11 +174,10 @@ If GGG asks for any change, it will be made. Contact: open an issue on this repo
 
 ## Roadmap
 
-Shipped so far: the loot filter editor (1.8), in-app browser (1.9), trading tools (1.10), League page (1.11), build tools (1.12), quality of life (1.13), themes and motion (1.14), upgrade finder (1.15), deeper price checks (1.16), media (1.17), league data updates and saved searches (1.18), map marks and item links (1.19), trade companion and recipe tracker (1.20), overlay tools (1.21), the clipboard-rule update (1.22) new-league handling (1.23) and an automatic game data pipeline (1.24). Every release ships through auto-update and gets tested in game afterwards; problems found are fixed in a follow-up patch. See the [changelog](CHANGELOG.md) for details.
+Shipped so far: the loot filter editor (1.8), in-app browser (1.9), trading tools (1.10), League page (1.11), build tools (1.12), quality of life (1.13), themes and motion (1.14), upgrade finder (1.15), deeper price checks (1.16), media (1.17), league data updates and saved searches (1.18), map marks and item links (1.19), trade companion and recipe tracker (1.20), overlay tools (1.21), the clipboard-rule update (1.22), new-league handling (1.23), an automatic game data pipeline (1.24) and the first-time experience (1.25). Every release ships through auto-update and gets tested in game afterwards; problems found are fixed in a follow-up patch. See the [changelog](CHANGELOG.md) for details.
 
 | Version | Feature |
 |---|---|
-| Next | **First-time experience:** starter mode, a "no build yet?" path, a short tour and in-game hints. |
 | Pending GGG | **Sign in with your GGG account (OAuth)** to replace the POESESSID, and upload edited loot filters straight to your account, once GGG issues a client ID. |
 | Next | Ideas welcome: open a feature request on GitHub or use Settings → Report a problem.|
 

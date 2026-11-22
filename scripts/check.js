@@ -377,7 +377,12 @@ try {
   const at = html.indexOf("const DESK=");
   const before = html.slice(0, at).split("\n").filter((l) => /^(if\s*\(\s*DESK|DESK\.|addEventListener\([^)]*DESK)/.test(l));
   assert(at > 0 && !before.length, "top-level DESK use before its declaration: " + before.map((l) => l.slice(0, 60)).join(" | "));
-  ok("index.html declares DESK before any top-level use");
+  for (const name of ["UI", "GAME"]) {
+    const decl = html.indexOf(`const ${name}=`); assert(decl > 0, name + " declared");
+    const early = html.slice(0, decl).split("\n").filter((l) => new RegExp(`^(if\\s*\\(\\s*!?${name}\\.|${name}\\.[a-z]+\\s*=)`).test(l));
+    assert(!early.length, `top-level ${name} use before its declaration: ` + early.map((l) => l.slice(0, 60)).join(" | "));
+  }
+  ok("index.html declares DESK, UI and GAME before any top-level use");
 } catch (e) { fail("index.html load order: " + e.message); }
 
 // league data published in the repo (data/league.json): valid, not older than the built-in copy, and applied safely

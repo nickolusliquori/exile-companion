@@ -2,6 +2,17 @@
 
 What changed in each release, newest first. Installed copies update themselves; see the [Releases page](https://github.com/nickolusliquori/exile-companion/releases) for the installers. Planned releases are on the [roadmap](README.md#roadmap).
 
+## [1.25.0] - 2026-11-22
+
+### Added
+- **Starter mode:** new installs show only the main pages (Home, Build, Progress, Campaign, Maps, Session, Settings). Opening any other page from Ctrl+K or a link unlocks it; "＋ All pages" in the top bar or Settings → Look and feel shows everything. Existing installs keep all pages.
+- **"No build yet?"** in the setup wizard: links to Maxroll, Mobalytics and poe.ninja builds with a short explanation of where to find a Path of Building code, plus "Just leveling for now" to continue without a build.
+- **Guided tour:** an 8-step spotlight walk through sections, search and the Home cards, offered at the end of the wizard and available in Settings and Ctrl+K ("Take the tour").
+- **In-game hints:** one-time overlay hints on your first zone (overlay hotkeys) and first map (price check and quick tools), using your configured hotkeys. Reset them in Settings.
+
+### Changed
+- The startup check now also verifies that `UI` and `GAME` are declared before any top-level use.
+
 ## [1.24.0] - 2026-11-22
 
 ### Added

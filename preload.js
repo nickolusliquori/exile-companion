@@ -90,6 +90,7 @@ contextBridge.exposeInMainWorld("exileDesktop", {
   onMediaView: on("media:view"),
   onMediaBlocked: on("media:blocked"),
   onMediaClick: on("media:click"),
+  overlayHint: (text) => ipcRenderer.send("overlay:hint", text),
   toCraft: (item) => ipcRenderer.send("price:toCraft", item),
   onCraftItem: on("craft:item"),
   // recent price checks (in memory only)

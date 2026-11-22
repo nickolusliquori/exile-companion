@@ -840,6 +840,8 @@ ipcMain.on("price:toCraft", (e, item) => {
   if (priceWin && !priceWin.isDestroyed()) priceWin.hide();
   mainWin.show(); mainWin.focus();
 });
+// one-time hints from the main window, shown on the overlay (text only)
+ipcMain.on("overlay:hint", (e, text) => { if (overlayWin && !overlayWin.isDestroyed() && typeof text === "string") overlayWin.webContents.send("overlay:toast", text.slice(0, 220)); });
 ipcMain.handle("clip:history", () => clipHistory.map(({ title, rarity, at }) => ({ title, rarity, at })));
 ipcMain.on("clip:recheck", (e, i) => { const h = clipHistory[+i]; if (h) showPrice(h.text); });
 ipcMain.on("clip:clear", () => { clipHistory.length = 0; sendMain("clip:history", []); });

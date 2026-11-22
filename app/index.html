@@ -253,6 +253,15 @@ section.tab .card{scroll-margin-top:140px}
 .clip-it:hover{border-color:var(--gold)}
 .rep-list{display:grid;gap:4px;margin:6px 0}
 .appfoot{max-width:1200px;margin:0 auto;padding:8px 16px 24px;text-align:center;font-size:.75rem}
+.starter-hide{display:none!important}
+.more-btn{background:none;border:1px dashed var(--line-hi,var(--line));color:var(--muted);border-radius:8px;padding:5px 10px;font:inherit;font-size:.85rem;cursor:pointer;margin-left:auto}
+#groups .more-btn+.kbtn{margin-left:8px}
+.more-btn:hover{color:var(--text);border-color:var(--gold)}
+#tourHole{position:fixed;z-index:61;pointer-events:none;border:3px solid var(--gold);border-radius:12px;box-shadow:0 0 0 9999px rgba(0,0,0,.55)}
+html:not(.no-motion) #tourHole{transition:top .2s,left .2s,width .2s,height .2s}
+#tourBox{position:fixed;z-index:62;background:var(--panel);border:1px solid var(--gold);border-radius:10px;padding:12px 14px;box-shadow:0 18px 50px rgba(0,0,0,.6)}
+html:not(.no-motion) #tourBox{animation:ecPop .2s ease-out}
+.nobuild{border:1px solid var(--line);border-radius:8px;padding:8px 10px}.nobuild summary{cursor:pointer}
 .np-big{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}.np-t{font-weight:700;font-size:1.05rem}
 .up-w{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:6px 14px;margin:8px 0}.up-w label{display:flex;justify-content:space-between;align-items:center;gap:8px}.up-w input{width:72px}
 .bt-fit td{background:color-mix(in srgb,var(--good, #6c6) 10%,transparent)}
@@ -2311,6 +2320,8 @@ function onLiveEvents(evs){
   for(const e of evs){
     if(e.type==="zone"){
       const ar=AREAS[e.id];
+      gameHint("firstZone",`Exile Companion is following your game. ${keyName((LIVE.cfg&&LIVE.cfg.overlayHotkey)||"Ctrl+Shift+O")} hides this overlay, ${keyName((LIVE.cfg&&LIVE.cfg.interactHotkey)||"Ctrl+Shift+I")} makes it clickable.`);
+      if(isMapId(e.id))gameHint("firstMap",`Price an item: hover it, Ctrl+C, then ${keyName((LIVE.cfg&&LIVE.cfg.priceHotkey)||"Ctrl+D")}. ${keyName((LIVE.cfg&&LIVE.cfg.widgetHotkey)||"Ctrl+Shift+Space")} opens stash searches, a stopwatch and notes.`);
       LIVE.zone={id:e.id,lvl:e.lvl,seed:e.seed,t:e.t,name:ar?ar[0]:(isMapId(e.id)?mapNameFromId(e.id):e.id),act:ar&&/^\d_/.test(e.id)?ar[1]:0};
       if(isMapId(e.id)){const key=e.id+"#"+e.seed;if(!LIVE.map||LIVE.map.key!==key)LIVE.map={key,name:LIVE.zone.name,tier:e.lvl>=68?Math.min(17,e.lvl-67):null,start:e.t,deaths:0};if(markMapDone(e.id,e.t)){save();renderMapCompletion();DESK.notify({kind:"milestones",title:`New map: ${LIVE.zone.name}`,body:MAP_POOL.length?`${MAP_POOL.filter(m=>S.mapsDone[m.key]).length}/${MAP_POOL.length} maps towards atlas completion.`:"Added to your atlas completion."})}}
       else if(isCampId(e.id)) LIVE.map=null;
@@ -3709,11 +3720,13 @@ const groupOf=t=>{const b=tabBtn(t);return b?b.dataset.g:"home"};
 function syncNav(){
   const g=groupOf(CUR_TAB);
   document.querySelectorAll("#groups [data-group]").forEach(b=>b.setAttribute("aria-current",String(b.dataset.group===g)));
-  let vis=0;document.querySelectorAll("#tabs button").forEach(b=>{const on=b.dataset.g===g;b.classList.toggle("gx",!on);if(on&&!b.hidden)vis++});
+  let vis=0;document.querySelectorAll("#tabs button").forEach(b=>{const on=b.dataset.g===g;b.classList.toggle("gx",!on);if(on&&!b.hidden&&!b.classList.contains("starter-hide"))vis++});
   $("tabs").classList.toggle("solo",vis<=1);
+  if(typeof applyStarter==="function")applyStarter();
 }
 function showTab(name){
   if(!tabVisible(name)) name="home";
+  if(typeof starterHidden==="function"&&starterHidden(name))unlockTab(name);
   CUR_TAB=name;if(typeof hideTip==="function")hideTip();
   document.querySelectorAll("#tabs button").forEach(b=>b.setAttribute("aria-selected",b.dataset.tab===name));
   document.querySelectorAll("section.tab").forEach(s=>s.classList.toggle("on",s.id==="tab-"+name));
@@ -3831,7 +3844,7 @@ setInterval(()=>{if(CUR_TAB==="home"&&!document.hidden)renderHome()},10000);
 const cmdk=$("cmdk");let CMDK=[],CMDK_SEL=0,CMDK_ITEMS=[];
 function cmdkIndex(){
   const out=[], names={};document.querySelectorAll("#tabs [data-tab]").forEach(b=>names[b.dataset.tab]=b.textContent.trim());
-  const acts=[["Import goal build",()=>openImport("goal")],["Import current character",()=>openImport("current")],["Run setup wizard",()=>openWizard()],["Report a problem",()=>openReport()],["Edit my loot filter",()=>showTab("filter")],["Build a map search",()=>showTab("trading")],["Plan Threads per map",()=>showTab("league")],["Chaos recipe sets",()=>{showTab("account");scrollToCard("acctRecipe")}],["Saved trade searches",()=>{showTab("trading");scrollToCard("ttSaved")}],["Set a session goal",()=>{showTab("session");scrollToCard("sessGoal")}],["Recent price checks",()=>{showTab("home");scrollToCard("homeClip")}],["Open the media player",()=>{if(DESK&&DESK.mediaToggle)DESK.mediaToggle({show:true})}],["Media controls",()=>showTab("media")],["Pin the browser over the game",()=>{if(DESK&&DESK.pinToggle)DESK.pinToggle({show:true})}],["Find gear upgrades",()=>{showTab("buildtools");scrollToCard("btUpg")}],["Timeless jewel lookup",()=>showTab("buildtools")],["Cluster jewel notables",()=>{showTab("buildtools");scrollToCard("btCluster")}],["Gem levelling profit",()=>{showTab("buildtools");scrollToCard("btGems")}],["Betrayal board",()=>{showTab("league");scrollToCard("lgBetrayal")}],["Price a dump tab",()=>{showTab("trading");scrollToCard("ttDump")}],["Open the trade site",()=>{showTab("browser");brGo("https://www.pathofexile.com/trade")}],["Open poe.ninja",()=>{showTab("browser");brGo("https://poe.ninja/economy")}],["Open the wiki",()=>{showTab("browser");brGo("https://www.poewiki.net/wiki/Path_of_Exile_Wiki")}],[S.compact?"Turn compact mode off":"Turn compact mode on",()=>setCompact(!S.compact)]];
+  const acts=[["Import goal build",()=>openImport("goal")],["Import current character",()=>openImport("current")],["Run setup wizard",()=>openWizard()],["Report a problem",()=>openReport()],["Edit my loot filter",()=>showTab("filter")],["Build a map search",()=>showTab("trading")],["Plan Threads per map",()=>showTab("league")],["Chaos recipe sets",()=>{showTab("account");scrollToCard("acctRecipe")}],["Saved trade searches",()=>{showTab("trading");scrollToCard("ttSaved")}],["Set a session goal",()=>{showTab("session");scrollToCard("sessGoal")}],["Recent price checks",()=>{showTab("home");scrollToCard("homeClip")}],["Open the media player",()=>{if(DESK&&DESK.mediaToggle)DESK.mediaToggle({show:true})}],["Media controls",()=>showTab("media")],["Pin the browser over the game",()=>{if(DESK&&DESK.pinToggle)DESK.pinToggle({show:true})}],["Take the tour",()=>startTour()],["Show all pages",()=>setMode("full")],["Find gear upgrades",()=>{showTab("buildtools");scrollToCard("btUpg")}],["Timeless jewel lookup",()=>showTab("buildtools")],["Cluster jewel notables",()=>{showTab("buildtools");scrollToCard("btCluster")}],["Gem levelling profit",()=>{showTab("buildtools");scrollToCard("btGems")}],["Betrayal board",()=>{showTab("league");scrollToCard("lgBetrayal")}],["Price a dump tab",()=>{showTab("trading");scrollToCard("ttDump")}],["Open the trade site",()=>{showTab("browser");brGo("https://www.pathofexile.com/trade")}],["Open poe.ninja",()=>{showTab("browser");brGo("https://poe.ninja/economy")}],["Open the wiki",()=>{showTab("browser");brGo("https://www.poewiki.net/wiki/Path_of_Exile_Wiki")}],[S.compact?"Turn compact mode off":"Turn compact mode on",()=>setCompact(!S.compact)]];
   if(DESK)acts.push(["Change hotkeys",()=>{showTab("settings");scrollToCard("setHotkeys")}]);
   if($("sessToggle"))acts.push([S.session.start?"Pause session timer":"Start session timer",()=>$("sessToggle").click()]);
   if(DESK){acts.push([LIVE.overlayVisible?"Hide overlay":"Show overlay",()=>DESK.toggleOverlay(!LIVE.overlayVisible)]);
@@ -4048,6 +4061,8 @@ function renderSettings(){
     <div class="row"><button class="btn ghost small" id="stBrClear">Clear browser data</button><span class="small muted">Signs you out of pathofexile.com in the app and clears its cookies and cache.</span></div>`:""}
     <h3>Look and feel</h3>
     <div class="theme-pick" role="group" aria-label="Theme">${THEMES.map(([k,l,d])=>`<button class="theme-opt" data-theme-pick="${k}" aria-pressed="${UI.theme===k}"><span class="theme-sw t-${k}"><b></b><b></b></span><span><b>${l}</b><br><span class="small muted">${d}</span></span></button>`).join("")}</div>
+    <label class="row small"><input type="checkbox" id="stStarter"${UI.mode==="starter"?" checked":""}> Starter mode: show only the main pages (others unlock when you open them)</label>
+    <div class="row"><button class="btn ghost small" id="stTour" type="button">Take the tour</button><button class="btn ghost small" id="stHints" type="button">Show in-game hints again</button></div>
     <label class="row small"><input type="checkbox" id="stMotion"${UI.motion!==false?" checked":""}> Animations (menus, loading and buttons)${REDUCED_MOTION?' <span class="muted">· Windows "reduce motion" is on, so they stay off</span>':""}</label>
     <label class="row small"><input type="checkbox" id="stSound"${UI.sound!==false?" checked":""}> Sounds: a soft click on buttons and a cue when a required field is empty</label>
     <div class="vol small"><label for="stVol">Volume</label><input type="range" id="stVol" min="0" max="100" step="5" value="${Math.round((UI.vol??0.4)*100)}"${UI.sound===false?" disabled":""}><button class="btn ghost small" id="stVolTest" type="button">Test</button></div>
@@ -4060,6 +4075,9 @@ function renderSettings(){
   $("stHelp").onchange=e=>{S.helpOff=!e.target.checked;save();ensureHelp()};
   document.querySelectorAll("[data-theme-pick]").forEach(b=>b.onclick=()=>{setTheme(b.dataset.themePick);renderSettings()});
   $("stMotion").onchange=e=>{UI.motion=e.target.checked;save();applyMotion()};
+  $("stStarter").onchange=e=>setMode(e.target.checked?"starter":"full");
+  $("stTour").onclick=()=>startTour();
+  $("stHints").onclick=()=>{S.hints={};save();toast("In-game hints will show again as you play.")};
   $("stSound").onchange=e=>{UI.sound=e.target.checked;save();renderSettings();if(UI.sound)SND.click()};
   $("stVol").oninput=e=>{UI.vol=+e.target.value/100;save()};$("stVol").onchange=()=>SND.click();
   $("stVolTest").onclick=()=>{SND.click();setTimeout(()=>SND.warn(),250)};
@@ -4115,7 +4133,12 @@ function wizRender(){
   const body=$("wizBody");
   if(id==="goal") body.innerHTML=`<h3>Which build are you following?</h3>
     <p class="small" style="margin:0">Paste the Path of Building code (or pobb.in link) from your build guide. This is your <b>goal</b>: the shopping list, crafting plans and progress all compare against it.</p>${wizImportHtml("goal")}
-    <p class="small muted" style="margin:0">In Path of Building: Import/Export Build → Generate → Copy. Most guides link a pobb.in page; its URL works too${DESK?"":" in the desktop app"}.</p>`;
+    <p class="small muted" style="margin:0">In Path of Building: Import/Export Build → Generate → Copy. Most guides link a pobb.in page; its URL works too${DESK?"":" in the desktop app"}.</p>
+    <details class="nobuild"${exG?" open":""}><summary><b>No build yet?</b></summary>
+      <p class="small" style="margin:6px 0 0">Pick one from a guide site. Every guide links its Path of Building code (often a pobb.in link): copy it and paste it above.</p>
+      <div class="row">${[["Maxroll build guides","https://maxroll.gg/poe/build-guides"],["Mobalytics builds","https://mobalytics.gg/poe/builds"],["poe.ninja: what players run","https://poe.ninja/poe1/builds"]].map(([l,u])=>`<button class="btn ghost small" data-wzlink="${u}">${l}</button>`).join("")}</div>
+      <p class="small" style="margin:6px 0 0">Or start without one: the campaign route, overlay, price checks and maps all work without a build, and you can add one any time.</p>
+      <div class="row"><button class="btn small" id="wzNoBuild">Just leveling for now</button></div></details>`;
   else if(id==="current") body.innerHTML=`<h3>Where is your character now?</h3>
     <p class="small" style="margin:0">Import your <b>current</b> character the same way to see exactly what's left to do. In Path of Building: Import/Export Build → Import from website → your account → your character, then Generate.</p>${wizImportHtml("current")}
     <p class="small muted" style="margin:0">${DESK?"No PoB handy? Skip this and use Live character sync on the Account page (Economy) later. It pulls your character from your GGG account.":"You can skip this and do it any time from Import PoB."}</p>`;
@@ -4150,9 +4173,14 @@ function wizRender(){
       <li>Press <kbd>Ctrl K</kbd> anywhere to jump to any page, card or action.</li>
       <li>Tap <b>?</b> next to a card's title for a short explanation.</li>
       <li><b>Settings</b> has hotkeys, your GGG account, Discord, updates and backups. You can rerun this wizard from there.</li>
-    </ul>`;
+    </ul>
+    ${UI.mode==="starter"?'<p class="small" style="margin:0">You\'re in <b>starter mode</b>: only the main pages show. Click <b>＋ All pages</b> in the top bar whenever you want crafting, trading and the rest.</p>':""}
+    <div class="row"><button class="btn primary" id="wzTour">Take a 1-minute tour</button></div>`;
+  body.querySelectorAll("[data-wzlink]").forEach(b=>b.onclick=()=>{const u=b.dataset.wzlink;if(DESK&&DESK.openExternal)DESK.openExternal(u);else window.open(u,"_blank","noopener")});
+  const nb=$("wzNoBuild");if(nb)nb.onclick=()=>{S.noBuild=true;save();WIZ.i++;wizRender()};
   const ld=$("wzLoad");if(ld)ld.onclick=async()=>{const s=$("wzSt");s.className="status";s.textContent="Loading…";
     try{await importBuild($("wzCode").value,id);s.className="status ok";s.textContent="Loaded.";setTimeout(()=>{WIZ.i++;wizRender()},700)}catch(err){s.className="status err";s.textContent=err.message||"Couldn't read that build."}};
+  const tb=$("wzTour");if(tb)tb.onclick=()=>{$("setup").close();startTour()};
   $("wizBack").hidden=WIZ.i===0;$("wizSkip").hidden=id==="finish"||wizOk(id);
   $("wizNext").textContent=id==="finish"?"Finish":"Next";
 }
@@ -4286,6 +4314,82 @@ let BUSY=0;const busy=d=>{BUSY=Math.max(0,BUSY+d);document.body.classList.toggle
 addEventListener("ec-busy",e=>busy(+e.detail||0));
 {const ls=loadScriptOnce;loadScriptOnce=(src,g)=>window[g]?ls(src,g):(busy(1),ls(src,g).finally(()=>busy(-1)))}
 function applyCompact(){document.body.classList.toggle("compact",!!S.compact)}
+/* ---------- first-time experience: starter mode, guided tour, in-game hints ----------
+   Starter mode shows only the main pages so a new player isn't faced with twenty at once. Any page opened
+   from Ctrl+K or a link unlocks itself; "Show all pages" (nav or Settings) turns starter mode off. */
+const STARTER=["home","build","progress","campaign","maps","session","settings","desktop"];
+if(!UI.mode){UI.mode=store.get("setupDone",0)?"full":"starter";save()}
+const starterHidden=t=>UI.mode==="starter"&&!STARTER.includes(t)&&!(S.unlocked||{})[t];
+function applyStarter(){
+  document.querySelectorAll("#tabs button[data-tab]").forEach(b=>b.classList.toggle("starter-hide",starterHidden(b.dataset.tab)));
+  document.querySelectorAll("#groups [data-group]").forEach(g=>{
+    const any=[...document.querySelectorAll(`#tabs button[data-g="${g.dataset.group}"]`)].some(b=>!b.hidden&&!b.classList.contains("starter-hide"));
+    g.classList.toggle("starter-hide",!any);
+  });
+  let more=$("moreBtn");
+  if(UI.mode==="starter"){
+    if(!more){more=document.createElement("button");more.id="moreBtn";more.className="more-btn";more.title="Starter mode shows the main pages. Click to show all of them.";
+      more.textContent="＋ All pages";more.onclick=()=>setMode("full");const k=$("openSearch");k.parentNode.insertBefore(more,k)}
+  }else if(more)more.remove();
+}
+function setMode(m){UI.mode=m;save();applyStarter();syncNav();if(CUR_TAB==="settings")renderSettings();
+  toast(m==="full"?"All pages are showing. Switch back to starter mode in Settings → Look and feel.":"Starter mode: only the main pages show. Anything you open from Ctrl+K stays unlocked.")}
+// opening a hidden page (Ctrl+K, a link, a button) unlocks it instead of refusing
+function unlockTab(t){if(!starterHidden(t))return;S.unlocked={...(S.unlocked||{}),[t]:Date.now()};save();applyStarter();
+  const b=tabBtn(t);toast(`Unlocked ${b?b.textContent.trim():t}. "＋ All pages" shows everything.`)}
+
+// guided tour: a short spotlight walk through the main parts, replayable from Settings or Ctrl+K
+const TOUR=[
+  {sel:"#groups",title:"Sections",text:"Everything lives in five sections: Home, Character, Play, Economy and Settings. Each has its own pages underneath."},
+  {sel:"#openSearch",title:"Search everything",text:"Press Ctrl+K (or /) to jump to any page, card, item or action by typing a few letters."},
+  {sel:"#homeChar",tab:"home",title:"Your build at a glance",text:"How close your character is to the build you're following. Import builds in the setup wizard or with Import PoB."},
+  {sel:"#homeNext",tab:"home",title:"What to do next",text:"The next campaign steps or atlas milestone, plus the biggest upgrades for your build."},
+  {sel:"#homeSession",tab:"home",title:"Your session",text:"A play timer, maps you've run, chaos per hour and session goals. The game log fills most of this in for you."},
+  {sel:"#homeLive",tab:"home",desk:true,title:"In game",text:"Ctrl+Shift+O shows the overlay over the game. For prices, hover an item, press Ctrl+C, then Ctrl+D. Ctrl+Shift+Space opens quick tools."},
+  {sel:".card .helpbtn",tab:"home",title:"Explanations",text:"Tap ? next to any card title for a short explanation of what it does."},
+  {sel:"#moreBtn",starter:true,title:"More pages",text:"You're in starter mode, showing the main pages. Click here when you want crafting, trading, the loot filter and the rest."},
+];
+const TOURST={i:0,on:false};
+function startTour(){TOURST.i=0;TOURST.on=true;showTab("home");setTimeout(tourRender,80)}
+function endTour(done){TOURST.on=false;["tourBox","tourHole"].forEach(id=>{const e=$(id);if(e)e.remove()});if(done){S.tourDone=Date.now();save()}}
+function tourSteps(){return TOUR.filter(s=>(!s.desk||DESK)&&(!s.starter||UI.mode==="starter")&&document.querySelector(s.sel))}
+function tourRender(){
+  const steps=tourSteps();if(!TOURST.on||!steps.length)return endTour(true);
+  TOURST.i=Math.max(0,Math.min(TOURST.i,steps.length-1));const st=steps[TOURST.i];
+  if(st.tab&&CUR_TAB!==st.tab)showTab(st.tab);
+  const el=document.querySelector(st.sel);if(!el)return endTour(true);
+  el.scrollIntoView({block:"center",behavior:"auto"});
+  // the spotlight is its own fixed layer (a ring with a huge shadow), so card layers and animations can't hide it
+  let hole=$("tourHole");if(!hole){hole=document.createElement("div");hole.id="tourHole";document.body.appendChild(hole)}
+  let box=$("tourBox");if(!box){box=document.createElement("div");box.id="tourBox";box.setAttribute("role","dialog");box.setAttribute("aria-label","Tour");document.body.appendChild(box)}
+  box.innerHTML=`<div class="small muted">${TOURST.i+1} of ${steps.length}</div><h3 style="margin:2px 0 4px">${esc(st.title)}</h3><p class="small" style="margin:0">${esc(st.text)}</p>
+    <div class="row" style="justify-content:space-between;margin-top:8px"><button class="btn ghost small" id="tourSkip">Skip tour</button><span class="row">${TOURST.i?'<button class="btn ghost small" id="tourBack">Back</button>':""}<button class="btn primary small" id="tourNext">${TOURST.i===steps.length-1?"Finish":"Next"}</button></span></div>`;
+  const tok=TOURST.tok=(TOURST.tok||0)+1;
+  const place=()=>{if(tok!==TOURST.tok||!TOURST.on)return;const r=el.getBoundingClientRect(),pad=6,bw=Math.min(320,innerWidth-24);box.style.width=bw+"px";const bh=box.offsetHeight||150;
+    Object.assign(hole.style,{top:(r.top-pad)+"px",left:(r.left-pad)+"px",width:(r.width+pad*2)+"px",height:(r.height+pad*2)+"px"});
+    const clampY=y=>Math.max(8,Math.min(innerHeight-bh-8,y)),clampX=x=>Math.max(12,Math.min(innerWidth-bw-12,x));
+    let top,left;
+    if(r.right+16+bw<innerWidth){left=r.right+16;top=clampY(r.top)}            // right of it
+    else if(r.left-16-bw>0){left=r.left-16-bw;top=clampY(r.top)}               // left of it
+    else if(r.bottom+12+bh<innerHeight){top=r.bottom+12;left=clampX(r.left)}   // below
+    else{top=clampY(r.top-bh-12);left=clampX(r.left)}                          // above
+    box.style.top=top+"px";box.style.left=left+"px"};
+  place();setTimeout(place,350);
+  $("tourSkip").onclick=()=>endTour(true);
+  const bk=$("tourBack");if(bk)bk.onclick=()=>{TOURST.i--;tourRender()};
+  $("tourNext").onclick=()=>{if(TOURST.i>=steps.length-1)endTour(true);else{TOURST.i++;tourRender()}};
+  $("tourNext").focus();
+}
+document.addEventListener("keydown",e=>{if(TOURST.on&&e.key==="Escape")endTour(true)});
+addEventListener("resize",()=>{if(TOURST.on)tourRender()});
+
+// in-game hints: each shown once on the overlay, at the moment it's useful
+function gameHint(id,text){
+  if(!DESK||!DESK.overlayHint||(S.hints||{})[id])return;
+  S.hints={...(S.hints||{}),[id]:Date.now()};save();DESK.overlayHint(text);
+}
+
+
 function setCompact(on){S.compact=!!on;save();applyCompact();toast(on?"Compact mode on.":"Compact mode off.")}
 applyCompact();
 
