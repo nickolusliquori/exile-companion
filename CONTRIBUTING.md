@@ -37,6 +37,6 @@ The project layout is described in the README under [For developers](README.md#f
 2. Bump `version` in `package.json` (and the two version fields in `package-lock.json`).
 3. Push to `main`. GitHub Actions runs the checks, builds the installer and publishes the release, using the changelog section as its notes.
 
-For a test build, use a version such as `1.8.0-beta.1`. It's published as a pre-release that auto-update ignores, so only people who install it by hand get it. Promote it by releasing the same changes as `1.8.0`.
+New features ship as regular releases and are tested in game afterwards; problems found are fixed in a patch release (for example `1.8.1`). If a private test build is ever needed, a version such as `1.8.0-beta.1` is published as a pre-release that auto-update ignores.
 
 Commits to `main` are what users receive, so keep `main` releasable.

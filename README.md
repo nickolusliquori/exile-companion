@@ -128,16 +128,16 @@ All of these can be changed in **Settings → Hotkeys**.
 
 ## Roadmap
 
-Planned releases, in order. Each ships through auto-update. Releases marked **beta** go out as a pre-release first, so they can be tested in the game before everyone gets them.
+Planned releases, in order. Each ships as a regular release through auto-update, gets tested in game afterwards, and any problems found are fixed in a follow-up patch (for example 1.8.1).
 
-| Version | Feature | Release |
-|---|---|---|
-| **1.8** | **Loot filter editor** in the style of FilterBlade: open your NeverSink filter, show or hide tiers, change colours, sounds, beams and minimap icons with a live preview, re-tier uniques, divination cards and currency from poe.ninja prices, adjust it to your build, preview sample drops and save it as `ExileCompanion-<name>.filter`. | beta first |
-| **1.9** | **In-app browser** for the trade site, poe.ninja, poewiki, poedb, pobb.in, poelab, Craft of Exile and FilterBlade, in its own sandbox. "Open on trade" and other links open inside the app, and your pathofexile.com login is remembered. | beta first |
-| **1.10** | **Trading and money:** a search-string builder (like poe.re), a dump-tab pricer that writes `~b/o` notes for you to copy, a currency flip watcher, and divination card and unique collection trackers. | regular |
-| **1.11** | **Mapping and league content:** scarab and map-device return on investment from your own maps, a Betrayal board helper, Heist and Expedition helpers, and the daily Lab layout with enchant prices. | regular |
-| **1.12** | **Build tools:** a meta comparison from poe.ninja builds, timeless and cluster jewel helpers, and gem levelling profit. | regular |
-| **1.13** | **Quality of life:** clipboard history, session goals, and the in-app browser pinned over the game with a hotkey. | beta first |
+| Version | Feature |
+|---|---|
+| **1.8** | **Loot filter editor** in the style of FilterBlade: open your NeverSink filter, show or hide tiers, change colours, sounds, beams and minimap icons with a live preview, re-tier uniques, divination cards and currency from poe.ninja prices, adjust it to your build, preview sample drops and save it as `ExileCompanion-<name>.filter`.|
+| **1.9** | **In-app browser** for the trade site, poe.ninja, poewiki, poedb, pobb.in, poelab, Craft of Exile and FilterBlade, in its own sandbox. "Open on trade" and other links open inside the app, and your pathofexile.com login is remembered.|
+| **1.10** | **Trading and money:** a search-string builder (like poe.re), a dump-tab pricer that writes `~b/o` notes for you to copy, a currency flip watcher, and divination card and unique collection trackers.|
+| **1.11** | **Mapping and league content:** scarab and map-device return on investment from your own maps, a Betrayal board helper, Heist and Expedition helpers, and the daily Lab layout with enchant prices.|
+| **1.12** | **Build tools:** a meta comparison from poe.ninja builds, timeless and cluster jewel helpers, and gem levelling profit.|
+| **1.13** | **Quality of life:** clipboard history, session goals, and the in-app browser pinned over the game with a hotkey.|
 
 Not planned: anything that sends input to the game (auto-setting stash notes, chat macros) or uploads to your GGG account, because GGG isn't approving new third-party sign-ins.
 
