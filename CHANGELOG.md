@@ -2,6 +2,11 @@
 
 What changed in each release, newest first. Installed copies update themselves; see the [Releases page](https://github.com/nickolusliquori/exile-companion/releases) for the installers. Planned releases are on the [roadmap](README.md#roadmap).
 
+## [1.35.0] - 2026-11-22
+
+### Added
+- **Automatic cheat sheets** (Desktop tools → Cheat sheets → Open automatically): choose a sheet for the Labyrinth, Heist contracts, Delve, the Sanctum, Simulacrum, any map, your hideout, or any zone whose name contains a word. It opens when you enter one and closes when you leave (optional). The hotkey still cycles through all your sheets.
+
 ## [1.34.0] - 2026-11-22
 
 ### Added

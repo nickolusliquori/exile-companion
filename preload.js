@@ -125,6 +125,8 @@ contextBridge.exposeInMainWorld("exileDesktop", {
   publishStream: (d) => ipcRenderer.send("stream:publish", d),
   onOverlayPage: on("overlay:page"),
   cheatList: () => ipcRenderer.invoke("cheat:list"),
+  cheatShow: (name) => ipcRenderer.send("cheat:show", name),
+  cheatHide: () => ipcRenderer.send("cheat:hide"),
   cheatAdd: () => ipcRenderer.invoke("cheat:add"),
   cheatRemove: (n) => ipcRenderer.invoke("cheat:remove", n),
   cheatRestore: (n) => ipcRenderer.invoke("cheat:restore", n),

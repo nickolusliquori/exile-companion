@@ -26,8 +26,9 @@ function onLiveEvents(evs){
       if(isMapId(e.id)){const key=e.id+"#"+e.seed;if(!LIVE.map||LIVE.map.key!==key)LIVE.map={key,name:LIVE.zone.name,tier:e.lvl>=68?Math.min(17,e.lvl-67):null,start:e.t,deaths:0};if(markMapDone(e.id,e.t)){save();renderMapCompletion();DESK.notify({kind:"milestones",title:`New map: ${LIVE.zone.name}`,body:MAP_POOL.length?`${MAP_POOL.filter(m=>S.mapsDone[m.key]).length}/${MAP_POOL.length} maps towards atlas completion.`:"Added to your atlas completion."})}}
       else if(isCampId(e.id)) LIVE.map=null;
       if(isCampId(e.id)&&LIVE.zone.act&&LIVE.zone.act<=10&&S.campAct!==LIVE.zone.act&&LIVE.zone.act>(S.campAct||0)){S.campAct=LIVE.zone.act;save()}
+      cheatAutoCheck(e.id,LIVE.zone.name);
     }
-    else if(e.type==="scene"&&LIVE.zone&&!AREAS[LIVE.zone.id]) LIVE.zone.name=e.name;
+    else if(e.type==="scene"&&LIVE.zone&&!AREAS[LIVE.zone.id]){LIVE.zone.name=e.name;cheatAutoCheck(LIVE.zone.id,e.name)}
     else if(e.type==="level"&&charFromLog(e.name)){/* another saved character: not recorded on this one */}
     else if(e.type==="level"){if(!S.logChar||S.logChar===e.name||(S.logInfo&&e.level>S.logInfo.level&&e.cls===S.logInfo.cls)){S.logChar=e.name;S.logInfo={...(S.logInfo||{}),name:e.name,cls:e.cls,level:e.level,t:e.t};addLevelUp(e.level,e.t);levelChanged=true}}
     else if(e.type==="death"&&LIVE.map&&(!S.logChar||e.name===S.logChar)) LIVE.map.deaths++;

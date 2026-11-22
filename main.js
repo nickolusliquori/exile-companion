@@ -432,7 +432,17 @@ function cycleCheat() {
   if (!list.length) { overlayWin && overlayWin.webContents.send("overlay:toast", "Add cheat sheets under Settings → Desktop tools first"); return; }
   cheatIdx++;
   if (cheatIdx >= list.length) { cheatIdx = -1; if (cheatWin) cheatWin.hide(); return; }
-  const file = path.join(cheatDir(), list[cheatIdx]);
+  showCheatAt(list, cheatIdx);
+}
+// a cheat sheet by file name (automatic sheets): only names that exist in the cheat sheet folder
+function showCheatFile(name) {
+  const list = listCheats(), i = list.indexOf(String(name || ""));
+  if (i < 0) return false;
+  cheatIdx = i; showCheatAt(list, i); return true;
+}
+function hideCheat() { cheatIdx = -1; if (cheatWin && !cheatWin.isDestroyed()) cheatWin.hide(); }
+function showCheatAt(list, idx) {
+  const file = path.join(cheatDir(), list[idx]);
   const { nativeImage } = require("electron");
   const img = nativeImage.createFromPath(file); const sz = img.isEmpty() ? { width: 800, height: 600 } : img.getSize();
   const wa = screen.getPrimaryDisplay().workArea;
@@ -444,7 +454,7 @@ function cycleCheat() {
     cheatWin.on("closed", () => { cheatWin = null; });
   }
   cheatWin.setBounds({ x: Math.round(wa.x + (wa.width - w) / 2), y: Math.round(wa.y + (wa.height - h) / 2), width: w, height: h });
-  cheatWin.loadFile(path.join(__dirname, "app", "cheat.html"), { query: { src: "file:///" + file.replace(/\\/g, "/"), label: `${list[cheatIdx]} (${cheatIdx + 1}/${list.length})` } });
+  cheatWin.loadFile(path.join(__dirname, "app", "cheat.html"), { query: { src: "file:///" + file.replace(/\\/g, "/"), label: `${list[idx]} (${idx + 1}/${list.length})` } });
   cheatWin.showInactive();
 }
 
@@ -904,6 +914,8 @@ ipcMain.handle("filter:write", wrap((a) => {
 }));
 
 ipcMain.handle("cheat:list", () => listCheats());
+ipcMain.on("cheat:show", (e, name) => { if (typeof name === "string" && name.length < 260) showCheatFile(name); });
+ipcMain.on("cheat:hide", () => hideCheat());
 ipcMain.handle("cheat:add", async () => {
   const r = await dialog.showOpenDialog(mainWin, { title: "Add cheat sheet images", properties: ["openFile", "multiSelections"], filters: [{ name: "Images", extensions: ["png", "jpg", "jpeg", "webp", "gif"] }] });
   if (r.canceled) return listCheats();

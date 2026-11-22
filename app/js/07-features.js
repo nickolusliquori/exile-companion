@@ -485,6 +485,28 @@ function renderBackup(){
 async function autoBackup(){if(!DESK||!DESK.backupAuto)return;const r=await DESK.backupAuto(JSON.stringify(dumpData()));if(r&&r.ok){LIVE.lastAutoBackup=r.data;renderBackup()}}
 
 /* ---------- cheat sheets (desktop) ---------- */
+/* automatic cheat sheets: a sheet opens by itself in the zones you choose, and closes when you leave */
+const CHEAT_TRIGGERS=[
+  ["lab","The Labyrinth",(id,n)=>/^Labyrinth/i.test(id)||/Aspirants'? Plaza|Labyrinth/i.test(n)],
+  ["heist","Heist contracts and blueprints",(id,n)=>/^Heist/i.test(id)&&!/Hub/i.test(id)&&!/Rogue Harbour/i.test(n)],
+  ["delve","Delve (Azurite Mine)",(id,n)=>/^Delve/i.test(id)||/Azurite Mine/i.test(n)],
+  ["sanctum","The Forbidden Sanctum",(id,n)=>/Sanctum/i.test(id)||/Sanctum/i.test(n)],
+  ["simulacrum","Simulacrum",(id,n)=>/^Affliction/i.test(id)||/Simulacrum/i.test(n)],
+  ["maps","Any map",id=>isMapId(id)],
+  ["hideout","Your hideout",(id,n)=>/Hideout/i.test(id)||/Hideout/i.test(n)],
+  ["custom","Zone name contains…",(id,n,text)=>!!text&&(String(n||"").toLowerCase().includes(text.toLowerCase())||String(id||"").toLowerCase().includes(text.toLowerCase()))],
+];
+function cheatRuleFor(id,name,rules){
+  for(const r of rules||[]){const t=CHEAT_TRIGGERS.find(x=>x[0]===r.on);if(t&&r.file&&t[2](String(id||""),String(name||""),r.text))return r}
+  return null;
+}
+let CHEAT_AUTO=null;
+function cheatAutoCheck(id,name){
+  if(!DESK||!DESK.cheatShow)return;const rules=S.cheatAuto||[];if(!rules.length&&!CHEAT_AUTO)return;
+  const r=cheatRuleFor(id,name,rules);
+  if(r){if(!CHEAT_AUTO||CHEAT_AUTO.file!==r.file){DESK.cheatShow(r.file);CHEAT_AUTO=r}}
+  else if(CHEAT_AUTO&&S.cheatAutoHide!==false){DESK.cheatHide();CHEAT_AUTO=null}
+}
 async function renderCheats(){
   const el=$("deskCheats");if(!el||!DESK||!DESK.cheatList) return;
   const list=await DESK.cheatList();const c=LIVE.cfg||{};
@@ -492,6 +514,22 @@ async function renderCheats(){
     <p class="small" style="margin:0">Add your own images (a Betrayal board, boss notes, a map of the Lab). Press <b>${esc(keyName(c.cheatHotkey||"Ctrl+Shift+H"))}</b> in game to show the first one, press again for the next, and once more after the last to hide them.</p>
     <div class="row"><button class="btn" id="chAdd">Add images…</button></div>
     ${list.length?`<ul class="clean small">${list.map(x=>`<li class="row" style="justify-content:space-between"><span>${esc(x)}</span><button class="btn ghost small" data-chdel="${esc(x)}">Remove</button></li>`).join("")}</ul>`:emptyBox("No cheat sheets yet. Add images with the button above.")}`;
+  {const box=document.createElement("div");box.className="col";box.style.gap="6px";const rules=S.cheatAuto||(S.cheatAuto=[]);
+    box.innerHTML=`<h3>Open automatically</h3>${list.length?`<p class="small muted" style="margin:0">Pick a sheet for a kind of zone; it opens when you enter one${S.cheatAutoHide!==false?" and closes when you leave":""}. The first matching rule wins.</p>
+      ${rules.map((r,i)=>`<div class="row small" style="flex-wrap:nowrap"><select data-cr="${i}" aria-label="When">${CHEAT_TRIGGERS.map(t=>`<option value="${t[0]}"${r.on===t[0]?" selected":""}>${esc(t[1])}</option>`).join("")}</select>
+        ${r.on==="custom"?`<input data-crt="${i}" value="${esc(r.text||"")}" placeholder="e.g. Trialmaster" aria-label="Zone name contains" style="width:130px">`:""}
+        <select data-crf="${i}" aria-label="Show this sheet" style="flex:1;min-width:0">${list.map(f=>`<option${r.file===f?" selected":""}>${esc(f)}</option>`).join("")}</select>
+        <button class="btn ghost small" data-crx="${i}" aria-label="Remove rule">×</button></div>`).join("")}
+      <div class="row"><button class="btn ghost small" id="crAdd">＋ Add a rule</button><label class="row small"><input type="checkbox" id="crHide"${S.cheatAutoHide!==false?" checked":""}> Close it when I leave</label></div>`
+      :`<p class="small muted" style="margin:0">Add an image first, then choose where it opens by itself (Lab, Heist, Delve, maps…).</p>`}`;
+    el.appendChild(box);
+    const redo=()=>{save();renderCheats()};
+    const ad=$("crAdd");if(ad)ad.onclick=()=>{rules.push({on:"lab",file:list[0]});redo()};
+    const hd=$("crHide");if(hd)hd.onchange=e=>{S.cheatAutoHide=e.target.checked;redo()};
+    box.querySelectorAll("[data-cr]").forEach(s=>s.onchange=()=>{rules[+s.dataset.cr].on=s.value;redo()});
+    box.querySelectorAll("[data-crt]").forEach(s=>s.onchange=()=>{rules[+s.dataset.crt].text=s.value.trim().slice(0,60);save()});
+    box.querySelectorAll("[data-crf]").forEach(s=>s.onchange=()=>{rules[+s.dataset.crf].file=s.value;save()});
+    box.querySelectorAll("[data-crx]").forEach(b=>b.onclick=()=>{const i=+b.dataset.crx,x=rules.splice(i,1)[0];redo();toast("Rule removed.",()=>{rules.splice(i,0,x);redo()})});}
   $("chAdd").onclick=async()=>{await DESK.cheatAdd();renderCheats()};
   el.querySelectorAll("[data-chdel]").forEach(b=>b.onclick=async()=>{const n=b.dataset.chdel;await DESK.cheatRemove(n);renderCheats();toast(`Removed cheat sheet "${n}".`,async()=>{if(DESK.cheatRestore)await DESK.cheatRestore(n);renderCheats()})});
 }

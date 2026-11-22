@@ -114,7 +114,7 @@ Your character at a glance: progress toward the goal build, what to do next (cam
 
 General options and your builds, a **hotkey recorder**, **Look and feel** (three themes: Dark minimal, Modern and Path of Exile; animations that respect Windows "reduce motion"; minimal sounds with a volume slider; **text size** from 90% to 150% with Ctrl + plus / minus / 0, plus a separate **overlay text size**; **higher contrast**; **colorblind-friendly colors** that also apply to the overlay and price check; starter mode and the tour), your GGG account, Discord status and notifications, **characters** (several characters, each with its own builds, campaign, atlas, owned gear and map log; switch from the top bar or automatically from the game log), updates, backups (plus automatic daily ones), sync with the web version on your phone, the OBS stream overlay, display options and **Report a problem**.
 
-- **Desktop tools:** the game log, overlay, price check, trade requests, price alerts, cheat sheets and recent price checks.
+- **Desktop tools:** the game log, overlay, price check, trade requests, the stash highlight, the chat scanner, price alerts, cheat sheets and recent price checks.
 - **Media:** a YouTube / YouTube Music / Twitch / Kick / SoundCloud **mini player** that stays on top of the game (with click-through, volume and see-through), and **Now playing** controls for whatever plays in Windows (Spotify, Apple Music, Netflix or YouTube in your browser, Stremio…). Netflix, Hulu, Disney+, Apple Music and similar can't play inside the app because they need copy protection (Widevine) it doesn't have.
 
 ### In game
@@ -123,7 +123,7 @@ General options and your builds, a **hotkey recorder**, **Look and feel** (three
 - **Price check:** hover an item, press **Ctrl+C** (the game's copy), then **Ctrl+D**. A window opens by your cursor with poe.ninja values and the cheapest live listings. Rares and magic items search for items with **similar prefixes and suffixes** (min and max per mod, "at least N of" or "all", tier and roll badges when you copy with Ctrl+Alt+C, life and resistance totals). Maps get a **map check**: click any mod to mark it as a warning or danger for every map. Plus an upgrade check against what you wear, and **Wiki**, **poedb** and **Craft lab** buttons.
 - **Trade companion:** incoming whispers show with item, price, stash position and a poe.ninja price hint; whispers you send show under "You're buying". Buttons copy `/invite`, `/tradewith`, `/hideout` and your own quick replies for you to paste. Buyers arriving trigger a notification.
 - **Browser over the game:** the in-app browser in an always-on-top window (Ctrl+Shift+B), sharing your trade-site sign-in.
-- **Cheat sheets:** your own images (Betrayal board, Lab layout) shown over the game with a hotkey.
+- **Cheat sheets:** your own images (Betrayal board, Lab layout) shown over the game with a hotkey, or **automatically** when you enter the Lab, a Heist, Delve, a map or any zone you name.
 
 ### Everywhere
 
@@ -176,7 +176,7 @@ If GGG asks for any change, it will be made. Contact: open an issue on this repo
 
 ## Roadmap
 
-Shipped so far: the loot filter editor (1.8), in-app browser (1.9), trading tools (1.10), League page (1.11), build tools (1.12), quality of life (1.13), themes and motion (1.14), upgrade finder (1.15), deeper price checks (1.16), media (1.17), league data updates and saved searches (1.18), map marks and item links (1.19), trade companion and recipe tracker (1.20), overlay tools (1.21), the clipboard-rule update (1.22), new-league handling (1.23), an automatic game data pipeline (1.24), the first-time experience (1.25), crash recovery with safe mode (1.26), accessibility options (1.27), a Windows test run before every release (1.28), multiple characters (1.29) and bundled fonts with a split-up codebase (1.30) a Gwennen gambling search (1.31) a stash highlight for trades (1.32) a chat scanner (1.33) and bulk selling posts (1.34). Every release ships through auto-update and gets tested in game afterwards; problems found are fixed in a follow-up patch. See the [changelog](CHANGELOG.md) for details.
+Shipped so far: the loot filter editor (1.8), in-app browser (1.9), trading tools (1.10), League page (1.11), build tools (1.12), quality of life (1.13), themes and motion (1.14), upgrade finder (1.15), deeper price checks (1.16), media (1.17), league data updates and saved searches (1.18), map marks and item links (1.19), trade companion and recipe tracker (1.20), overlay tools (1.21), the clipboard-rule update (1.22), new-league handling (1.23), an automatic game data pipeline (1.24), the first-time experience (1.25), crash recovery with safe mode (1.26), accessibility options (1.27), a Windows test run before every release (1.28), multiple characters (1.29) and bundled fonts with a split-up codebase (1.30) a Gwennen gambling search (1.31) a stash highlight for trades (1.32) a chat scanner (1.33) bulk selling posts (1.34) and automatic cheat sheets (1.35). Every release ships through auto-update and gets tested in game afterwards; problems found are fixed in a follow-up patch. See the [changelog](CHANGELOG.md) for details.
 
 | Version | Feature |
 |---|---|
