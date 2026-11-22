@@ -2,6 +2,16 @@
 
 What changed in each release, newest first. Installed copies update themselves; see the [Releases page](https://github.com/nickolusliquori/exile-companion/releases) for the installers. Planned releases are on the [roadmap](README.md#roadmap).
 
+## [1.24.0] - 2026-11-22
+
+### Added
+- **Game data pipeline:** a weekly GitHub Actions job fetches GGG's passive and atlas tree exports, the RePoE game-data export and Path of Building's timeless and cluster jewel data. It regenerates the app's data files, runs all checks and opens a pull request when something changed, noting a new patch and what to review. Files whose data didn't change are left alone, so quiet weeks produce nothing. The same update runs locally with `scripts/update-data.sh`, and `data/sources.json` records what was used.
+- `scripts/trees.py` regenerates the passive and atlas tree data (it reproduces the shipped files exactly).
+- Settings → Game data now reads each data set's version from the data itself.
+
+### Changed
+- The tree data files record their GGG export version. The cluster jewel generator picks Path of Building's newest tree automatically.
+
 ## [1.23.0] - 2026-11-22
 
 ### Added

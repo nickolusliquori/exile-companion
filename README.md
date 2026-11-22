@@ -168,11 +168,11 @@ If GGG asks for any change, it will be made. Contact: open an issue on this repo
 
 ## Roadmap
 
-Shipped so far: the loot filter editor (1.8), in-app browser (1.9), trading tools (1.10), League page (1.11), build tools (1.12), quality of life (1.13), themes and motion (1.14), upgrade finder (1.15), deeper price checks (1.16), media (1.17), league data updates and saved searches (1.18), map marks and item links (1.19), trade companion and recipe tracker (1.20), overlay tools (1.21), the clipboard-rule update (1.22) and new-league handling (1.23). Every release ships through auto-update and gets tested in game afterwards; problems found are fixed in a follow-up patch. See the [changelog](CHANGELOG.md) for details.
+Shipped so far: the loot filter editor (1.8), in-app browser (1.9), trading tools (1.10), League page (1.11), build tools (1.12), quality of life (1.13), themes and motion (1.14), upgrade finder (1.15), deeper price checks (1.16), media (1.17), league data updates and saved searches (1.18), map marks and item links (1.19), trade companion and recipe tracker (1.20), overlay tools (1.21), the clipboard-rule update (1.22) new-league handling (1.23) and an automatic game data pipeline (1.24). Every release ships through auto-update and gets tested in game afterwards; problems found are fixed in a follow-up patch. See the [changelog](CHANGELOG.md) for details.
 
 | Version | Feature |
 |---|---|
-| Next | **Data pipeline:** a weekly GitHub job that checks GGG's tree exports, RePoE and Path of Building for new data and opens an update for review. Then a **first-time experience** pass: starter mode, a "no build yet?" path, a short tour and in-game hints. |
+| Next | **First-time experience:** starter mode, a "no build yet?" path, a short tour and in-game hints. |
 | Pending GGG | **Sign in with your GGG account (OAuth)** to replace the POESESSID, and upload edited loot filters straight to your account, once GGG issues a client ID. |
 | Next | Ideas welcome: open a feature request on GitHub or use Settings → Report a problem.|
 
@@ -228,9 +228,9 @@ npm run dist:local # build an installer on your own PC
 
 **Releasing:** bump `version` in `package.json` and push to `main`. GitHub Actions runs the checks, builds the Windows installer and publishes the release with notes from [CHANGELOG.md](CHANGELOG.md); installed apps update themselves. A version with a suffix such as `1.8.0-beta.1` is published as a pre-release, which auto-update ignores. See [CONTRIBUTING.md](CONTRIBUTING.md) for more.
 
-**Updating map-mod data after a patch:** run `python3 scripts/mapmods.py <folder> <patch version>` with the same export (it needs `mods.json` and `base_items.json`).
+**Keeping game data current:** a weekly GitHub Actions job ([data-update.yml](.github/workflows/data-update.yml), Mondays, or run it by hand from the Actions tab) fetches GGG's tree exports, the RePoE export and Path of Building's data, regenerates the data files, runs the checks and opens a pull request when something changed. It flags a new patch and lists what to review. Merge it, then bump the version to ship. Run the same thing locally with `scripts/update-data.sh`. What was used is recorded in `data/sources.json`. For the pull request step, allow it under **Settings → Actions → General → Workflow permissions → "Allow GitHub Actions to create and approve pull requests"**; otherwise the job opens an issue with a link instead.
 
-**Updating crafting data after a patch:** download `mods.json`, `base_items.json`, `essences.json`, `fossils.json`, `crafting_bench_options.json` and `item_classes.json` from the RePoE export, then run `python3 scripts/craftdata.py <folder> <patch version>`.
+Individual generators, if you need one: `scripts/trees.py` (passive and atlas trees), `scripts/craftdata.py` and `scripts/mapmods.py` (RePoE), `scripts/timeless.py` and `scripts/clusters.py` (Path of Building), `scripts/export-game.js` (data/game.json from the built-in tables).
 
 ## Credits and licence
 

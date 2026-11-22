@@ -1,0 +1,71 @@
+name: Game data update
+
+# Weekly (and on demand): fetch GGG's tree exports, the RePoE export and Path of Building's data, regenerate the
+# app's data files, run the checks, and open a pull request if anything changed. Nothing ships until you merge it
+# and bump the version.
+on:
+  schedule:
+    - cron: "17 7 * * 1"   # Mondays 07:17 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+concurrency:
+  group: data-update
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Fetch sources and regenerate data
+        run: scripts/update-data.sh "$RUNNER_TEMP/data-sources"
+      - name: Anything changed?
+        id: diff
+        run: |
+          if git diff --quiet -- app data; then echo "changed=false" >> "$GITHUB_OUTPUT"; else echo "changed=true" >> "$GITHUB_OUTPUT"; fi
+          git diff --stat -- app data
+      - name: Run the checks on the new data
+        if: steps.diff.outputs.changed == 'true'
+        run: npm run check
+      - name: Open a pull request
+        if: steps.diff.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          branch="data/update-$(date -u +%Y%m%d)"
+          src="$(tr -d '\n' < data/sources.json)"
+          patch_now="$(node -p "require('./data/game.json').patch")"
+          tree_patch="$(node -p "(require('./data/sources.json').skilltree.match(/^\d+\.\d+/)||[''])[0]")"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -B "$branch"
+          git add app data
+          git commit -m "Game data update ($(date -u +%Y-%m-%d))" -m "Sources: $src"
+          git push -f origin "$branch"
+          {
+            echo "Automatic game data update. The checks passed on the new data."
+            echo
+            echo '```'; git diff --stat HEAD~1 -- app data; echo '```'
+            echo
+            echo "Sources: \`$src\`"
+            echo
+            if [ -n "$tree_patch" ] && [ "$tree_patch" != "$patch_now" ]; then
+              echo "**New patch detected ($tree_patch).** Before releasing: update \`patch\` and \`name\` in data/game.json, review the atlas strategies there, check the League page data (data/league.json), then bump the version in package.json."
+            else
+              echo "To ship it: merge, then bump the version in package.json (a patch version is fine)."
+            fi
+          } > "$RUNNER_TEMP/body.md"
+          gh pr create --base main --head "$branch" --title "Game data update ($(date -u +%Y-%m-%d))" --body-file "$RUNNER_TEMP/body.md" \
+            || gh issue create --title "Game data update ready: $branch" --body "GitHub Actions couldn't open a pull request (allow it under Settings, Actions, General, Workflow permissions). Open one from the branch: https://github.com/${GITHUB_REPOSITORY}/compare/main...${branch}"

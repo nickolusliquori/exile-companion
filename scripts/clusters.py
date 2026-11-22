@@ -1,6 +1,6 @@
 """Builds app/clusterdata.js from Path of Building Community's MIT-licensed data:
 src/Data/ClusterJewels.lua (enchants), src/Data/ModJewelCluster.lua (notables and weights)
-and src/TreeData/3_30/tree.lua (notable stats). Usage: python3 scripts/clusters.py <path to PoB repo>"""
+and the newest src/TreeData/<version>/tree.lua (notable stats). Usage: python3 scripts/clusters.py <path to PoB repo>"""
 import sys, re, json, os
 pob = sys.argv[1]; here = os.path.dirname(os.path.abspath(__file__))
 cj = open(os.path.join(pob, "src/Data/ClusterJewels.lua")).read()
@@ -13,7 +13,12 @@ for size, start in (("Small", "Small Cluster Jewel"), ("Medium", "Medium Cluster
     for sm in re.finditer(r'\["(affliction_[a-z_0-9]+)"\] = \{\s*name = "([^"]+)".*?tag = "([^"]+)",\s*stats = \{ (.*?) \},', block, re.S):
         skills.append({"tag": sm.group(3), "name": sm.group(2), "stats": re.findall(r'"([^"]*)"', sm.group(4))})
     sizes[size] = {"min": int(m.group(1)), "max": int(m.group(2)), "skills": skills}
-tree = open(os.path.join(pob, "src/TreeData/3_30/tree.lua")).read()
+# the newest non-Ruthless tree folder, e.g. src/TreeData/3_31
+def _ver(d):
+    try: return tuple(int(x) for x in d.split("_"))
+    except ValueError: return None
+TREE_DIR = max((d for d in os.listdir(os.path.join(pob, "src/TreeData")) if _ver(d)), key=_ver)
+tree = open(os.path.join(pob, "src/TreeData", TREE_DIR, "tree.lua")).read()
 def stats_for(name):
     k = tree.find('["name"] = %s,' % json.dumps(name))
     if k < 0: return []

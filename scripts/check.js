@@ -483,6 +483,29 @@ try {
   ok("new leagues: league picker follows launches (unless pinned); data/game.json valid, newer data applies, bad or older data is ignored");
 } catch (e) { fail("new leagues: " + e.message); }
 
+// data pipeline: sources.json matches the version labels inside the shipped data; keep-if-same restores label-only changes
+try {
+  const src = JSON.parse(fs.readFileSync(path.join(root, "data", "sources.json"), "utf8"));
+  const label = (f, v) => { const s = fs.readFileSync(path.join(appDir, f), "utf8"); const m = s.match(new RegExp('"v":"([^"]+)"')); return m && m[1]; };
+  assert.strictEqual(label("treedata.js"), src.skilltree, "treedata.js version matches data/sources.json");
+  assert.strictEqual(label("atlasdata.js"), src.atlastree, "atlasdata.js version matches");
+  assert.strictEqual(label("craftdata.js"), src.repoe, "craftdata.js version matches");
+  assert.strictEqual(label("mapmods.js"), src.repoe, "mapmods.js version matches");
+  for (const s of ["scripts/update-data.sh", "scripts/trees.py", "scripts/keep-if-same.py", ".github/workflows/data-update.yml"]) assert(fs.existsSync(path.join(root, s)), s + " exists");
+  const wf = fs.readFileSync(path.join(root, ".github", "workflows", "data-update.yml"), "utf8");
+  assert(/schedule:/.test(wf) && /npm run check/.test(wf) && /gh pr create/.test(wf), "weekly workflow runs the checks and opens a pull request");
+  assert(!/uses: [^@\s]+@(v\d|main|master)\b/.test(wf), "workflow actions are pinned to commits");
+  const { execFileSync } = require("child_process");
+  const tmp = fs.mkdtempSync(path.join(require("os").tmpdir(), "kis-")); fs.mkdirSync(path.join(tmp, "b"));
+  fs.writeFileSync(path.join(tmp, "b", "x.js"), 'window.X={"v":"1","a":1};\n'); fs.writeFileSync(path.join(tmp, "x.js"), 'window.X={"v":"2","a":1};\n');
+  fs.writeFileSync(path.join(tmp, "b", "y.js"), 'window.Y={"v":"1","a":1};\n'); fs.writeFileSync(path.join(tmp, "y.js"), 'window.Y={"v":"2","a":2};\n');
+  try { execFileSync("python3", [path.join(root, "scripts", "keep-if-same.py"), path.join(tmp, "b"), path.join(tmp, "x.js"), path.join(tmp, "y.js")], { stdio: "pipe" });
+    assert(fs.readFileSync(path.join(tmp, "x.js"), "utf8").includes('"v":"1"'), "a label-only change is put back");
+    assert(fs.readFileSync(path.join(tmp, "y.js"), "utf8").includes('"v":"2"'), "a real change is kept");
+  } catch (e) { if (e.code === "ENOENT") console.log("  (python3 not found: keep-if-same not exercised)"); else throw e; }
+  ok("data pipeline: data/sources.json matches the shipped data; weekly workflow pinned and checked; label-only changes are ignored");
+} catch (e) { fail("data pipeline: " + e.message); }
+
 Promise.all(pending).then(() => {
   if (failures) { console.error(`\n${failures} check(s) failed`); process.exit(1); }
   console.log("\nAll checks passed");
