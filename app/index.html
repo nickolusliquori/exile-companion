@@ -254,6 +254,11 @@ section.tab .card{scroll-margin-top:140px}
 .rep-list{display:grid;gap:4px;margin:6px 0}
 .appfoot{max-width:1200px;margin:0 auto;padding:8px 16px 24px;text-align:center;font-size:.75rem}
 .starter-hide{display:none!important}
+#charMenu{position:fixed;z-index:70;min-width:240px;background:var(--panel);border:1px solid var(--line-hi,var(--line));border-radius:10px;padding:6px;box-shadow:0 14px 40px rgba(0,0,0,.55);display:flex;flex-direction:column}
+#charMenu button{background:none;border:0;color:var(--text);text-align:left;padding:7px 10px;border-radius:6px;font:inherit;cursor:pointer}
+#charMenu button:hover,#charMenu button:focus-visible,#charMenu button.on{background:var(--panel2,rgba(255,255,255,.06))}
+#charMenu hr{border:0;border-top:1px solid var(--line);margin:4px 0}
+.charbtn{white-space:nowrap}
 .skip{position:absolute;left:8px;top:-60px;z-index:100;background:var(--gold);color:#1d1408;padding:8px 12px;border-radius:6px;font-weight:700}
 .skip:focus{top:8px}
 main:focus{outline:none}
@@ -455,6 +460,7 @@ A();addEventListener("storage",function(e){if(!e.key||e.key==="ec330.state")A()}
 <header>
   <div class="bar">
     <div class="brand">Exile Companion<small id="brandSub">3.30 Covens of Umbra</small></div>
+    <div id="charChip"></div>
     <div class="buildchip chips" id="buildchip">No build loaded</div>
     <button class="btn primary" id="openImport">Import PoB</button>
   </div>
@@ -680,6 +686,7 @@ A();addEventListener("storage",function(e){if(!e.key||e.key==="ec330.state")A()}
       <div class="card hl" id="setGeneral"></div>
       <div class="card" id="setHotkeys"></div>
     </div>
+    <div class="card" id="setCharsCard"><h2>Characters</h2><div id="setChars" class="col" style="gap:8px"></div></div>
     <div class="card" id="setData"></div>
     <div class="grid">
       <div class="card" id="acctConn"></div>
@@ -1149,6 +1156,7 @@ function renderHeader(){
   $("exampleBanner").hidden=!(exG||(C&&exC));
   const chip=(b,t,ex,cls,slot,label)=>b?`<button class="bchip ${cls}" data-imp="${slot}"><span>${label}:</span> <b>${esc(b.ascend||b.className)}</b> · Lv ${b.level} · ${esc(t.main)}${ex?' <span class="pill warn">example</span>':""}</button>`:`<button class="bchip empty" data-imp="${slot}">+ Add ${label.toLowerCase()} build</button>`;
   $("buildchip").innerHTML=chip(G,TG,exG,"goal","goal","Goal")+chip(C,TC,exC,"","current","Current");
+  if(typeof charChipHtml==="function"){const cc=$("charChip");cc.innerHTML=charChipHtml();const cb=$("charBtn");if(cb)cb.onclick=()=>$("charMenu")?closeCharMenu():openCharMenu(cb)}
   document.querySelectorAll("[data-imp]").forEach(b=>b.onclick=()=>openImport(b.dataset.imp));
 }
 function sel(id,opts,cur,label){
@@ -2137,6 +2145,107 @@ function dataSets(){
     ["League page (Betrayal, Threads, Expedition)","data/league.json","checked when the page opens",GAME.patch],
     ["Prices","poe.ninja","live","live"],["Trade league","GGG trade site",(LIVE.cfg&&LIVE.cfg.league)||S.league||"not detected yet","live"]];
 }
+/* ---------------- characters (profiles) ----------------
+   The active character's data stays where it always was (S and the saved builds), so nothing else changes.
+   Switching saves the active character's part of S plus its two builds under "char.<id>", loads the other
+   character's copy and reloads the page. Economy, settings and everything account-wide stay shared. */
+const CHAR_KEYS=["progress","camp","campAct","have","levelUps","bosses","bossNotes","splitRuns","played","gameDeaths","questPoints","noBuild",
+  "atlasHashes","atlasManual","strat","mapsDone","syncChar","logChar","logInfo","expHist","session","goal","recaps","recapFrom"];
+function charList(){const c=store.get("chars",null);return c&&Array.isArray(c.list)&&c.list.length?c:null}
+function charGuessName(){return (S.logChar)||(C&&!exC&&C.name)||(G&&!exG&&(G.ascend||G.className))||"Main character"}
+function charSummary(){const lv=(S.logInfo&&S.logInfo.level)||(C&&!exC&&C.level)||null,cls=(S.logInfo&&S.logInfo.cls)||(C&&!exC&&(C.ascend||C.className))||(G&&!exG&&(G.ascend||G.className))||"";
+  return {lvl:lv,cls}}
+function ensureChars(){let c=charList();if(!c){c={active:"c1",list:[{id:"c1",name:charGuessName(),created:Date.now(),used:Date.now(),...charSummary()}]};store.set("chars",c)}return c}
+function activeChar(){const c=charList();return c?c.list.find(x=>x.id===c.active)||c.list[0]:null}
+function charSnapshot(){const st={};for(const k of CHAR_KEYS)if(S[k]!==undefined)st[k]=S[k];
+  return {state:JSON.parse(JSON.stringify(st)),goal:store.get("xml.goal",null)||null,current:store.get("xml.current",null)||null,saved:Date.now()}}
+function charSaveActive(){const c=ensureChars(),me=c.list.find(x=>x.id===c.active);if(me){Object.assign(me,charSummary(),{used:Date.now()});if(S.logChar&&/^Main character$/.test(me.name))me.name=S.logChar}
+  store.set("char."+c.active,charSnapshot());store.set("chars",c)}
+function charLoad(id){
+  const snap=store.get("char."+id,null)||{state:{},goal:null,current:null};
+  for(const k of CHAR_KEYS)delete S[k];
+  Object.assign(S,JSON.parse(JSON.stringify(snap.state||{})));
+  const d=S_DEFAULT();if(!S.progress)S.progress=d.progress;if(!S.session)S.session=d.session;
+  const setX=(k,v)=>{try{if(v)localStorage.setItem("ec330."+k,JSON.stringify(v));else localStorage.removeItem("ec330."+k)}catch(e){}};
+  setX("xml.goal",snap.goal);setX("xml.current",snap.current);try{localStorage.removeItem("ec330.xml")}catch(e){}
+  save();
+}
+function switchChar(id,note){
+  const c=ensureChars();if(id===c.active)return;if(!c.list.some(x=>x.id===id))return;
+  charSaveActive();charLoad(id);c.active=id;const me=c.list.find(x=>x.id===id);me.used=Date.now();store.set("chars",c);
+  store.set("charNote",note||`Switched to ${me.name}.`);location.reload();
+}
+function newChar(name,{copyBuild=false}={}){
+  const c=ensureChars();charSaveActive();
+  const id="c"+Date.now().toString(36);
+  const goal=copyBuild?store.get("xml.goal",null):null;
+  c.list.push({id,name:String(name||"New character").slice(0,40),created:Date.now(),used:Date.now(),cls:copyBuild&&G&&!exG?(G.ascend||G.className):"",lvl:null});
+  store.set("char."+id,{state:{},goal,current:null,saved:Date.now()});store.set("chars",c);
+  switchChar(id,`New character "${name}". ${goal?"The goal build was copied; import the current character when you have it.":"Import its build from Home, or just start playing."}`);
+}
+function renameChar(id,name){const c=ensureChars(),x=c.list.find(y=>y.id===id);if(!x||!name)return;x.name=String(name).slice(0,40);store.set("chars",c);renderChars();renderHeader()}
+function deleteChar(id){
+  const c=ensureChars();if(id===c.active||c.list.length<2)return;
+  const i=c.list.findIndex(x=>x.id===id);if(i<0)return;const [gone]=c.list.splice(i,1),snap=store.get("char."+id,null);
+  store.set("chars",c);try{localStorage.removeItem("ec330.char."+id)}catch(e){}renderChars();renderHeader();
+  toast(`Removed ${gone.name}.`,()=>{const c2=ensureChars();c2.list.splice(i,0,gone);store.set("chars",c2);if(snap)store.set("char."+id,snap);renderChars();renderHeader()});
+}
+// header switcher + Settings card
+function charChipHtml(){const c=charList();if(!c||c.list.length<2)return "";const me=activeChar();
+  return `<button class="btn ghost small charbtn" id="charBtn" title="Switch character" aria-haspopup="menu"><span aria-hidden="true">&#x1F464;</span> ${esc(me.name)} <span aria-hidden="true">&#x25BE;</span></button>`}
+function openCharMenu(anchor){
+  closeCharMenu();const c=ensureChars();const m=document.createElement("div");m.id="charMenu";m.setAttribute("role","menu");
+  m.innerHTML=c.list.slice().sort((a,b)=>(b.used||0)-(a.used||0)).map(x=>`<button role="menuitem" data-char="${x.id}"${x.id===c.active?' aria-current="true" class="on"':""}><b>${esc(x.name)}</b> <span class="small muted">${esc([x.cls,x.lvl?"lv "+x.lvl:""].filter(Boolean).join(" · "))}</span></button>`).join("")
+    +`<hr><button role="menuitem" data-charnew>＋ New character</button><button role="menuitem" data-charmanage>Manage characters</button>`;
+  document.body.appendChild(m);const z=ZF(),r=anchor.getBoundingClientRect();m.style.top=(r.bottom/z+6)+"px";m.style.left=Math.max(8,Math.min(innerWidth/z-260,r.left/z))+"px";
+  m.querySelectorAll("[data-char]").forEach(b=>b.onclick=()=>{closeCharMenu();switchChar(b.dataset.char)});
+  m.querySelector("[data-charnew]").onclick=()=>{closeCharMenu();promptNewChar()};
+  m.querySelector("[data-charmanage]").onclick=()=>{closeCharMenu();showTab("settings");setTimeout(()=>{const e=$("setChars");if(e)e.scrollIntoView({block:"start"})},50)};
+  const first=m.querySelector("button");if(first)first.focus();
+  m.addEventListener("keydown",e=>{const bs=[...m.querySelectorAll("button")],i=bs.indexOf(document.activeElement);
+    if(e.key==="ArrowDown"){e.preventDefault();bs[(i+1)%bs.length].focus()}else if(e.key==="ArrowUp"){e.preventDefault();bs[(i-1+bs.length)%bs.length].focus()}else if(e.key==="Escape"){closeCharMenu();anchor.focus()}});
+  setTimeout(()=>document.addEventListener("click",closeCharMenuOutside,true),0);
+}
+function closeCharMenuOutside(e){const m=$("charMenu");if(m&&!m.contains(e.target)&&e.target.id!=="charBtn")closeCharMenu()}
+function closeCharMenu(){const m=$("charMenu");if(m)m.remove();document.removeEventListener("click",closeCharMenuOutside,true)}
+function promptNewChar(suggest){
+  let d=$("charDlg");if(d)d.remove();d=document.createElement("dialog");d.id="charDlg";d.setAttribute("aria-label","New character");
+  d.innerHTML=`<form method="dialog" class="col" style="gap:10px;min-width:300px"><h2 style="margin:0">New character</h2>
+    <label class="small" for="chName">Name (for example its in-game name)</label><input id="chName" required maxlength="40" value="${esc(suggest||"")}">
+    ${G&&!exG?`<label class="row small"><input type="checkbox" id="chCopy"> Copy the goal build (${esc(G.ascend||G.className)})</label>`:""}
+    <div class="row" style="justify-content:flex-end"><button class="btn ghost" value="cancel" formnovalidate>Cancel</button><button class="btn primary" id="chOk" value="ok">Create and switch</button></div></form>`;
+  document.body.appendChild(d);d.showModal();$("chName").focus();
+  d.addEventListener("close",()=>{const nm=($("chName").value||"").trim(),copy=!!($("chCopy")&&$("chCopy").checked),ok=d.returnValue==="ok";d.remove();if(ok&&nm)newChar(nm,{copyBuild:copy})});
+}
+function renderChars(){
+  const host=$("setChars");if(!host)return;const c=charList();
+  if(!c){host.innerHTML=`<p class="small" style="margin:0">Play more than one character? Each one can keep its own builds, campaign progress, atlas, owned gear, boss notes and map log. Prices, trading, the loot filter and settings stay shared.</p>
+    <div class="row"><button class="btn small" id="chStart">Add a second character</button></div>`;
+    $("chStart").onclick=()=>{ensureChars();promptNewChar()};return}
+  host.innerHTML=`<p class="small muted" style="margin:0">Each character keeps its own builds, campaign, atlas, owned gear, boss notes and map log. Switch from the top bar, Ctrl+K, or automatically when the game log shows you on another character.</p>
+    <table class="tbl small"><thead><tr><th>Character</th><th>Class</th><th>Last played</th><th></th></tr></thead><tbody>${c.list.map(x=>`<tr>
+      <td><input aria-label="Name of ${esc(x.name)}" data-chname="${x.id}" value="${esc(x.name)}" maxlength="40" style="width:100%"></td>
+      <td>${esc([x.cls,x.lvl?"lv "+x.lvl:""].filter(Boolean).join(" · ")||"–")}</td><td>${x.used?new Date(x.used).toLocaleDateString():"–"}</td>
+      <td style="white-space:nowrap">${x.id===c.active?'<span class="pill good">playing</span>':`<button class="btn small" data-chgo="${x.id}">Switch</button> <button class="btn ghost small" data-chdel="${x.id}" aria-label="Remove ${esc(x.name)}">Remove</button>`}</td></tr>`).join("")}</tbody></table>
+    <div class="row"><button class="btn small" id="chNew">＋ New character</button><label class="row small"><input type="checkbox" id="chAuto"${S.charAuto!==false?" checked":""}> Offer to switch when the game log shows another character</label></div>`;
+  host.querySelectorAll("[data-chname]").forEach(i=>i.onchange=()=>renameChar(i.dataset.chname,i.value.trim()));
+  host.querySelectorAll("[data-chgo]").forEach(b=>b.onclick=()=>switchChar(b.dataset.chgo));
+  host.querySelectorAll("[data-chdel]").forEach(b=>b.onclick=()=>deleteChar(b.dataset.chdel));
+  $("chNew").onclick=()=>promptNewChar();$("chAuto").onchange=e=>{S.charAuto=e.target.checked;save()};
+}
+// the game log says which character is playing: offer to switch (once per name per session)
+const CHAR_OFFERED=new Set();
+// another saved character this game-log name belongs to (null when it's the active one or unknown)
+function charOwner(name){const c=charList();if(!name||!c||c.list.length<2)return null;const me=activeChar();if(name===(S.logChar||me.name))return null;
+  return c.list.find(x=>x.id!==c.active&&(x.name===name||(store.get("char."+x.id,{}).state||{}).logChar===name))||null}
+function charFromLog(name){
+  const other=charOwner(name);if(!other)return false;   // true = the event belongs to another character: don't record it here
+  if(S.charAuto===false||CHAR_OFFERED.has(name))return true;CHAR_OFFERED.add(name);
+  toast(`You're playing ${name}. Switch the app to that character?`,()=>switchChar(other.id,`Switched to ${other.name} (the game log showed you on it).`),"Switch");
+  return true;
+}
+// after a switch: say what happened (the page has just reloaded)
+setTimeout(()=>{const n=store.get("charNote",null);if(n){try{localStorage.removeItem("ec330.charNote")}catch(e){}toast(n)}},600);
 function renderDataHealth(){
   const el=$("setData");if(!el)return;
   el.innerHTML=`<h2>Game data</h2>
@@ -2351,6 +2460,7 @@ function onLiveEvents(evs){
       if(isCampId(e.id)&&LIVE.zone.act&&LIVE.zone.act<=10&&S.campAct!==LIVE.zone.act&&LIVE.zone.act>(S.campAct||0)){S.campAct=LIVE.zone.act;save()}
     }
     else if(e.type==="scene"&&LIVE.zone&&!AREAS[LIVE.zone.id]) LIVE.zone.name=e.name;
+    else if(e.type==="level"&&charFromLog(e.name)){/* another saved character: not recorded on this one */}
     else if(e.type==="level"){if(!S.logChar||S.logChar===e.name||(S.logInfo&&e.level>S.logInfo.level&&e.cls===S.logInfo.cls)){S.logChar=e.name;S.logInfo={...(S.logInfo||{}),name:e.name,cls:e.cls,level:e.level,t:e.t};addLevelUp(e.level,e.t);levelChanged=true}}
     else if(e.type==="death"&&LIVE.map&&(!S.logChar||e.name===S.logChar)) LIVE.map.deaths++;
     else if(e.type==="system"&&onSystemLine(e.text,e.t)){save();renderCampaign()}
@@ -3732,7 +3842,7 @@ function renderUpdates(){
 }
 
 /* ---------------- wiring ---------------- */
-function renderAll(){if(window.exileDesktop){publishOverlay();setTimeout(()=>{renderDesktop();renderAccount();publishGear();publishDiscord()},0)}renderHeader();renderBuild();renderProgress();renderShop();renderCampaign();renderMaps();renderAtlas();renderCraft();renderSession();bindItems();try{renderHome();renderSettings();renderNotices();renderNewLeague();renderDataHealth();showGameLabel()}catch(e){console.error(e)}}
+function renderAll(){if(window.exileDesktop){publishOverlay();setTimeout(()=>{renderDesktop();renderAccount();publishGear();publishDiscord()},0)}renderHeader();renderBuild();renderProgress();renderShop();renderCampaign();renderMaps();renderAtlas();renderCraft();renderSession();bindItems();try{renderHome();renderSettings();renderNotices();renderNewLeague();renderDataHealth();showGameLabel();renderChars()}catch(e){console.error(e)}}
 {const wrap=(f,pick)=>function(){return withBuild(pick(),()=>f.apply(this,arguments))};
  renderBuild=wrap(renderBuild,viewB);renderShop=wrap(renderShop,()=>G);renderCraft=wrap(renderCraft,()=>G);renderCampaign=wrap(renderCampaign,()=>G);
  renderMaps=wrap(renderMaps,liveB);renderAtlas=wrap(renderAtlas,liveB);renderSession=wrap(renderSession,liveB);
@@ -3871,6 +3981,7 @@ const cmdk=$("cmdk");let CMDK=[],CMDK_SEL=0,CMDK_ITEMS=[];
 function cmdkIndex(){
   const out=[], names={};document.querySelectorAll("#tabs [data-tab]").forEach(b=>names[b.dataset.tab]=b.textContent.trim());
   const acts=[["Import goal build",()=>openImport("goal")],["Import current character",()=>openImport("current")],["Run setup wizard",()=>openWizard()],["Report a problem",()=>openReport()],["Edit my loot filter",()=>showTab("filter")],["Build a map search",()=>showTab("trading")],["Plan Threads per map",()=>showTab("league")],["Chaos recipe sets",()=>{showTab("account");scrollToCard("acctRecipe")}],["Saved trade searches",()=>{showTab("trading");scrollToCard("ttSaved")}],["Set a session goal",()=>{showTab("session");scrollToCard("sessGoal")}],["Recent price checks",()=>{showTab("home");scrollToCard("homeClip")}],["Open the media player",()=>{if(DESK&&DESK.mediaToggle)DESK.mediaToggle({show:true})}],["Media controls",()=>showTab("media")],["Pin the browser over the game",()=>{if(DESK&&DESK.pinToggle)DESK.pinToggle({show:true})}],["Take the tour",()=>startTour()],["Show all pages",()=>setMode("full")],["Find gear upgrades",()=>{showTab("buildtools");scrollToCard("btUpg")}],["Timeless jewel lookup",()=>showTab("buildtools")],["Cluster jewel notables",()=>{showTab("buildtools");scrollToCard("btCluster")}],["Gem levelling profit",()=>{showTab("buildtools");scrollToCard("btGems")}],["Betrayal board",()=>{showTab("league");scrollToCard("lgBetrayal")}],["Price a dump tab",()=>{showTab("trading");scrollToCard("ttDump")}],["Open the trade site",()=>{showTab("browser");brGo("https://www.pathofexile.com/trade")}],["Open poe.ninja",()=>{showTab("browser");brGo("https://poe.ninja/economy")}],["Open the wiki",()=>{showTab("browser");brGo("https://www.poewiki.net/wiki/Path_of_Exile_Wiki")}],[S.compact?"Turn compact mode off":"Turn compact mode on",()=>setCompact(!S.compact)]];
+  {const cl=charList();if(cl){for(const x of cl.list)if(x.id!==cl.active)acts.push([`Switch to ${x.name}`,()=>switchChar(x.id)])}acts.push(["New character",()=>{ensureChars();promptNewChar()}])}
   if(DESK)acts.push(["Change hotkeys",()=>{showTab("settings");scrollToCard("setHotkeys")}]);
   if($("sessToggle"))acts.push([S.session.start?"Pause session timer":"Start session timer",()=>$("sessToggle").click()]);
   if(DESK){acts.push([LIVE.overlayVisible?"Hide overlay":"Show overlay",()=>DESK.toggleOverlay(!LIVE.overlayVisible)]);

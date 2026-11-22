@@ -575,6 +575,18 @@ try {
   ok("accessibility options in all windows, colors via variables, skip link; damaged saves get defaults");
 } catch (e) { fail("accessibility: " + e.message); }
 
+// characters: per-character keys never include shared (economy, settings) data; other characters' log events aren't recorded
+try {
+  const h = fs.readFileSync(path.join(root, "app", "index.html"), "utf8");
+  const m = h.match(/const CHAR_KEYS=\[([^\]]+)\]/); assert(m, "CHAR_KEYS found");
+  const keys = m[1].replace(/["\s]/g, "").split(",");
+  for (const shared of ["ui", "divine", "netWorth", "trade", "tradeSaved", "sales", "watch", "league", "hints", "tourDone", "unlocked"]) assert(!keys.includes(shared), shared + " must stay shared");
+  for (const own of ["progress", "campAct", "have", "atlasHashes", "mapsDone", "logChar", "session"]) assert(keys.includes(own), own + " must be per character");
+  assert(/e\.type==="level"&&charFromLog\(e\.name\)\)\{/.test(h), "level events of another character are skipped");
+  assert(!/\bprompt\(/.test(h.replace(/aria-label="[^"]*"/g, "")), "no window.prompt (Electron doesn't support it)");
+  ok("characters: per-character data only, other characters' log events skipped, no prompt()");
+} catch (e) { fail("characters: " + e.message); }
+
 Promise.all(pending).then(() => {
   if (failures) { console.error(`\n${failures} check(s) failed`); process.exit(1); }
   console.log("\nAll checks passed");

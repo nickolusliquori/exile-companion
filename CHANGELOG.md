@@ -2,6 +2,13 @@
 
 What changed in each release, newest first. Installed copies update themselves; see the [Releases page](https://github.com/nickolusliquori/exile-companion/releases) for the installers. Planned releases are on the [roadmap](README.md#roadmap).
 
+## [1.29.0] - 2026-11-22
+
+### Added
+- **Characters:** keep several characters, each with its own goal and current builds, campaign progress, atlas, owned gear, boss notes, level times and map log. Prices, trading, the loot filter and settings stay shared. Switch from the character button in the top bar, Ctrl+K ("Switch to …"), or Settings → Characters, where you can also rename and remove them (with undo).
+- When the game log shows you playing another saved character, the app offers to switch, and that character's level-ups aren't recorded on the one you have open.
+- The Windows test run now also creates a second character and switches back.
+
 ## [1.28.0] - 2026-11-22
 
 ### Added

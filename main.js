@@ -1080,6 +1080,15 @@ async function runSmoke() {
       await js(mainWin.webContents, "UI.overlayScale=100;UI.scale=100;save();applyA11y();pushScale()");
       return { ok: o === "1.5" && p === "1.25" && m === "1.25" && Math.abs(zf - 1) < 0.01, info: `main ${m}, price ${p}, overlay ${o}, Electron zoom ${zf}` };
     });
+    await run("characters: a second character keeps its own progress", async () => {
+      await js(mainWin.webContents, "S.campAct=7;S.logChar='SmokeMain';save();ensureChars();newChar('SmokeAlt')");
+      await new Promise((r) => mainWin.webContents.once("did-finish-load", r)); await wait(1500);
+      const alt = await js(mainWin.webContents, "({act:S.campAct||1,active:activeChar().name})");
+      await js(mainWin.webContents, "S.campAct=3;save();switchChar(charList().list.find(x=>x.name!=='SmokeAlt').id)");
+      await new Promise((r) => mainWin.webContents.once("did-finish-load", r)); await wait(1500);
+      const main = await js(mainWin.webContents, "({act:S.campAct,active:activeChar().name,n:charList().list.length})");
+      return { ok: alt.active === "SmokeAlt" && alt.act === 1 && main.act === 7 && main.n === 2, info: JSON.stringify({ alt, main }) };
+    });
     await run("safe-mode state answers", () => ({ info: JSON.stringify({ safe: SAFE }) }));
   } catch (e) { step("test run", false, (e && e.stack) || e); }
   clearTimeout(guard);
