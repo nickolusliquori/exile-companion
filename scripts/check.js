@@ -277,7 +277,14 @@ try {
   const gm = T.gwennenSearch(many, { min: 100 }); assert(gm.strings.length > 1 && gm.strings.every((x) => x.length <= 250), "long lists split under the 250-character limit");
   const res = gm.strings.map((x) => new RegExp(x.slice(1, -1), "i"));
   for (let i = 0; i < 160; i++) assert.strictEqual(res.some((r) => r.test("Base Number " + i + " Thing")), i % 2 === 0, "split searches hit exactly the wanted bases (" + i + ")");
-  ok(`trading tools work (${all.length} map mod families, ${ctx.MAPMOD_DATA.names.length} map names; Gwennen search)`);
+  // bulk selling: groups the same items (rares skipped), discount, readable post, chat line under 280 characters
+  const grp = T.bulkGroups([{ name: "Chaos Shard", qty: 10, total: 5 }, { name: "Chaos Shard", qty: 5, total: 2.5 }, { name: "Divine Orb", qty: 2, total: 400 }, { name: "Rare Ring", qty: 1, total: 50, rare: true }, { name: "Junk", qty: 1, total: null }, { name: "Chaos Orb", qty: 40, total: 40 }]);
+  assert.strictEqual(grp.map((g) => g.qty + "x " + g.name).join(","), "2x Divine Orb,15x Chaos Shard", "groups by name; rares, unpriced and Chaos Orbs skipped");
+  const post = T.bulkPost(grp, { disc: 10, div: 200, league: "Umbra", ign: "Me", fmt: "tft" });
+  assert(/^WTS Umbra \(bulk\)/.test(post) && /2x Divine Orb: 0\.9 div each \(1\.8 div\)/.test(post) && /Total: 1\.8 div, 10% under poe\.ninja \(1 div = 200c\)/.test(post) && /IGN: Me$/.test(post), "TFT post: " + post);
+  const many2 = Array.from({ length: 60 }, (_, i) => ({ name: "Some Long Item Name " + i, qty: 3, each: 2, total: 6 }));
+  const chat = T.bulkPost(many2, { disc: 0, div: 200, fmt: "chat" }); assert(chat.length <= 280 && /\+more/.test(chat), "chat line fits: " + chat.length);
+  ok(`trading tools work (${all.length} map mod families, ${ctx.MAPMOD_DATA.names.length} map names; Gwennen search; bulk posts)`);
 } catch (e) { fail("trading tools: " + e.message); }
 
 // league tools: Thread costs, map return, Betrayal board

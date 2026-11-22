@@ -2,6 +2,11 @@
 
 What changed in each release, newest first. Installed copies update themselves; see the [Releases page](https://github.com/nickolusliquori/exile-companion/releases) for the installers. Planned releases are on the [roadmap](README.md#roadmap).
 
+## [1.34.0] - 2026-11-22
+
+### Added
+- **Sell in bulk** (Economy → Trading → Dump-tab pricer): after pricing a tab, group the same items, untick what you're keeping, set a bulk discount, and copy a ready post for TFT / Discord (each item, price each, total, divine rate and your character name) or a trade-chat line that fits the chat limit. Rares, unpriced items and Chaos Orbs are left out. You post it yourself.
+
 ## [1.33.0] - 2026-11-22
 
 ### Added

@@ -206,9 +206,60 @@ function dumpTable(){
   return `<p class="small" style="margin:6px 0 0"><b>${esc2(D.tab)}</b>: ${priced.length} to list for about <b>${money(sum,P)}</b> in total${cheap.length?`, ${cheap.length} worth under 1c (vendor them)`:""}${un.length?`, ${un.length} without a price`:""}.</p>
     ${priced.length?`<div class="tw"><table><thead><tr><th>Item</th><th>Qty</th><th>Worth</th><th>Note</th><th></th></tr></thead><tbody>${priced.map((r,i)=>`<tr><td>${esc2(r.name)}${r.cur?`<br><span class="small muted">now: ${esc2(r.cur)}</span>`:""}</td><td class="num">${r.qty}</td><td class="num">${money(r.total,P)}</td><td><code>${esc2(r.note.text)}</code></td><td><button class="btn ghost small" data-dcopy="${i}">Copy</button></td></tr>`).join("")}</tbody></table></div>`:""}
     ${un.length?`<details class="small"><summary>Without a price (${un.length})</summary><p class="muted" style="margin:4px 0">${un.map(r=>esc2(r.name)+(r.rare?" (rare: Ctrl+C it in game)":"")).join(", ")}</p></details>`:""}
-    <p class="small muted" style="margin:0">A stack's note prices the whole stack. Prices from poe.ninja, ${new Date(D.at).toLocaleTimeString()}.</p>`;
+    <p class="small muted" style="margin:0">A stack's note prices the whole stack. Prices from poe.ninja, ${new Date(D.at).toLocaleTimeString()}.</p>
+    <div id="bkHost">${bulkHtml()}</div>`;
 }
-function bindDump(){const el=$("ttDumpOut");if(!el||!DUMP)return;const priced=DUMP.rows.filter(r=>r.note);el.querySelectorAll("[data-dcopy]").forEach(b=>b.onclick=()=>copy(priced[+b.dataset.dcopy].note.text))}
+function bindDump(){const el=$("ttDumpOut");if(!el||!DUMP)return;const priced=DUMP.rows.filter(r=>r.note);el.querySelectorAll("[data-dcopy]").forEach(b=>b.onclick=()=>copy(priced[+b.dataset.dcopy].note.text));bindBulk()}
+
+/* ---------- bulk selling: a post for TFT / Discord or trade chat from a priced tab ----------
+   Groups the same items, takes a bulk discount off poe.ninja, and writes text you post yourself. */
+function bulkGroups(rows){
+  const by={};for(const r of rows||[]){if(r.total==null||!(r.total>0)||r.rare||r.name==="Chaos Orb")continue;/* chaos is the price unit, not something to sell */const g=(by[r.name]=by[r.name]||{name:r.name,qty:0,total:0});g.qty+=r.qty||1;g.total+=r.total}
+  return Object.values(by).map(g=>({...g,each:g.total/g.qty})).sort((a,b)=>b.total-a.total);
+}
+const bulkMoney=(c,div)=>div&&c>=div*0.9?`${(Math.round(c/div*10)/10).toString()} div`:`${c>=10?Math.round(c):Math.round(c*10)/10}c`;
+function bulkPost(groups,{disc=10,div=null,league="",ign="",fmt="tft"}={}){
+  const k=1-Math.max(0,Math.min(60,disc))/100,list=groups.filter(g=>g.qty>0);
+  const total=list.reduce((a,g)=>a+g.total*k,0);
+  if(!list.length)return "";
+  if(fmt==="chat"){
+    const parts=list.map(g=>`${g.qty}x ${g.name}`);let line=`WTS ${parts.join(", ")} | all for ${bulkMoney(total,div)}${disc?` (${disc}% off ninja)`:""} | /w me`;
+    while(line.length>280&&parts.length>1){parts.pop();line=`WTS ${parts.join(", ")} +more | all for ${bulkMoney(total,div)}${disc?` (${disc}% off ninja)`:""} | /w me`}
+    return line;
+  }
+  return [`WTS ${league?league+" ":""}(bulk)`,
+    ...list.map(g=>`${g.qty}x ${g.name}: ${bulkMoney(g.each*k,div)} each (${bulkMoney(g.total*k,div)})`),
+    `Total: ${bulkMoney(total,div)}${disc?`, ${disc}% under poe.ninja`:""}${div?` (1 div = ${Math.round(div)}c)`:""}`,
+    ign?`IGN: ${ign}`:"",
+  ].filter(Boolean).join("\n");
+}
+function bulkHtml(){
+  if(!DUMP)return "";const s=st();s.bulk=s.bulk||{disc:10,off:{},fmt:"tft"};
+  const groups=bulkGroups(DUMP.rows);if(!groups.length)return "";
+  const picked=groups.filter(g=>!s.bulk.off[g.name]);
+  const opts={disc:s.bulk.disc,div:DUMP.P&&DUMP.P.div,league:S.league||(LIVE.cfg&&LIVE.cfg.league)||"",ign:S.logChar||""};
+  const tft=bulkPost(picked,{...opts,fmt:"tft"}),chat=bulkPost(picked,{...opts,fmt:"chat"});
+  return `<details class="bulk"${s.bulk.open?" open":""} id="bkBox"><summary style="cursor:pointer"><b>Sell in bulk</b> <span class="small muted">· a post for TFT / Discord or trade chat</span></summary>
+    <div class="row small" style="margin-top:6px"><label class="row" style="gap:4px">Bulk discount <input type="number" id="bkDisc" min="0" max="60" value="${s.bulk.disc}" style="width:64px">%</label>
+      <button class="btn ghost small" id="bkAll">All</button><button class="btn ghost small" id="bkNone">None</button><span class="muted">${picked.length} of ${groups.length} picked</span></div>
+    <ul class="clean small bk-list">${groups.map((g,i)=>`<li><label class="row" style="gap:6px;flex-wrap:nowrap"><input type="checkbox" data-bk="${i}"${s.bulk.off[g.name]?"":" checked"}><span style="flex:1">${g.qty}x ${esc2(g.name)}</span><span class="muted">${money(g.total,DUMP.P)}</span></label></li>`).join("")}</ul>
+    ${picked.length?`<label class="small" for="bkTft">For TFT / Discord (check the channel's own format rules)</label><textarea id="bkTft" rows="${Math.min(12,picked.length+3)}" readonly>${esc2(tft)}</textarea>
+      <div class="row"><button class="btn primary small" id="bkCopyT">Copy post</button></div>
+      <label class="small" for="bkChat">For trade chat (${chat.length}/280)</label><div class="ttout"><code id="bkChat">${esc2(chat)}</code></div>
+      <div class="row"><button class="btn ghost small" id="bkCopyC">Copy chat line</button></div>
+      <p class="small muted" style="margin:0">${S.logChar?"":"Your character name appears here once the game log has seen you level up. "}You post these yourself; the app never sends anything.</p>`:`<p class="small muted" style="margin:0">Pick at least one item.</p>`}
+  </details>`;
+}
+function bindBulk(){
+  const box=$("bkBox");if(!box)return;const s=st(),groups=bulkGroups(DUMP.rows);
+  const redo=()=>{const host=$("bkHost");if(host){host.innerHTML=bulkHtml();bindBulk()}};
+  box.ontoggle=()=>{s.bulk.open=box.open;save()};
+  $("bkDisc").onchange=e=>{s.bulk.disc=Math.max(0,Math.min(60,+e.target.value||0));save();redo()};
+  $("bkAll").onclick=()=>{s.bulk.off={};save();redo()};$("bkNone").onclick=()=>{s.bulk.off=Object.fromEntries(groups.map(g=>[g.name,true]));save();redo()};
+  box.querySelectorAll("[data-bk]").forEach(c=>c.onchange=()=>{const g=groups[+c.dataset.bk];if(c.checked)delete s.bulk.off[g.name];else s.bulk.off[g.name]=true;save();redo()});
+  const ct=$("bkCopyT");if(ct)ct.onclick=()=>{copy($("bkTft").value);ct.textContent="Copied"};
+  const cc=$("bkCopyC");if(cc)cc.onclick=()=>{copy($("bkChat").textContent);cc.textContent="Copied"};
+}
 
 /* ---------- flip watcher ---------- */
 let FLIP=null;
@@ -287,5 +338,5 @@ function renderSaved(){
   el.querySelectorAll('[data-fix="openTrade"]').forEach(b=>b.onclick=e=>{e.stopPropagation();go("https://www.pathofexile.com/trade")});
 }
 TT.render=render;TT.startFlipWatch=startFlipWatch;
-TT._test={avoidTokens,geq,buildSearch,noteFor,familyLines,gwennenSearch,gwennenBases,gwennenFragment};
+TT._test={avoidTokens,geq,buildSearch,noteFor,familyLines,gwennenSearch,gwennenBases,gwennenFragment,bulkGroups,bulkPost};
 })();
