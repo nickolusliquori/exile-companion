@@ -6,6 +6,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Exile Companion 3.30</title>
 <script>
+/* apply the saved theme and motion setting before the page paints */
+(function(){try{const st=JSON.parse(localStorage.getItem("ec330.state")||"{}");const ui=st.ui||{};const t=["minimal","modern","poe"].includes(ui.theme)?ui.theme:"minimal";
+document.documentElement.dataset.theme=t;if(ui.motion===false||matchMedia("(prefers-reduced-motion: reduce)").matches)document.documentElement.classList.add("no-motion")}catch(e){document.documentElement.dataset.theme="minimal"}})();
+</script>
+<script>
 /* keep the last few errors for "Report a problem" (memory only, never sent anywhere automatically) */
 window.__ERRS=[];(function(){const push=(k,m)=>{try{window.__ERRS.push({t:Date.now(),k,m:String(m).slice(0,600)});if(window.__ERRS.length>40)window.__ERRS.shift();if(window.__onAppError&&k!=="console")window.__onAppError()}catch(e){}};
 addEventListener("error",e=>{if(e.target&&e.target!==window&&e.target.tagName)return;push("error",(e.message||"")+(e.filename?` @ ${String(e.filename).split("/").pop()}:${e.lineno}:${e.colno}`:"")+(e.error&&e.error.stack?"\n"+e.error.stack.split("\n").slice(1,4).join("\n"):""))});
@@ -412,8 +417,10 @@ header{transition:transform .2s ease}
 
 @media (max-width:600px){#groups button{padding:9px 10px;font-size:.88rem}#groups .kbtn kbd,#groups .kbtn .lbl{display:none}#groups .kbtn{font-size:1.1rem}}
 </style>
+<link rel="stylesheet" href="theme.css">
 </head>
 <body>
+<div id="busy" aria-hidden="true"><i></i></div>
 <header>
   <div class="bar">
     <div class="brand">Exile Companion<small>3.30 Covens of Umbra</small></div>
@@ -1285,23 +1292,23 @@ function craftPlan(item,slot){
     <p class="note" style="margin:0">Not sure it's worth crafting? Search the trade site for the same base with your 2–3 most important mods. If it's cheaper than ~2 Divine Orbs, buy it.</p>`;
 }
 function openTradeTools(){
-  const el=$("tradeTools");if(el&&!el.firstChild)el.innerHTML='<div class="card hl"><h2>Trading</h2><p class="small muted" style="margin:0">Loading…</p></div>';
+  const el=$("tradeTools");if(el&&!el.firstChild)el.innerHTML='<div class="card hl"><h2>Trading</h2><div class="skel" aria-label="Loading"><i></i><i></i><i></i></div></div>';
   loadScriptOnce("tradetools.js","TradeTools").then(()=>TradeTools.render()).catch(e=>{if(el)el.innerHTML=`<div class="card"><h2>Trading</h2>${emptyBox("Couldn't load the trading tools: "+(e.message||e))}</div>`});
 }
 function openBuildTools(){
-  const el=$("buildTools");if(el&&!el.children.length)el.innerHTML='<div class="card"><h2>Build tools</h2><p class="small muted" style="margin:0">Loading…</p></div>';
+  const el=$("buildTools");if(el&&!el.children.length)el.innerHTML='<div class="card"><h2>Build tools</h2><div class="skel" aria-label="Loading"><i></i><i></i><i></i></div></div>';
   loadScriptOnce("buildtools.js","BuildTools").then(()=>BuildTools.render()).catch(e=>{if(el)el.innerHTML=`<div class="card"><h2>Build tools</h2>${emptyBox("Couldn't load the build tools: "+(e.message||e))}</div>`});
 }
 function openLeague(){
-  const el=$("leagueTools");if(el&&!el.children.length)el.innerHTML='<div class="card"><h2>League</h2><p class="small muted" style="margin:0">Loading…</p></div>';
+  const el=$("leagueTools");if(el&&!el.children.length)el.innerHTML='<div class="card"><h2>League</h2><div class="skel" aria-label="Loading"><i></i><i></i><i></i></div></div>';
   loadScriptOnce("league.js","LeagueTools").then(()=>LeagueTools.render()).catch(e=>{if(el)el.innerHTML=`<div class="card"><h2>League</h2>${emptyBox("Couldn't load the league tools: "+(e.message||e))}</div>`});
 }
 function openFilterLab(){
-  const el=$("filterLab");if(el&&!el.firstChild)el.innerHTML='<div class="card hl"><h2>Loot filter</h2><p class="small muted" style="margin:0">Loading…</p></div>';
+  const el=$("filterLab");if(el&&!el.firstChild)el.innerHTML='<div class="card hl"><h2>Loot filter</h2><div class="skel" aria-label="Loading"><i></i><i></i><i></i></div></div>';
   loadScriptOnce("filterlab.js","FilterLab").then(()=>FilterLab.render()).catch(e=>{if(el)el.innerHTML=`<div class="card"><h2>Loot filter</h2>${emptyBox("Couldn't load the filter editor: "+(e.message||e))}</div>`});
 }
 function openCraftLab(item){
-  const el=$("craftLab");if(el&&!el.firstChild)el.innerHTML='<div class="card hl"><h2>Craft lab</h2><p class="small muted" style="margin:0">Loading…</p></div>';
+  const el=$("craftLab");if(el&&!el.firstChild)el.innerHTML='<div class="card hl"><h2>Craft lab</h2><div class="skel" aria-label="Loading"><i></i><i></i><i></i></div></div>';
   loadScriptOnce("craftlab.js","CraftLab").then(()=>CraftLab.load()).then(()=>{if(item)CraftLab.fromItem(item);else CraftLab.render()})
     .catch(e=>{if(el)el.innerHTML=`<div class="card"><h2>Craft lab</h2>${emptyBox("Couldn't load the crafting data: "+(e.message||e))}</div>`});
 }
@@ -3763,6 +3770,11 @@ function renderSettings(){
     ${DESK?`<h3>Web links</h3>
     <label class="row small"><input type="checkbox" id="stInApp"${c.inAppBrowser!==false?" checked":""}> Open trade, wiki and poe.ninja links in the app's browser (other sites always open in your own browser)</label>
     <div class="row"><button class="btn ghost small" id="stBrClear">Clear browser data</button><span class="small muted">Signs you out of pathofexile.com in the app and clears its cookies and cache.</span></div>`:""}
+    <h3>Look and feel</h3>
+    <div class="theme-pick" role="group" aria-label="Theme">${THEMES.map(([k,l,d])=>`<button class="theme-opt" data-theme-pick="${k}" aria-pressed="${UI.theme===k}"><span class="theme-sw t-${k}"><b></b><b></b></span><span><b>${l}</b><br><span class="small muted">${d}</span></span></button>`).join("")}</div>
+    <label class="row small"><input type="checkbox" id="stMotion"${UI.motion!==false?" checked":""}> Animations (menus, loading and buttons)${REDUCED_MOTION?' <span class="muted">· Windows "reduce motion" is on, so they stay off</span>':""}</label>
+    <label class="row small"><input type="checkbox" id="stSound"${UI.sound!==false?" checked":""}> Sounds: a soft click on buttons and a cue when a required field is empty</label>
+    <div class="vol small"><label for="stVol">Volume</label><input type="range" id="stVol" min="0" max="100" step="5" value="${Math.round((UI.vol??0.4)*100)}"${UI.sound===false?" disabled":""}><button class="btn ghost small" id="stVolTest" type="button">Test</button></div>
     <h3>Display</h3>
     <label class="row small"><input type="checkbox" id="stCompact"${S.compact?" checked":""}> Compact mode: smaller text and tighter spacing for small screens or a side monitor</label>
     <label class="row small"><input type="checkbox" id="stHelp"${S.helpOff?"":" checked"}> Show the ? explainer button on cards</label>`;
@@ -3770,6 +3782,11 @@ function renderSettings(){
   $("stImpG").onclick=()=>openImport("goal");$("stImpC").onclick=()=>openImport("current");
   const dc=$("stDelC");if(dc)dc.onclick=()=>{const xml=store.get("xml.current",null);clearSlot("current");renderSettings();if(xml)toast("Removed your current character.",async()=>{await loadSlot("current",xml,false);renderSettings()})};
   $("stHelp").onchange=e=>{S.helpOff=!e.target.checked;save();ensureHelp()};
+  document.querySelectorAll("[data-theme-pick]").forEach(b=>b.onclick=()=>{setTheme(b.dataset.themePick);renderSettings()});
+  $("stMotion").onchange=e=>{UI.motion=e.target.checked;save();applyMotion()};
+  $("stSound").onchange=e=>{UI.sound=e.target.checked;save();renderSettings();if(UI.sound)SND.click()};
+  $("stVol").oninput=e=>{UI.vol=+e.target.value/100;save()};$("stVol").onchange=()=>SND.click();
+  $("stVolTest").onclick=()=>{SND.click();setTimeout(()=>SND.warn(),250)};
   $("stCompact").onchange=e=>setCompact(e.target.checked);
   if(DESK){const ia=$("stInApp");if(ia)ia.onchange=async e=>{LIVE.cfg=await DESK.setConfig({inAppBrowser:e.target.checked});toast(e.target.checked?"Links open in the app's browser.":"Links open in your own browser.")};
     const bc=$("stBrClear");if(bc)bc.onclick=async()=>{const r=await DESK.browserClear();toast(r&&r.ok?"Browser data cleared. You're signed out of pathofexile.com in the app.":"Couldn't clear browser data.")}}
@@ -3968,6 +3985,29 @@ if(matchMedia("(hover:hover)").matches){
 }
 
 /* compact mode */
+/* ---------- look and feel: themes, motion, sounds, busy bar ---------- */
+const THEMES=[["minimal","Dark minimal","Near-black, one gold accent, quiet"],["modern","Modern","Neutral charcoal with a blue accent"],["poe","Path of Exile","Gold-trimmed panels like the game"]];
+const UI=S.ui||(S.ui={theme:"minimal",motion:true,sound:true,vol:0.4});
+const REDUCED_MOTION=matchMedia("(prefers-reduced-motion: reduce)").matches;
+function setTheme(t){if(!THEMES.some(x=>x[0]===t))return;UI.theme=t;save();document.documentElement.dataset.theme=t;toast(`Theme: ${THEMES.find(x=>x[0]===t)[1]}`)}
+function applyMotion(){document.documentElement.classList.toggle("no-motion",UI.motion===false||REDUCED_MOTION)}
+document.documentElement.dataset.theme=UI.theme||"minimal";applyMotion();
+// tiny synthesized sounds (no audio files): a soft tick for buttons, a low two-note cue for a missing field
+const SND=(()=>{let ctx=null,lastWarn=0;
+  const ac=()=>{if(!ctx){const C=window.AudioContext||window.webkitAudioContext;if(!C)return null;ctx=new C()}if(ctx.state==="suspended")ctx.resume().catch(()=>{});return ctx};
+  const tone=(f1,f2,dur,type,peak,at)=>{const c=ac();if(!c)return;const t=c.currentTime+(at||0),o=c.createOscillator(),g=c.createGain();o.type=type;o.frequency.setValueAtTime(f1,t);if(f2)o.frequency.exponentialRampToValueAtTime(f2,t+dur);
+    g.gain.setValueAtTime(0.0001,t);g.gain.exponentialRampToValueAtTime(Math.max(0.0002,peak),t+0.006);g.gain.exponentialRampToValueAtTime(0.0001,t+dur);o.connect(g).connect(c.destination);o.start(t);o.stop(t+dur+0.02)};
+  const vol=()=>UI.sound===false?0:Math.max(0,Math.min(1,UI.vol??0.4));
+  return {click(){const v=vol();if(v)tone(1900,1200,0.035,"sine",0.06*v)},
+    warn(){const v=vol();if(!v||Date.now()-lastWarn<400)return;lastWarn=Date.now();tone(330,300,0.09,"triangle",0.16*v);tone(247,220,0.14,"triangle",0.16*v,0.1)}};
+})();
+document.addEventListener("click",e=>{const b=e.target.closest&&e.target.closest("button,.btn,[role=tab],summary,.theme-opt");if(b&&!b.disabled&&!b.classList.contains("dis"))SND.click()},true);
+// a required field left empty: play the cue, shake the field once
+document.addEventListener("invalid",e=>{const el=e.target;SND.warn();el.classList.remove("ec-invalid");void el.offsetWidth;el.classList.add("ec-invalid");setTimeout(()=>el.classList.remove("ec-invalid"),1500)},true);
+// busy bar while the app fetches data or loads a page module
+let BUSY=0;const busy=d=>{BUSY=Math.max(0,BUSY+d);document.body.classList.toggle("busy",BUSY>0)};
+addEventListener("ec-busy",e=>busy(+e.detail||0));
+{const ls=loadScriptOnce;loadScriptOnce=(src,g)=>window[g]?ls(src,g):(busy(1),ls(src,g).finally(()=>busy(-1)))}
 function applyCompact(){document.body.classList.toggle("compact",!!S.compact)}
 function setCompact(on){S.compact=!!on;save();applyCompact();toast(on?"Compact mode on.":"Compact mode off.")}
 applyCompact();

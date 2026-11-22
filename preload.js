@@ -34,7 +34,12 @@ contextBridge.exposeInMainWorld("exileDesktop", {
   setInteractive: (v) => ipcRenderer.send("overlay:interactive", v),
   resetOverlay: () => ipcRenderer.send("overlay:reset"),
   // price check
-  http: (req) => ipcRenderer.invoke("http", req),
+  // network requests also tell the page when they start and finish, for its loading bar
+  http: async (req) => {
+    try { window.dispatchEvent(new CustomEvent("ec-busy", { detail: 1 })); } catch (e) { /* no page */ }
+    try { return await ipcRenderer.invoke("http", req); }
+    finally { try { window.dispatchEvent(new CustomEvent("ec-busy", { detail: -1 })); } catch (e) { /* no page */ } }
+  },
   onPriceItem: on("price:item"),
   closePrice: () => ipcRenderer.send("price:close"),
   testPrice: (text) => ipcRenderer.send("price:test", text),

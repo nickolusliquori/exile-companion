@@ -1,0 +1,150 @@
+/* Exile Companion themes, motion and loading states.
+   html[data-theme] picks the look: "poe" is the original in-game style (the base stylesheet, untouched),
+   "minimal" and "modern" share a flat layer below and differ only in colours.
+   html.no-motion (setting or Windows "reduce motion") turns animations off. */
+
+/* ---------- colour sets ---------- */
+html[data-theme="minimal"]{
+  --bg:#0b0b0c; --panel:#131315; --panel2:#18181b; --line:#25252a; --line-hi:#34343b;
+  --text:#ebe7df; --muted:#8e8a83;
+  --gold:#d4ae62; --gold-dim:#7d6638; --gold-hi:#ecd29b; --accent-ink:#17120a;
+  --field:#0f0f11; --hover:#1d1d21; --soft:rgba(212,174,98,.10);
+  --display:"Source Sans 3","Segoe UI",system-ui,sans-serif;
+  --radius:10px; --radius-s:7px;
+}
+html[data-theme="modern"]{
+  --bg:#1a1b1e; --panel:#222327; --panel2:#2a2b30; --line:#33353b; --line-hi:#44464e;
+  --text:#e6e7ea; --muted:#9a9ca5;
+  --gold:#6d9cff; --gold-dim:#3f5f9e; --gold-hi:#a9c4ff; --accent-ink:#0b1020;
+  --field:#1c1d21; --hover:#2f3036; --soft:rgba(109,156,255,.12);
+  --display:"Segoe UI","Source Sans 3",system-ui,sans-serif;
+  --radius:8px; --radius-s:6px;
+}
+
+/* ---------- flat layer shared by minimal and modern ---------- */
+:is(html[data-theme="minimal"],html[data-theme="modern"]){
+  & html,& body{background:var(--bg)}
+  & body{background:var(--bg)!important}
+  & ::selection{background:var(--gold-dim);color:#fff}
+  & *{scrollbar-color:var(--line-hi) var(--bg)}
+  & header{background:color-mix(in srgb,var(--bg) 88%,transparent);backdrop-filter:blur(10px);border-bottom:1px solid var(--line);box-shadow:none}
+  & .brand{background:none;color:var(--text);-webkit-text-fill-color:currentColor;filter:none;letter-spacing:.01em;font-weight:700}
+  & .brand small{letter-spacing:.02em;font-family:var(--body)}
+  & h1,& h2,& h3{font-family:var(--display);letter-spacing:0}
+  & h2{background:none;-webkit-text-fill-color:currentColor;color:var(--text);filter:none;font-size:1.08rem;font-weight:700}
+  & .card>h2:first-child{border-bottom:0;padding-bottom:0}
+  & h3{font-size:.78rem;letter-spacing:.06em;color:var(--muted);font-weight:600}
+  & .ico-h{color:var(--gold);filter:none!important;opacity:.85}
+  & main{gap:20px;padding:20px 16px}
+  & section.tab.on,& .grid{gap:20px}
+  & .card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);box-shadow:none;padding:18px;gap:12px}
+  & .card::before,& .card::after{display:none}
+  & .card.hl{border-color:var(--line-hi);box-shadow:inset 0 1px 0 color-mix(in srgb,var(--gold) 35%,transparent)}
+  & .btn{background:var(--panel2);border:1px solid var(--line-hi);color:var(--text);border-radius:var(--radius-s);box-shadow:none;text-shadow:none;font-family:var(--body);letter-spacing:0;font-weight:600}
+  & .btn:hover{background:var(--hover);border-color:var(--gold-dim);color:var(--text)}
+  & .btn.primary{background:var(--gold);border-color:var(--gold);color:var(--accent-ink);text-shadow:none}
+  & .btn.primary:hover{background:var(--gold-hi);border-color:var(--gold-hi);color:var(--accent-ink)}
+  & .btn.ghost{background:transparent;border-color:var(--line);color:var(--text)}
+  & .btn.ghost:hover{background:var(--hover);border-color:var(--line-hi)}
+  & .btn.small{font-size:.8rem;padding:5px 10px}
+  & nav button{background:none;border:0;border-radius:var(--radius-s);text-shadow:none;box-shadow:none;font-family:var(--body);letter-spacing:0;color:var(--muted)}
+  & nav button:hover{background:var(--hover);color:var(--text)}
+  & nav button[aria-selected="true"]{background:var(--soft);color:var(--text);box-shadow:none}
+  & #groups{padding:8px 16px 6px}
+  & #groups button{font-size:.92rem;font-weight:600;padding:7px 12px;border-bottom:0}
+  & #groups button[aria-current="true"]{color:var(--text);background:var(--soft);text-shadow:none}
+  & #tabs{background:none;border-top:0;padding:0 16px 8px}
+  & #tabs button{font-size:.84rem;padding:5px 11px}
+  & #tabs button[aria-selected="true"]{color:var(--gold-hi)}
+  & .pill{background:transparent;border-color:var(--line-hi)}
+  & .pill.gold{background:var(--soft);border-color:transparent;color:var(--gold-hi)}
+  & .stat{background:var(--panel2);border:0;border-radius:var(--radius-s);box-shadow:none}
+  & .stat .k{font-family:var(--body);letter-spacing:.04em;color:var(--muted);font-weight:600}
+  & input[type=text],& input[type=number],& input[type=password],& input[type=date],& input[type=search],& select,& textarea{background:var(--field);border:1px solid var(--line);border-radius:var(--radius-s);box-shadow:none}
+  & input:focus,& select:focus,& textarea:focus{border-color:var(--gold-dim);box-shadow:0 0 0 3px var(--soft)}
+  & .item{background:var(--field);border-color:var(--line);border-radius:var(--radius-s)}
+  & .item.UNIQUE,& .item.RARE,& .item.MAGIC{background:var(--field);border-color:var(--line)}
+  & .item.UNIQUE{border-left-color:var(--unique)}& .item.RARE{border-left-color:#d9d65a}& .item.MAGIC{border-left-color:var(--magic)}
+  & .item .nm,& .seg button,& th,& .fl-label{font-family:var(--body);letter-spacing:0}
+  & .sg,& .check,& .bchip,& .cl-row,& .fl-rule{background:var(--panel2);border-color:var(--line);border-radius:var(--radius-s)}
+  & .cl-row.on,& .fl-rule.on{background:var(--soft)}
+  & th{color:var(--muted);letter-spacing:.03em}
+  & tbody tr:hover td{background:var(--soft)}
+  & .meter{background:var(--field);border:0;box-shadow:none}
+  & .meter i{background:var(--gold);box-shadow:none}
+  & .big{background:none;-webkit-text-fill-color:currentColor;color:var(--gold-hi);font-family:var(--display);font-weight:700}
+  & .banner{background:var(--soft);border:1px solid var(--line);border-radius:var(--radius);box-shadow:none}
+  & dialog{background:var(--panel);border:1px solid var(--line-hi);border-radius:calc(var(--radius) + 2px);box-shadow:0 24px 70px rgba(0,0,0,.6)}
+  & .code,& .ttout,& kbd,& #cmdkQ,& .br-addr input,& .rp-pre,& #reportDlg textarea{background:var(--field);border-color:var(--line);border-radius:var(--radius-s)}
+  & .seg{border-color:var(--line-hi);border-radius:var(--radius-s)}
+  & .seg button[aria-pressed="true"],& .actseg button[aria-pressed="true"]{background:var(--gold);color:var(--accent-ink)}
+  & .helpbtn{background:transparent;border-color:var(--line-hi);color:var(--muted)}
+  & .helpbtn[aria-expanded="true"]{background:var(--gold);color:var(--accent-ink)}
+  & .helptext{background:var(--soft);border-left-color:var(--gold-dim)}
+  & .emptybox{border-color:var(--line-hi);background:transparent;border-radius:var(--radius-s)}
+  & #toast{background:var(--panel2);border:1px solid var(--line-hi);border-radius:var(--radius);box-shadow:0 12px 40px rgba(0,0,0,.5)}
+  & #cmdkList li{border-radius:var(--radius-s)}
+  & #cmdkList li[aria-selected="true"]{background:var(--soft);box-shadow:inset 2px 0 0 var(--gold)}
+  & .thread{background:var(--soft);border-color:transparent;border-radius:5px}
+  & .note{border-top-color:var(--line)}
+  & .br-host{background:var(--field);border-radius:var(--radius-s)}
+  & .clip-it{background:var(--panel2);border-color:var(--line)}
+  & .card.flash{animation:flashFlat 1.6s ease-out}
+}
+html[data-theme="modern"] .pill.gold,html[data-theme="modern"] #tabs button[aria-selected="true"]{color:var(--gold-hi)}
+html[data-theme="modern"] .ico-h{color:var(--muted)}
+@media (max-width:700px){:is(html[data-theme="minimal"],html[data-theme="modern"]) #groups .kbtn{background:linear-gradient(90deg,transparent,var(--bg) 30%)}}
+@keyframes flashFlat{0%{box-shadow:0 0 0 2px var(--gold)}100%{box-shadow:none}}
+
+/* ---------- PoE style: a little extra polish on top of the original ---------- */
+html[data-theme="poe"] h2 .ico-h{color:var(--gold)}
+
+/* ---------- motion ---------- */
+@keyframes ecFadeUp{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+@keyframes ecFade{from{opacity:0}to{opacity:1}}
+@keyframes ecPop{from{opacity:0;transform:translateY(8px) scale(.98)}to{opacity:1;transform:none}}
+@keyframes ecSlideUp{from{opacity:0;transform:translate(-50%,10px)}to{opacity:1;transform:translate(-50%,0)}}
+@keyframes ecShake{0%,100%{transform:none}25%{transform:translateX(-4px)}75%{transform:translateX(4px)}}
+@keyframes ecShimmer{from{background-position:-200% 0}to{background-position:200% 0}}
+@keyframes ecBusy{from{transform:translateX(-100%)}to{transform:translateX(250%)}}
+html:not(.no-motion) section.tab.on{animation:ecFade .18s ease-out}
+html:not(.no-motion) section.tab.on>.card,html:not(.no-motion) section.tab.on>.grid>.card,html:not(.no-motion) section.tab.on>div>.card{animation:ecFadeUp .32s cubic-bezier(.2,.7,.2,1) both}
+html:not(.no-motion) section.tab.on>*:nth-child(2)>.card,html:not(.no-motion) section.tab.on>.card:nth-child(2){animation-delay:.04s}
+html:not(.no-motion) section.tab.on>*:nth-child(3)>.card,html:not(.no-motion) section.tab.on>.card:nth-child(3){animation-delay:.08s}
+html:not(.no-motion) section.tab.on>*:nth-child(n+4)>.card,html:not(.no-motion) section.tab.on>.card:nth-child(n+4){animation-delay:.12s}
+html:not(.no-motion) #tabs:not(.solo) button{animation:ecFade .2s ease-out both}
+html:not(.no-motion) dialog[open]{animation:ecPop .2s cubic-bezier(.2,.7,.2,1)}
+html:not(.no-motion) dialog[open]::backdrop{animation:ecFade .2s ease-out}
+html:not(.no-motion) #toast:not([hidden]){animation:ecSlideUp .22s cubic-bezier(.2,.7,.2,1)}
+html:not(.no-motion) .helptext{animation:ecFadeUp .18s ease-out}
+html:not(.no-motion) .btn,html:not(.no-motion) nav button,html:not(.no-motion) .clip-it,html:not(.no-motion) .item{transition:background-color .15s,border-color .15s,color .15s,transform .08s ease,box-shadow .15s}
+html:not(.no-motion) .btn:active:not([disabled]),html:not(.no-motion) nav button:active,html:not(.no-motion) .clip-it:active{transform:scale(.97)}
+html:not(.no-motion) .meter i,html:not(.no-motion) .gbar i{transition:width .5s cubic-bezier(.2,.7,.2,1)}
+html:not(.no-motion) .ec-invalid{animation:ecShake .28s ease-in-out}
+.ec-invalid{border-color:var(--bad)!important;box-shadow:0 0 0 3px color-mix(in srgb,var(--bad) 25%,transparent)!important}
+
+/* loading: a thin bar under the header while the app fetches, and skeleton lines for loading cards */
+#busy{position:fixed;left:0;right:0;top:0;height:2px;z-index:80;overflow:hidden;pointer-events:none;opacity:0;transition:opacity .2s}
+#busy i{display:block;width:40%;height:100%;background:linear-gradient(90deg,transparent,var(--gold),transparent)}
+body.busy #busy{opacity:1}
+html:not(.no-motion) body.busy #busy i{animation:ecBusy 1.1s ease-in-out infinite}
+html.no-motion body.busy #busy i{width:100%;opacity:.6}
+.skel{display:grid;gap:8px}
+.skel i{display:block;height:12px;border-radius:6px;background:linear-gradient(90deg,var(--panel2) 25%,var(--line) 50%,var(--panel2) 75%);background-size:200% 100%}
+.skel i:nth-child(2){width:80%}.skel i:nth-child(3){width:60%}
+html:not(.no-motion) .skel i{animation:ecShimmer 1.4s linear infinite}
+
+/* settings: theme picker */
+.theme-pick{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px}
+.theme-opt{display:grid;gap:8px;padding:10px;border:1px solid var(--line);border-radius:8px;background:transparent;color:var(--text);text-align:left;cursor:pointer;font:inherit}
+.theme-opt[aria-pressed="true"]{border-color:var(--gold);box-shadow:0 0 0 2px color-mix(in srgb,var(--gold) 30%,transparent)}
+.theme-sw{height:54px;border-radius:6px;display:grid;grid-template-columns:1fr 2fr;gap:5px;padding:6px}
+.theme-sw b{border-radius:4px}
+.theme-sw.t-minimal{background:#0b0b0c}.theme-sw.t-minimal b:first-child{background:#18181b}.theme-sw.t-minimal b:last-child{background:#131315;box-shadow:inset 0 -6px 0 #d4ae62}
+.theme-sw.t-modern{background:#1a1b1e}.theme-sw.t-modern b:first-child{background:#2a2b30}.theme-sw.t-modern b:last-child{background:#222327;box-shadow:inset 0 -6px 0 #6d9cff}
+.theme-sw.t-poe{background:radial-gradient(circle at 50% 0,#2b1d10,#0a0806)}.theme-sw.t-poe b:first-child{background:linear-gradient(#3e2c17,#1b130b);border:1px solid #8a6c38}.theme-sw.t-poe b:last-child{background:linear-gradient(#21190f,#110d09);border:1px solid #5c4628;box-shadow:inset 0 -6px 0 #d4ae62}
+.vol{display:flex;gap:10px;align-items:center}.vol input{width:160px;accent-color:var(--gold)}
+
+/* checkbox rows keep the box next to its first line of text */
+label.row.small{flex-wrap:nowrap;align-items:flex-start}
+label.row.small>input[type=checkbox]{margin-top:3px;flex:none;accent-color:var(--gold)}

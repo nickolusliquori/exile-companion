@@ -2,6 +2,21 @@
 
 What changed in each release, newest first. Installed copies update themselves; see the [Releases page](https://github.com/nickolusliquori/exile-companion/releases) for the installers. Planned releases are on the [roadmap](README.md#roadmap).
 
+## [1.14.0] - 2026-11-21
+
+### Added
+- **Three themes** (Settings → Look and feel), switched instantly and remembered:
+  - **Dark minimal** (new default): near-black with one gold accent, flat panels, more spacing, plain headings.
+  - **Modern:** neutral charcoal with a blue accent.
+  - **Path of Exile:** the gold-trimmed, game-style look from earlier versions.
+- **Light animations:** pages and cards fade in, sub-menus slide in, dialogs and notices pop in, buttons press down. They turn off with the new Animations switch or when Windows "reduce motion" is on.
+- **Loading feedback:** a thin bar at the top while the app fetches prices or data, and shimmering placeholders while a page loads.
+- **Minimal sounds:** a soft click on buttons and a short cue (plus a shake) when a required field is left empty. On by default at low volume; switch them off or set the volume in Settings. The sounds are generated in the app, with no audio files.
+
+### Changed
+- Checkbox labels keep the box next to the text instead of wrapping it onto its own line.
+- The overlay, price window and pinned browser keep their own compact style for now.
+
 ## [1.13.0] - 2026-11-21
 
 ### Added

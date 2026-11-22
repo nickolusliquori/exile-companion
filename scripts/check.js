@@ -288,6 +288,19 @@ try {
   assert.deepStrictEqual(Object.assign({}, B.gemVariant({ variant: "21/20c", chaosValue: 5 })), { lvl: 21, q: 20, c: true, price: 5, n: 0 });
 } catch (e) { fail("build tools: " + e.message); }
 
+// look and feel: three themes, early theme script, motion and sound settings
+try {
+  const css = fs.readFileSync(path.join(appDir, "theme.css"), "utf8"), html = fs.readFileSync(path.join(appDir, "index.html"), "utf8");
+  for (const t of ["minimal", "modern"]) assert(css.includes(`html[data-theme="${t}"]{`), "colour set for " + t);
+  assert(/<link rel="stylesheet" href="theme.css">/.test(html), "theme stylesheet linked");
+  assert(html.indexOf("document.documentElement.dataset.theme=t") < html.indexOf("<body"), "theme applied before the page paints");
+  assert(/prefers-reduced-motion: reduce/.test(html) && /html\.no-motion|html:not\(\.no-motion\)/.test(css), "animations respect reduce motion");
+  const { THEMES } = { THEMES: (html.match(/const THEMES=(\[.*?\]\]);/) || [])[1] };
+  assert(THEMES && ["minimal", "modern", "poe"].every((k) => THEMES.includes(`"${k}"`)), "settings offer all three themes");
+  assert(!/new Audio\(|\.mp3|\.wav/.test(html), "sounds are synthesized, no audio files");
+  ok("look and feel: 3 themes, applied before paint, motion respects Windows settings, sounds synthesized");
+} catch (e) { fail("look and feel: " + e.message); }
+
 Promise.all(pending).then(() => {
   if (failures) { console.error(`\n${failures} check(s) failed`); process.exit(1); }
   console.log("\nAll checks passed");
