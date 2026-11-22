@@ -131,7 +131,12 @@ try {
   const { webHostAllowed } = require(path.join(root, "lib", "webhosts.js"));
   for (const u of ["https://www.pathofexile.com/trade/search/Standard", "https://poe.ninja/economy", "https://www.poewiki.net/wiki/Headhunter", "https://pobb.in/abc"]) assert(webHostAllowed(u), "should allow " + u);
   for (const u of ["http://www.pathofexile.com/", "https://evil-pathofexile.com/", "https://pathofexile.com.evil.io/", "https://user:pw@poe.ninja/", "file:///C:/x", "javascript:alert(1)", "https://example.com/"]) assert(!webHostAllowed(u), "should block " + u);
-  ok("in-app browser opens only allowlisted https sites");
+  const { blockNavigation } = require(path.join(root, "lib", "webhosts.js"));
+  assert(!blockNavigation("https://challenges.cloudflare.com/cdn-cgi/challenge-platform/x", false), "frames inside a page (Cloudflare's check) must not be blocked");
+  assert(blockNavigation("https://example.com/", true), "the page itself leaving the allowlist is blocked");
+  assert(blockNavigation("https://example.com/", undefined), "unknown frame type is treated as the page");
+  assert(!blockNavigation("https://www.pathofexile.com/trade", true), "allowlisted page loads");
+  ok("in-app browser opens only allowlisted https sites; frames such as Cloudflare's check are left alone");
 } catch (e) { fail("web hosts: " + e.message); }
 
 // filter file names: keep NeverSink's apostrophe, never allow folders or non-filter files

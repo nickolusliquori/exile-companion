@@ -2,7 +2,7 @@
 // Windows: companion (main), overlay (click-through, always on top), price check popup.
 "use strict";
 const { app, BrowserWindow, WebContentsView, session, globalShortcut, ipcMain, clipboard, screen, shell, dialog, Menu, Notification, safeStorage } = require("electron");
-const { webHostAllowed } = require("./lib/webhosts");
+const { webHostAllowed, blockNavigation } = require("./lib/webhosts");
 const fs = require("fs");
 const path = require("path");
 const { parseEvents, detectLogPaths, readTail, Tail } = require("./lib/logtail");
@@ -512,10 +512,15 @@ function ensureWebView() {
   webView = new WebContentsView({ webPreferences: { partition: WEB_PARTITION, contextIsolation: true, sandbox: true, nodeIntegration: false, webSecurity: true, spellcheck: false } });
   webView.setBackgroundColor("#0e0c0a");
   const wc = webView.webContents;
-  const guard = (e, url) => { if (!webHostAllowed(url)) { e.preventDefault(); if (/^https:\/\//i.test(url)) sendMain("browser:blocked", { url }); } };
-  wc.on("will-navigate", guard);
-  wc.on("will-redirect", guard);
-  wc.on("will-frame-navigate", (e) => { if (e.isMainFrame && !webHostAllowed(e.url)) { e.preventDefault(); if (/^https:\/\//i.test(e.url)) sendMain("browser:blocked", { url: e.url }); } });
+  // keep the page itself on allowlisted sites; frames inside it (e.g. Cloudflare's human check) are left alone
+  const guard = (e, url, isMainFrame) => {
+    const main = e && e.isMainFrame !== undefined ? e.isMainFrame : isMainFrame;
+    const target = (e && e.url) || url;
+    if (blockNavigation(target, main)) { e.preventDefault(); if (/^https:\/\//i.test(target)) sendMain("browser:blocked", { url: target }); }
+  };
+  wc.on("will-navigate", (e, url) => guard(e, url, true));                                         // main frame only
+  wc.on("will-redirect", (e, url, isInPlace, isMainFrame) => guard(e, url, isMainFrame));            // fires for frames too
+  wc.on("will-frame-navigate", (e) => guard(e, e.url, e.isMainFrame));
   wc.setWindowOpenHandler(({ url }) => { if (webHostAllowed(url)) wc.loadURL(url); else if (/^https:\/\//i.test(url)) sendMain("browser:blocked", { url }); return { action: "deny" }; });
   const push = (extra) => {
     if (wc.isDestroyed()) return;

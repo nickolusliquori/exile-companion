@@ -3952,6 +3952,7 @@ function renderBrowserBar(){
     <div class="br-row br-links">${BR_LINKS.map(([l,u])=>`<button class="btn ghost small" data-brgo="${esc(u)}">${esc(l)}</button>`).join("")}</div>
     <div class="small br-status">${BR.blocked?`<span style="color:var(--warn)">${BR.blocked.reason==="download"?"Downloads are blocked in the app's browser.":`The app only opens trusted Path of Exile sites itself; this link goes to <b>${esc((()=>{try{return new URL(BR.blocked.url).hostname}catch(e){return BR.blocked.url}})())}</b>.`}</span> <button class="btn primary small" id="brBlockedOpen">Open in my browser</button> <button class="btn ghost small" id="brBlockedX">Dismiss</button>`
       :st.error?`<span style="color:var(--warn)">Couldn't load the page: ${esc(st.error)}</span>`
+      :/just a moment|attention required|verify you are human|security check/i.test(st.title||"")?`<span class="muted">Cloudflare is checking that you're human. Tick the box if one shows. Stuck?</span> <button class="btn ghost small" id="brCfOpen">Open in my browser</button>`
       :`<span class="muted">${st.loading?"Loading…":esc(st.title||"")}${host?` · ${esc(host)}`:""}</span>`}</div>`;
   $("brBack").onclick=()=>DESK.browserNav("back");$("brFwd").onclick=()=>DESK.browserNav("forward");
   $("brReload").onclick=()=>DESK.browserNav(st.loading?"stop":"reload");
@@ -3960,6 +3961,7 @@ function renderBrowserBar(){
   bar.querySelectorAll("[data-brgo]").forEach(b=>b.onclick=()=>brGo(b.dataset.brgo));
   const bo=$("brBlockedOpen");if(bo)bo.onclick=()=>{DESK.browserExternal(BR.blocked.url);BR.blocked=null;renderBrowserBar()};
   const bx=$("brBlockedX");if(bx)bx.onclick=()=>{BR.blocked=null;renderBrowserBar()};
+  const cf=$("brCfOpen");if(cf)cf.onclick=()=>{if(st.url)DESK.browserExternal(st.url)};
   if(editing){const a=$("brAddr");a.focus();a.setSelectionRange(a.value.length,a.value.length)}
 }
 // keep the native web view over the page's host box; hide it whenever something should sit on top
