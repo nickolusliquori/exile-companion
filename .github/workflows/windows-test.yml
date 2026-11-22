@@ -1,0 +1,32 @@
+# Windows test run: builds the app and opens it on GitHub's Windows machine in test mode: every page,
+# the overlay, price check, pinned browser and media player windows, reading a game log and Windows' media
+# controls. Runs on pull requests (such as the weekly data update) and on demand. Releases run it too, before publishing.
+name: Windows test
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  windows-test:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+      - name: Install dependencies
+        run: npm ci
+      - name: Run checks
+        run: npm run check
+      - name: Build the app (no installer)
+        run: npx electron-builder --win dir --publish never
+      - name: Open the app in test mode
+        shell: pwsh
+        run: ./scripts/smoke-windows.ps1

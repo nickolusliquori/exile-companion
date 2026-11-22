@@ -67,6 +67,11 @@ jobs:
       - name: Build installer
         run: npx electron-builder --win nsis --publish never
 
+      # open the built app in test mode before anything is published; a failure stops the release
+      - name: Windows test run
+        shell: pwsh
+        run: ./scripts/smoke-windows.ps1
+
       - name: Publish GitHub release
         shell: bash
         env:

@@ -12,6 +12,10 @@ const { createClipWatcher } = require("./lib/clip");
 const { redact, sanitizeCfg } = require("./lib/diag");
 const os = require("os");
 const T0 = Date.now();
+// Windows test run (GitHub Actions): EC_SMOKE=<report.json> opens every page and window in a throwaway profile,
+// writes a report and quits. Nothing else changes; a normal start never sets it.
+const SMOKE = /\.json$/i.test(process.env.EC_SMOKE || "") ? process.env.EC_SMOKE : "";
+if (SMOKE) app.setPath("userData", path.join(os.tmpdir(), "ec-smoke-" + process.pid));
 // local error/crash log (logs/app.log in the app's folder), redacted as it's written
 const { createLog, startupGuard } = require("./lib/crashlog");
 const REDACT_CTX = { home: os.homedir(), user: (() => { try { return os.userInfo().username; } catch (e) { return ""; } })() };
@@ -994,6 +998,66 @@ ipcMain.on("app:restart", (e, mode) => {
 });
 ipcMain.on("log:open", () => { shell.openPath(LOG.dir); });
 
+/* ---------------- Windows test run (see SMOKE above) ---------------- */
+async function runSmoke() {
+  const rep = { app: VERSION, electron: process.versions.electron, os: `${os.type()} ${os.release()} ${os.arch()}`, steps: [], warnings: [] };
+  const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+  const step = (name, ok, info) => { rep.steps.push({ name, ok: !!ok, info: info == null ? "" : String(info).slice(0, 600) }); LOG.info("smoke", `${ok ? "PASS" : "FAIL"} ${name}${info ? " · " + String(info).slice(0, 200) : ""}`); };
+  const finish = (code) => {
+    rep.errors = LOG.tail(400).filter((l) => / ERROR /.test(l));
+    rep.ok = code === 0 && rep.steps.length > 0 && rep.steps.every((x) => x.ok) && !rep.errors.length;
+    rep.log = LOG.tail(200);
+    try { fs.writeFileSync(SMOKE, JSON.stringify(rep, null, 2)); } catch (e) { console.error(e); }
+    try { mediaBridge.stop(); } catch (e) { /* ignore */ }
+    app.exit(rep.ok ? 0 : 1);
+  };
+  const guard = setTimeout(() => { step("finished within 3 minutes", false); finish(2); }, 180e3);
+  const run = async (name, fn) => { try { const r = await fn(); step(name, r === undefined ? true : r.ok !== false, r && r.info); } catch (e) { step(name, false, (e && e.stack) || e); } };
+  const js = (wc, code) => Promise.race([wc.executeJavaScript(code, true), wait(30e3).then(() => { throw new Error("page didn't answer in 30 s"); })]);
+  try {
+    await wait(2000);
+    await run("main window loads", () => ({ ok: mainWin && !mainWin.webContents.isCrashed(), info: mainWin.webContents.getURL().split("/").pop() }));
+    await run("every page of the main window opens", async () => {
+      const r = await js(mainWin.webContents, `(async()=>{UI.mode="full";if(typeof applyStarter==="function")applyStarter();const out=[],bad=[];
+        for(const b of document.querySelectorAll('#tabs button[data-tab]')){if(b.hidden)continue;try{showTab(b.dataset.tab);await new Promise(r=>setTimeout(r,300));out.push(b.dataset.tab)}catch(e){bad.push(b.dataset.tab+': '+e.message)}}
+        showTab('home');return {out,bad}})()`);
+      return { ok: !r.bad.length && r.out.length >= 15, info: `${r.out.length} pages${r.bad.length ? " · " + r.bad.join(" | ") : ""}` };
+    });
+    await run("settings: theme, text size, contrast and colorblind options apply", async () => {
+      const r = await js(mainWin.webContents, `(()=>{showTab('settings');setTheme('poe');setScale(125,true);UI.contrast=true;UI.cb=true;save();applyA11y();
+        const h=document.documentElement,res=[h.dataset.theme,h.dataset.contrast,h.dataset.cb];setTheme('minimal');setScale(100,true);UI.contrast=false;UI.cb=false;save();applyA11y();showTab('home');return res})()`);
+      return { ok: r.join() === "poe,high,1", info: r.join(", ") };
+    });
+    // the other windows
+    toggleOverlay(true);
+    createPin(); createMediaWin();
+    await wait(5000);
+    for (const [name, win] of [["overlay", overlayWin], ["price check", priceWin], ["pinned browser", pinWin], ["media player", mediaWin]]) {
+      await run(`${name} window loads`, () => ({ ok: win && !win.isDestroyed() && !win.webContents.isCrashed() && !win.webContents.isLoading(), info: win && !win.isDestroyed() ? win.webContents.getURL().split("/").pop() : "missing" }));
+    }
+    await run("overlay shows the tools page", async () => { toggleWidgets(); await wait(800); const r = await js(overlayWin.webContents, "document.body.innerText.length"); toggleWidgets(); return { ok: r > 20, info: r + " characters of text" }; });
+    // reading the game log: a stand-in Client.txt in the throwaway profile
+    await run("game log: a new zone reaches the app", async () => {
+      const f = path.join(app.getPath("userData"), "Client.txt");
+      fs.writeFileSync(f, "2026/11/22 12:00:00 1 ab [INFO Client 1] Start\r\n");
+      cfg.logPath = f; startLog(); await wait(1500);
+      const t = "2026/11/22 12:00:05";
+      fs.appendFileSync(f, `${t} 2 ab [DEBUG Client 1] Generating level 1 area "1_1_1" with seed 1\r\n${t} 3 ab [INFO Client 1] : You have entered The Twilight Strand.\r\n`);
+      for (let i = 0; i < 20; i++) { await wait(500); const z = await js(mainWin.webContents, "LIVE.zone&&LIVE.zone.id"); if (z === "1_1_1") return { info: "zone 1_1_1 seen" }; }
+      return { ok: false, info: "the zone never arrived" };
+    });
+    // Windows media controls ("now playing"): must answer; nothing playing is fine
+    await run("Windows media bridge answers", async () => {
+      const r = await Promise.race([mediaBridge.now(), wait(25e3).then(() => ({ error: "no answer in 25 s" }))]);
+      if (r && r.error && /doesn't offer/.test(r.error)) { rep.warnings.push("This Windows build has no media controls: " + r.error); return { info: r.error }; }
+      return { ok: !(r && r.error), info: JSON.stringify(r) };
+    });
+    await run("safe-mode state answers", () => ({ info: JSON.stringify({ safe: SAFE }) }));
+  } catch (e) { step("test run", false, (e && e.stack) || e); }
+  clearTimeout(guard);
+  finish(0);
+}
+
 /* ---------------- app lifecycle ---------------- */
 if (!app.requestSingleInstanceLock()) { app.quit(); }
 else {
@@ -1035,6 +1099,7 @@ else {
     mainWin.webContents.once("did-finish-load", () => {
       LOG.info("startup", `ready in ${T_READY - T0} ms, main page loaded in ${Date.now() - T0} ms`);
       setTimeout(() => GUARD.started(), 10000);
+      if (SMOKE) { runSmoke(); return; }
       startLog();
       setupUpdater();   // kept in safe mode so a fix can still arrive
       if (SAFE) return;
