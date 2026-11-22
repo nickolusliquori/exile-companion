@@ -502,6 +502,11 @@ try {
   try { execFileSync("python3", [path.join(root, "scripts", "keep-if-same.py"), path.join(tmp, "b"), path.join(tmp, "x.js"), path.join(tmp, "y.js")], { stdio: "pipe" });
     assert(fs.readFileSync(path.join(tmp, "x.js"), "utf8").includes('"v":"1"'), "a label-only change is put back");
     assert(fs.readFileSync(path.join(tmp, "y.js"), "utf8").includes('"v":"2"'), "a real change is kept");
+    const zlib = require("zlib"), raw = Buffer.from("same table");
+    fs.writeFileSync(path.join(tmp, "b", "z.js"), "window.Z=" + JSON.stringify({ v: "1", j: { a: { data: zlib.deflateSync(raw, { level: 9 }).toString("base64") } } }) + ";\n");
+    fs.writeFileSync(path.join(tmp, "z.js"), "window.Z=" + JSON.stringify({ v: "2", j: { a: { data: zlib.deflateSync(raw, { level: 1 }).toString("base64") } } }) + ";\n");
+    execFileSync("python3", [path.join(root, "scripts", "keep-if-same.py"), path.join(tmp, "b"), path.join(tmp, "z.js")], { stdio: "pipe" });
+    assert(fs.readFileSync(path.join(tmp, "z.js"), "utf8").includes('"v":"1"'), "the same table compressed differently counts as unchanged");
   } catch (e) { if (e.code === "ENOENT") console.log("  (python3 not found: keep-if-same not exercised)"); else throw e; }
   ok("data pipeline: data/sources.json matches the shipped data; weekly workflow pinned and checked; label-only changes are ignored");
 } catch (e) { fail("data pipeline: " + e.message); }
