@@ -84,6 +84,9 @@ const DEFAULTS = {
   pinOpacity: 1,
   streamEnabled: false,           // local page for OBS (Browser Source)
   streamPort: 47777,
+  phoneEnabled: false,            // phone screen on your home network (needs the private link)
+  phonePort: 47778,
+  phoneKey: "",                   // the private part of the phone link (made on first use; "New link" replaces it)
   overlayVisible: true,
   overlayOpacity: 0.92,
   overlayBounds: null,
@@ -292,6 +295,62 @@ function startStream() {
   streamServer.on("error", (e) => sendMain("stream:status", { ok: false, message: `Port ${cfg.streamPort} is busy: pick another.` }));
   streamServer.listen(+cfg.streamPort || 47777, "127.0.0.1", () => sendMain("stream:status", { ok: true, url: `http://127.0.0.1:${+cfg.streamPort || 47777}/` }));
 }
+
+/* ---------------- phone screen (your home network, read-only) ----------------
+   Off by default. Every request needs the private key from the link/QR code; only private network addresses are
+   answered; nothing can be sent back to the app or the game. */
+const { qrSvg } = require("./lib/qr");
+let phoneServer = null, phoneState = { on: false };
+function lanAddresses() {
+  const out = [];
+  for (const [name, list] of Object.entries(os.networkInterfaces())) for (const a of list || []) {
+    if (a.family !== "IPv4" && a.family !== 4) continue; if (a.internal) continue;
+    if (!/^(10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/.test(a.address)) continue;
+    out.push({ ip: a.address, name, virtual: /virtual|vethernet|vmware|vbox|hyper-v|wsl|docker|loopback|tailscale|zerotier/i.test(name) });
+  }
+  return out.sort((x, y) => (x.virtual - y.virtual) || ((/^192\.168\./.test(y.ip) ? 1 : 0) - (/^192\.168\./.test(x.ip) ? 1 : 0)));
+}
+const privateRemote = (addr) => /^(::ffff:)?(127\.|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/.test(String(addr || "")) || addr === "::1";
+function keyOk(given) {
+  const a = Buffer.from(String(given || "")), b = Buffer.from(String(cfg.phoneKey || ""));
+  return b.length >= 16 && a.length === b.length && require("crypto").timingSafeEqual(a, b);
+}
+function phoneStatus(extra) {
+  const port = +cfg.phonePort || 47778, ips = lanAddresses();
+  const urls = ips.map((x) => `http://${x.ip}:${port}/?k=${cfg.phoneKey}`);
+  let qr = ""; try { if (urls[0]) qr = qrSvg(urls[0], { scale: 5, margin: 4 }); } catch (e) { /* ignore */ }
+  return { on: !!phoneServer, enabled: !!cfg.phoneEnabled, port, urls, ips, qr, ...(extra || {}) };
+}
+function startPhone() {
+  if (phoneServer) { try { phoneServer.close(); } catch (e) { /* ignore */ } phoneServer = null; }
+  if (!cfg.phoneEnabled) { sendMain("phone:status", phoneStatus({ message: "Off" })); return; }
+  if (!cfg.phoneKey || cfg.phoneKey.length < 16) { cfg.phoneKey = require("crypto").randomBytes(18).toString("base64url"); saveCfg(); }
+  const sec = { "X-Content-Type-Options": "nosniff", "Referrer-Policy": "no-referrer", "Cache-Control": "no-store", "X-Frame-Options": "DENY" };
+  phoneServer = httpLib.createServer((req, res) => {
+    if (req.method !== "GET" || !privateRemote(req.socket.remoteAddress)) { res.writeHead(403, sec); res.end(); return; }
+    let u; try { u = new URL(req.url, "http://x"); } catch (e) { res.writeHead(400, sec); res.end(); return; }
+    const font = /^\/fonts\/(Cinzel\.woff|SourceSans3\.ttf)$/.exec(u.pathname);
+    if (font) { res.writeHead(200, { ...sec, "Content-Type": font[1].endsWith(".ttf") ? "font/ttf" : "font/woff", "Cache-Control": "max-age=86400" }); res.end(fs.readFileSync(path.join(__dirname, "app", "fonts", font[1]))); return; }
+    if (!keyOk(u.searchParams.get("k"))) {
+      res.writeHead(403, { ...sec, "Content-Type": u.pathname === "/data" ? "application/json" : "text/html; charset=utf-8" });
+      res.end(u.pathname === "/data" ? "{}" : "<!DOCTYPE html><meta name=viewport content='width=device-width'><body style='font:16px system-ui;background:#0e0c0a;color:#eee;padding:20px'>This link isn't valid. Scan the QR code in Exile Companion (Desktop tools → Phone screen).</body>");
+      return;
+    }
+    if (u.pathname === "/data") { res.writeHead(200, { ...sec, "Content-Type": "application/json" }); res.end(JSON.stringify({ overlay: lastOverlayData })); return; }
+    if (u.pathname === "/") { res.writeHead(200, { ...sec, "Content-Type": "text/html; charset=utf-8" }); res.end(fs.readFileSync(path.join(__dirname, "app", "phone.html"))); return; }
+    res.writeHead(404, sec); res.end();
+  });
+  phoneServer.on("error", (e) => { phoneServer = null; sendMain("phone:status", phoneStatus({ message: e.code === "EADDRINUSE" ? `Port ${cfg.phonePort} is busy: pick another.` : "Couldn't start: " + e.message })); });
+  phoneServer.listen(+cfg.phonePort || 47778, "0.0.0.0", () => { LOG.info("phone", `phone screen on port ${+cfg.phonePort || 47778}`); sendMain("phone:status", phoneStatus()); });
+}
+ipcMain.handle("phone:status", () => phoneStatus());
+ipcMain.on("phone:set", (e, o) => {
+  if (!o || typeof o !== "object") return;
+  if (typeof o.on === "boolean") cfg.phoneEnabled = o.on;
+  if (o.port != null) { const p = Math.round(+o.port); if (p >= 1024 && p <= 65535) cfg.phonePort = p; }
+  if (o.newKey) cfg.phoneKey = require("crypto").randomBytes(18).toString("base64url");
+  saveCfg(); startPhone();
+});
 
 /* ---------------- clipboard helpers ----------------
    Electron 44+ made clipboard reads/writes return Promises; older versions return values directly.
@@ -1178,6 +1237,14 @@ async function runSmoke() {
       const after = JSON.stringify(stashWin.getBounds());
       return { ok: shown && cells === 1 && before === after && !stashWin.isVisible(), info: `shown ${shown}, cells ${cells}, bounds kept ${before === after}` };
     });
+    await run("phone screen: refuses without the key, serves with it", async () => {
+      cfg.phoneEnabled = true; cfg.phonePort = 47790; startPhone(); await wait(1000);
+      const get = (p) => new Promise((resolve) => { httpLib.get({ host: "127.0.0.1", port: 47790, path: p }, (r) => { let b = ""; r.on("data", (c) => (b += c)); r.on("end", () => resolve({ code: r.statusCode, body: b })); }).on("error", (e) => resolve({ code: 0, body: e.message })); });
+      const no = await get("/data?k=wrong"), page = await get("/?k=" + cfg.phoneKey), data = await get("/data?k=" + cfg.phoneKey), st = phoneStatus();
+      cfg.phoneEnabled = false; startPhone();
+      const ok = no.code === 403 && page.code === 200 && /Exile Companion/.test(page.body) && data.code === 200 && JSON.parse(data.body).overlay && /^<svg/.test(st.qr || "<svg");
+      return { ok, info: `no key ${no.code}, page ${page.code}, data ${data.code}, addresses ${st.urls.length}` };
+    });
     await run("safe-mode state answers", () => ({ info: JSON.stringify({ safe: SAFE }) }));
   } catch (e) { step("test run", false, (e && e.stack) || e); }
   clearTimeout(guard);
@@ -1231,9 +1298,9 @@ else {
       if (SAFE) return;
       detectLeague().then((l) => sendMain("league", l));
       setInterval(() => { detectLeague().then((l) => l && sendMain("league", l)).catch(() => {}); }, 6 * 3600e3);
-      startDiscord(); startStream();
+      startDiscord(); startStream(); startPhone();
     });
   });
-  app.on("will-quit", () => { LOG.info("app", "quit"); if (GUARD) GUARD.started(); /* a normal quit (or an update restart) is not a failed start */ globalShortcut.unregisterAll(); clearInterval(clipTimer); if (tail) tail.stop(); if (discord) discord.close(); if (streamServer) streamServer.close(); });
+  app.on("will-quit", () => { LOG.info("app", "quit"); if (GUARD) GUARD.started(); /* a normal quit (or an update restart) is not a failed start */ globalShortcut.unregisterAll(); clearInterval(clipTimer); if (tail) tail.stop(); if (discord) discord.close(); if (streamServer) streamServer.close(); if (phoneServer) phoneServer.close(); });
   app.on("window-all-closed", () => app.quit());
 }

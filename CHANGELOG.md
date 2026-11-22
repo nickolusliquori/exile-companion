@@ -2,6 +2,12 @@
 
 What changed in each release, newest first. Installed copies update themselves; see the [Releases page](https://github.com/nickolusliquori/exile-companion/releases) for the installers. Planned releases are on the [roadmap](README.md#roadmap).
 
+## [1.36.0] - 2026-11-22
+
+### Added
+- **Phone screen** (Desktop tools → Phone screen): see the overlay's information on your phone while you play: where you are, leveling steps and gems, this map, your session and goal, mods you skip, trade requests, net worth, build progress and price alerts. Scan the QR code with your phone's camera on the same Wi-Fi. It's off by default and read-only; the link carries a private key (New link makes the old one stop working), and only devices on your home network are answered. If Windows asks about the firewall, allow private networks only.
+- The Windows test run now also checks that the phone screen refuses requests without the key.
+
 ## [1.35.1] - 2026-11-22
 
 ### Fixed

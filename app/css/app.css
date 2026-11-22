@@ -235,6 +235,7 @@ section.tab .card{scroll-margin-top:140px}
 .rep-list{display:grid;gap:4px;margin:6px 0}
 .appfoot{max-width:1200px;margin:0 auto;padding:8px 16px 24px;text-align:center;font-size:.75rem}
 .starter-hide{display:none!important}
+.qrbox{background:#fff;border-radius:8px;padding:4px;line-height:0;flex:0 0 auto}.qrbox svg{width:180px;height:180px}
 #charMenu{position:fixed;z-index:70;min-width:240px;background:var(--panel);border:1px solid var(--line-hi,var(--line));border-radius:10px;padding:6px;box-shadow:0 14px 40px rgba(0,0,0,.55);display:flex;flex-direction:column}
 #charMenu button{background:none;border:0;color:var(--text);text-align:left;padding:7px 10px;border-radius:6px;font:inherit;cursor:pointer}
 #charMenu button:hover,#charMenu button:focus-visible,#charMenu button.on{background:var(--panel2,rgba(255,255,255,.06))}

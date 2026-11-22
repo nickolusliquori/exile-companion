@@ -136,6 +136,9 @@ contextBridge.exposeInMainWorld("exileDesktop", {
   backupOpen: () => ipcRenderer.invoke("backup:open"),
   backupAuto: (json) => ipcRenderer.invoke("backup:auto", json),
   onStreamStatus: on("stream:status"),
+  phoneStatus: () => ipcRenderer.invoke("phone:status"),
+  phoneSet: (o) => ipcRenderer.send("phone:set", o),
+  onPhoneStatus: on("phone:status"),
   // updates
   updateStatus: () => ipcRenderer.invoke("update:status"),
   checkUpdate: () => ipcRenderer.invoke("update:check"),

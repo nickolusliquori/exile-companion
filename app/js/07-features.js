@@ -196,6 +196,26 @@ function publishStream(p){
   const deaths=S.session.maps.reduce((a,m)=>{const x=String(m.note||"").match(/(\d+) death/);return a+(x?+x[1]:0)},0);
   DESK.publishStream({cls:b.ascend||b.className,level:(S.logInfo&&S.logInfo.level)||b.level,deaths});
 }
+/* ---------- phone screen: the overlay's information on your phone, over your home network ---------- */
+function renderPhoneCard(){
+  const el=$("deskPhone");if(!el||!DESK||!DESK.phoneSet)return;const p=LIVE.phone||{};
+  el.innerHTML=`<h2>Phone screen</h2>
+    <p class="small" style="margin:0">See the leveling steps, this map's mods, your session, trade requests and net worth on your phone while you play. It's read-only and works only on your home network.</p>
+    <label class="row small"><input type="checkbox" id="phOn"${p.enabled?" checked":""}> Turn on the phone screen</label>
+    ${p.enabled?(p.on&&p.urls&&p.urls.length?`<div class="row" style="align-items:flex-start;gap:14px">
+        <div class="qrbox" role="img" aria-label="QR code for the phone link">${p.qr||""}</div>
+        <div class="col" style="gap:6px;flex:1;min-width:200px"><p class="small" style="margin:0"><b>Scan with your phone's camera</b> (same Wi-Fi as this PC), or open:</p>
+          <code class="small" style="word-break:break-all">${esc(p.urls[0])}</code>
+          ${p.urls.length>1?`<details class="small"><summary>Other addresses on this PC</summary>${p.urls.slice(1).map(u=>`<div><code style="word-break:break-all">${esc(u)}</code></div>`).join("")}</details>`:""}
+          <div class="row"><button class="btn ghost small" id="phCopy">Copy link</button><button class="btn ghost small" id="phNew">New link</button></div>
+          <p class="small muted" style="margin:0">The link has a private key: anyone with it on your network can see this screen, so "New link" makes the old one stop working. If Windows asks about the firewall, allow <b>private networks</b> only.</p></div></div>`
+      :`<p class="small ${p.message&&p.message!=="Off"?"err":"muted"}" style="margin:0">${esc(p.message&&p.message!=="Off"?p.message:p.urls&&!p.urls.length?"No home network found: connect this PC to your Wi-Fi or router.":"Starting…")}</p>`):""}
+    <div class="row small"><label for="phPort">Port</label><input id="phPort" type="number" min="1024" max="65535" value="${p.port||47778}" style="width:90px"></div>`;
+  $("phOn").onchange=e=>DESK.phoneSet({on:e.target.checked});
+  $("phPort").onchange=e=>DESK.phoneSet({port:+e.target.value});
+  const c=$("phCopy");if(c)c.onclick=()=>{DESK.copy(p.urls[0]);c.textContent="Copied"};
+  const n=$("phNew");if(n)n.onclick=()=>{DESK.phoneSet({newKey:true});toast("New phone link made: scan the new QR code. The old link no longer works.")};
+}
 function renderStreamCard(){
   const el=$("deskStream");if(!el) return;const c=LIVE.cfg||{};
   el.innerHTML=`<h2>Stream overlay (OBS)</h2>

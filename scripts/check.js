@@ -11,7 +11,7 @@ const pending = [];
 const fail = (msg) => { console.error("✗ " + msg); failures++; };
 const ok = (msg) => console.log("✓ " + msg);
 
-for (const f of ["main.js", "preload.js", "lib/logtail.js", "lib/ggg.js", "lib/discord.js", "lib/clip.js", "lib/diag.js", "lib/files.js", "lib/webhosts.js", "lib/crashlog.js"]) {
+for (const f of ["main.js", "preload.js", "lib/logtail.js", "lib/ggg.js", "lib/discord.js", "lib/clip.js", "lib/diag.js", "lib/files.js", "lib/webhosts.js", "lib/crashlog.js", "lib/qr.js"]) {
   try { new vm.Script(fs.readFileSync(path.join(root, f), "utf8"), { filename: f }); ok(`${f} parses`); }
   catch (e) { fail(`${f}: ${e.message}`); }
 }
@@ -686,6 +686,17 @@ try {
   assert(/ipcMain\.handle\("trade:wait"/.test(fs.readFileSync(path.join(root, "main.js"), "utf8")), "rate-limit wait is reported");
   ok("price popup: newer checks win, stale ones stop, no repeat search without a new item");
 } catch (e) { fail("price popup: " + e.message); }
+
+// QR code for the phone link: the same grids that were checked by decoding them with OpenCV
+try {
+  const { qrMatrix, qrSvg } = require(path.join(root, "lib", "qr.js"));
+  const h = (m) => require("crypto").createHash("sha256").update(m.map((r) => r.map((x) => (x ? 1 : 0)).join("")).join("\n")).digest("hex").slice(0, 16);
+  const cases = [["http://192.168.1.23:47778/?k=Abc123XyZ987Qwe456Rt", 33, "347e6883ff7b3134"], ["http://192.168.100.200:47778/?k=" + "x".repeat(60), 41, "f235e0cb4835adf2"]];
+  for (const [t, n, hash] of cases) { const m = qrMatrix(t); assert.strictEqual(m.length, n, "size"); assert.strictEqual(h(m), hash, "grid changed for " + t.slice(0, 30)); }
+  assert(/^<svg [^>]*viewBox/.test(qrSvg("hi")), "svg");
+  let threw = false; try { qrMatrix("x".repeat(400)); } catch (e) { threw = true; } assert(threw, "too-long text is refused");
+  ok("QR code encoder matches the decoded reference grids");
+} catch (e) { fail("QR code: " + e.message); }
 
 Promise.all(pending).then(() => {
   if (failures) { console.error(`\n${failures} check(s) failed`); process.exit(1); }
