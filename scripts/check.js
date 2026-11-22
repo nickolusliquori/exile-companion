@@ -33,7 +33,7 @@ for (const f of fs.readdirSync(appDir).filter((x) => x.endsWith(".html"))) {
   ok(`${f}: ${i} inline script(s) parse, CSP present`);
 }
 for (const f of fs.readdirSync(path.join(appDir, "js")).filter((x) => x.endsWith(".js"))) {
-  try { const src = fs.readFileSync(path.join(appDir, "js", f), "utf8"); new vm.Script(src, { filename: "js/" + f }); assert(/^(\/\/.*\n)*"use strict";/.test(src), "starts with use strict"); ok(`app/js/${f} parses`); }
+  try { const src = fs.readFileSync(path.join(appDir, "js", f), "utf8"); new vm.Script(src, { filename: "js/" + f }); assert(/^(\/\/[^\n]*\n)*"use strict";/.test(src), "starts with use strict"); ok(`app/js/${f} parses`); }
   catch (e) { fail(`app/js/${f}: ${e.message}`); }
 }
 { // index.html loads every split script, in order, and nothing else is left over

@@ -2,6 +2,12 @@
 
 What changed in each release, newest first. Installed copies update themselves; see the [Releases page](https://github.com/nickolusliquori/exile-companion/releases) for the installers. Planned releases are on the [roadmap](README.md#roadmap).
 
+## [1.30.0] - 2026-11-22
+
+### Changed
+- **Fonts are bundled** with the app (Cinzel and Source Sans 3, SIL Open Font License) instead of loading from Google Fonts, so the app looks the same offline and starts without that request. The pages no longer allow any font or style from Google.
+- **The main window's code is split** into a stylesheet and ten scripts by area (`app/css/app.css`, `app/js/`), down from one 620 KB file. Nothing changes in how the app works; future fixes are smaller and safer. Checked page by page (same text on all 20 pages, same functions) and with the Windows test run.
+
 ## [1.29.0] - 2026-11-22
 
 ### Added
