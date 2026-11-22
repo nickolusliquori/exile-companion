@@ -401,6 +401,39 @@ try {
   ok(`league data: data/league.json (${pub.v}) is valid; newer data applies, bad or older data is ignored`);
 } catch (e) { fail("league data: " + e.message); }
 
+// trade companion hints and vendor recipe sets (functions pulled out of index.html into a sandbox)
+try {
+  const html = fs.readFileSync(path.join(appDir, "index.html"), "utf8");
+  const cut = (from, to) => { const a = html.indexOf(from), b = html.indexOf(to, a + 1); assert(a > 0 && b > a, "section " + from); return html.slice(a, b); };
+  const fam = cut("const BASE_FAMILY=", "\nfunction stashFinds");
+  const code = fam + "\n" + cut("/* ---------- trades (log whispers) ----------", "/* ---------- reminders (notifications) ---------- */");
+  const ctx = { console, S: {}, fmt: (v) => String(Math.round(v)), stripTags: (x) => x, esc: (x) => x, $: () => null, ACCT: {} };
+  vm.createContext(ctx);
+  vm.runInContext(code + "\n;this.__t={recipeSets,recipeSlot,fairHint,tradeCmds,fillReply};", ctx);
+  const T = ctx.__t;
+  const P = { cur: { "Chaos Orb": 1, "Divine Orb": 200 }, ex: { "Divine Orb": 200 }, items: { "Headhunter": [{ chaosValue: 3000 }] } };
+  assert.strictEqual(T.fairHint({ dir: "in", bulk: true, item: "10 Divine Orb", amount: "1500", currency: "Chaos Orb" }, P).cls, "bad", "bulk offer 25% under is flagged");
+  assert.strictEqual(T.fairHint({ dir: "in", bulk: true, item: "1 Divine Orb", amount: "205", currency: "Chaos Orb" }, P).cls, "", "fair bulk offer");
+  assert(/under poe.ninja/.test(T.fairHint({ dir: "in", item: "Headhunter Leather Belt", amount: "5", currency: "divine" }, { ...P, items: { "Headhunter Leather Belt": [{ chaosValue: 3000 }] } }).text), "underpriced listing is flagged");
+  assert.strictEqual(T.fairHint({ dir: "in", item: "Some Rare", amount: "5", currency: "chaos" }, P), null, "no hint without a market price");
+  assert.strictEqual(T.fillReply("@{name} {item} for {price}", { name: "Bob", item: "Doom Loop", amount: "3", currency: "divine" }), "@Bob Doom Loop for 3 divine");
+  assert(T.tradeCmds({ dir: "out", name: "Seller", item: "X" }).some(([l, c]) => c === "/hideout Seller"), "buying gets a hideout button");
+  const W = (name, ilvl, unid, extra) => ({ slot: name, ilvl, unid: !!unid, ...(extra || {}) });
+  const full = (ilvl, unid) => ["helmet", "body", "gloves", "boots", "belt", "amulet", "ring", "ring", "weapon2"].map((s) => W(s, ilvl, unid));
+  let r = T.recipeSets([...full(65, true), ...full(80, false)]);
+  assert.strictEqual(r.chaos.length, 1); assert.strictEqual(r.regal.length, 1); assert(r.chaos[0].unid && !r.regal[0].unid);
+  r = T.recipeSets(full(70, false).filter((x) => x.slot !== "gloves"));
+  assert.strictEqual(r.sets.length, 0); assert.deepStrictEqual(Array.from(r.missing), ["gloves"]);
+  r = T.recipeSets([...full(70).filter((x) => x.slot !== "weapon2"), W("weapon1", 70), W("shield", 70)]);
+  assert.strictEqual(r.sets.length, 1, "one-hander plus shield counts as the weapon");
+  r = T.recipeSets(full(55));
+  assert.strictEqual(r.sets.length, 0, "below item level 60 doesn't count");
+  assert.strictEqual(T.recipeSlot({ baseType: "Two-Stone Ring" }), "ring");
+  assert.strictEqual(T.recipeSlot({ baseType: "Thicket Bow", properties: [{ name: "Bow" }] }), "weapon2");
+  assert.strictEqual(T.recipeSlot({ baseType: "Vaal Regalia", w: 2, h: 3, properties: [{ name: "Energy Shield" }] }), "body");
+  ok("trade companion price hints and quick replies; chaos/regal recipe sets counted correctly");
+} catch (e) { fail("trade companion / recipes: " + e.message); }
+
 Promise.all(pending).then(() => {
   if (failures) { console.error(`\n${failures} check(s) failed`); process.exit(1); }
   console.log("\nAll checks passed");

@@ -2,6 +2,15 @@
 
 What changed in each release, newest first. Installed copies update themselves; see the [Releases page](https://github.com/nickolusliquori/exile-companion/releases) for the installers. Planned releases are on the [roadmap](README.md#roadmap).
 
+## [1.20.0] - 2026-11-22
+
+### Added
+- **Trade companion upgrades** (Desktop tools → Trade requests, and the overlay):
+  - **You're buying:** whispers you send to sellers are listed too, with copy buttons to visit their hideout, ask if it's still for sale, or say thanks.
+  - **Price hints from poe.ninja:** bulk offers that are well under market are flagged, and so is your own listing if it's priced far below market.
+  - **Custom quick replies:** add, rename or remove reply buttons, with {name}, {item} and {price} filled in for each request.
+- **Vendor recipe tracker** (Account page): counts full rare sets for the Chaos Orb recipe (lowest item level 60–74) and Regal Orb recipe (all 75+) in the tabs you include in net worth, with the payout (doubled for unidentified sets), what the next set still needs, and stash searches to copy that highlight the pieces.
+
 ## [1.19.0] - 2026-11-22
 
 ### Added

@@ -251,6 +251,7 @@ section.tab .card{scroll-margin-top:140px}
 .clip-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:6px}
 .clip-it{display:flex;justify-content:space-between;gap:8px;align-items:center;text-align:left;background:var(--panel2,rgba(255,255,255,.03));border:1px solid var(--line);border-radius:8px;padding:6px 10px;color:var(--text);cursor:pointer;font:inherit}
 .clip-it:hover{border-color:var(--gold)}
+.rep-list{display:grid;gap:4px;margin:6px 0}
 .np-big{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}.np-t{font-weight:700;font-size:1.05rem}
 .up-w{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:6px 14px;margin:8px 0}.up-w label{display:flex;justify-content:space-between;align-items:center;gap:8px}.up-w input{width:72px}
 .bt-fit td{background:color-mix(in srgb,var(--good, #6c6) 10%,transparent)}
@@ -614,6 +615,7 @@ header{transition:transform .2s ease}
   <section class="tab" id="tab-account" role="tabpanel">
     <div class="card hl" id="acctChar"></div>
     <div class="card" id="acctNet"></div>
+    <div class="card" id="acctRecipe"></div>
     <div class="grid">
       <div class="card" id="acctFinds"></div>
       <div class="card" id="acctCx"></div>
@@ -2490,7 +2492,7 @@ function renderAccount(){
   $("acRedir").onchange=async e=>{LIVE.cfg=await DESK.setConfig({oauthRedirect:e.target.value.trim()})};
   const si=$("acIn");if(si)si.onclick=async()=>{ACCT.busy="Finish signing in in your browser…";renderAccount();const r=await DESK.login();ACCT.busy=null;if(!r.ok)ACCT.err=r.error;else{ACCT.err=null;ACCT.status=r.data}renderAccount()};
   const so=$("acOut");if(so)so.onclick=async()=>{ACCT.status=await DESK.logout();renderAccount()};
-  renderCharSync();renderNetWorth();renderStashFinds();renderCurrencyTrends();renderSales();
+  renderCharSync();renderNetWorth();renderRecipes();renderStashFinds();renderCurrencyTrends();renderSales();
 }
 function renderCharSync(){
   const el=$("acctChar");if(!el) return;
@@ -2543,7 +2545,7 @@ async function snapshotNetWorth(auto){
     if(!ACCT.err) recordSales(listedAll,P);
     const snap={t:Date.now(),total,byTab,div:P.div,priced,unpriced,top:top.slice(0,25)};
     S.netWorth=(S.netWorth||[]).concat([{t:snap.t,total,div:P.div}]).slice(-300);
-    S.netLatest=snap;save();
+    S.netLatest=snap;save();setTimeout(renderRecipes,0);
     ACCT.stashItems=keep;try{await idbSet("stashItems",keep.map(k=>({tab:k.tab,x:k.x,y:k.y,raw:k.raw})))}catch(e){}
     ACCT.busy=null;
     if(!auto&&S.netWorth.length>1){const prev=S.netWorth[S.netWorth.length-2];DESK.notify({kind:"milestones",title:"Net worth updated",body:`${fmt(total)}c (${total>=prev.total?"+":""}${fmt(total-prev.total)}c since last snapshot)`})}
@@ -2734,23 +2736,115 @@ function renderFilterBuilder(){
   };
 }
 
-/* ---------- trades (log whispers) ---------- */
-const TRADES=[];
+/* ---------- trades (log whispers) ----------
+   Incoming requests (people buying from you) and outgoing ones (you buying), read from Client.txt.
+   Every button only copies text for you to paste in game: the app never types or sends anything. */
+const TRADES=[],BUYS=[];
+const CUR_CODE={chaos:"Chaos Orb",divine:"Divine Orb",exalted:"Exalted Orb",exa:"Exalted Orb",alch:"Orb of Alchemy",alt:"Orb of Alteration",fusing:"Orb of Fusing",chrome:"Chromatic Orb",regal:"Regal Orb",vaal:"Vaal Orb",annul:"Orb of Annulment",gcp:"Gemcutter's Prism",mirror:"Mirror of Kalandra",chance:"Orb of Chance",scour:"Orb of Scouring",regret:"Orb of Regret",blessed:"Blessed Orb",jew:"Jeweller's Orb"};
+function unitPrice(P,name){if(!P||!name)return null;const n=CUR_CODE[String(name).toLowerCase()]||name;
+  if(P.cur[n]!=null)return P.cur[n];if(P.ex[n]!=null)return P.ex[n];const l=(P.items[n]||[]).filter(x=>!x.links||x.links<5).sort((a,b)=>a.chaosValue-b.chaosValue)[0];return l?l.chaosValue:null}
+// is the buyer's offer (bulk) or your own listing price (single item) in line with poe.ninja?
+function fairHint(tr,P){
+  if(!P)return null;
+  const pay=(+String(tr.amount).replace(/,/g,""))*(unitPrice(P,tr.currency)??NaN);if(!isFinite(pay)||pay<=0)return null;
+  let qty=1,name=tr.item;const m=String(tr.item).match(/^([\d.,]+) (.+)$/);if(tr.bulk&&m){qty=+m[1].replace(/,/g,"");name=m[2]}
+  const each=unitPrice(P,name);if(each==null)return null;
+  const worth=qty*each,r=pay/worth;
+  if(tr.dir==="out")return r>1.15?{cls:"warn",text:`Paying ${Math.round((r-1)*100)}% over poe.ninja`}:r<0.85?{cls:"good",text:`${Math.round((1-r)*100)}% under poe.ninja`}:{cls:"",text:"Close to poe.ninja"};
+  return tr.bulk?(r<0.85?{cls:"bad",text:`Offer is ${Math.round((1-r)*100)}% under poe.ninja`}:r>1.15?{cls:"good",text:`${Math.round((r-1)*100)}% over poe.ninja`}:{cls:"",text:"Fair (close to poe.ninja)"})
+    :(r<0.75?{cls:"warn",text:`Your price is ${Math.round((1-r)*100)}% under poe.ninja (~${fmt(worth)}c)`}:null);
+}
+const DEFAULT_REPLIES=[{l:"One moment",t:"@{name} One moment please, finishing a map."},{l:"Thanks",t:"@{name} Thanks, good luck!"}];
+const fillReply=(t,tr)=>String(t).replace(/\{name\}/g,tr.name).replace(/\{item\}/g,tr.item).replace(/\{price\}/g,`${tr.amount} ${tr.currency}`);
 function onTradeEvents(evs){
   let changed=false;
   for(const e of evs){
-    if(e.type==="whisper"&&e.dir==="in"&&e.trade){TRADES.unshift({name:e.name,t:e.t,...e.trade,joined:false,state:"new"});changed=true}
+    if(e.type==="whisper"&&e.trade&&e.dir==="in"){TRADES.unshift({name:e.name,t:e.t,...e.trade,dir:"in",joined:false,state:"new"});changed=true}
+    else if(e.type==="whisper"&&e.trade&&e.dir==="out"){if(!BUYS.some(x=>x.name===e.name&&x.item===e.trade.item&&Date.now()-x.t<10*60e3)){BUYS.unshift({name:e.name,t:e.t,...e.trade,dir:"out"});changed=true}}
     else if(e.type==="join"){const tr=TRADES.find(x=>x.name===e.name&&Date.now()-x.t<30*60e3);if(tr){tr.joined=true;changed=true;DESK.notify({kind:"trades",title:`${e.name} is here`,body:`Buyer for ${tr.item} joined your area.`})}}
   }
-  TRADES.splice(12);
-  if(changed){renderTrades();publishOverlay()}
+  TRADES.splice(12);BUYS.splice(8);
+  if(changed){renderTrades();publishOverlay();if(DESK&&typeof ninjaPrices==="function")ninjaPrices(false).then(P=>{[...TRADES,...BUYS].forEach(t=>{if(t.hint===undefined)t.hint=fairHint(t,P)});renderTrades()}).catch(()=>{})}
 }
-function tradeCmds(tr){return [["Invite",`/invite ${tr.name}`],["Trade",`/tradewith ${tr.name}`],["Sold",`@${tr.name} Sorry, that item is sold.`],["Kick",`/kick ${tr.name}`]]}
+function tradeCmds(tr){
+  const own=(S.tradeReplies||DEFAULT_REPLIES).filter(r=>r&&r.l&&r.t).map(r=>[r.l,fillReply(r.t,tr)]);
+  if(tr.dir==="out")return [["Visit hideout",`/hideout ${tr.name}`],["Still for sale?",`@${tr.name} Hi, is your ${tr.item} still for sale?`],["Thanks",`@${tr.name} Thanks!`]];
+  return [["Invite",`/invite ${tr.name}`],["Trade",`/tradewith ${tr.name}`],["Sold",`@${tr.name} Sorry, that item is sold.`],["Kick",`/kick ${tr.name}`],...own];
+}
+function tradeLi(t,i,list){return `<li class="sg"><div class="row" style="justify-content:space-between"><b>${esc(t.name)}</b>${t.joined?'<span class="pill good">in your area</span>':`<span class="muted">${new Date(t.t).toLocaleTimeString()}</span>`}</div>
+  <div>${esc(t.item)} · <b>${esc(t.amount)} ${esc(t.currency)}</b>${t.tab?` <span class="muted">· "${esc(t.tab)}" left ${t.left}, top ${t.top}</span>`:""}</div>
+  ${t.hint?`<div class="small" style="color:var(--${t.hint.cls==="bad"?"bad":t.hint.cls==="warn"?"warn":t.hint.cls==="good"?"good":"muted"})">${esc(t.hint.text)}</div>`:""}
+  <div class="row" style="margin-top:4px">${tradeCmds(t).map(([l,c],j)=>`<button class="btn ghost small" data-tc="${list}:${i}:${j}" title="${esc(c)}">${esc(l)}</button>`).join("")}<button class="btn ghost small" data-tx="${list}:${i}">Dismiss</button></div></li>`}
 function renderTrades(){
   const el=$("deskTrades");if(!el) return;
-  el.innerHTML=`<h2>Trade requests</h2>${TRADES.length?`<ul class="clean small">${TRADES.map((t,i)=>`<li class="sg"><div class="row" style="justify-content:space-between"><b>${esc(t.name)}</b>${t.joined?'<span class="pill good">in your area</span>':`<span class="muted">${new Date(t.t).toLocaleTimeString()}</span>`}</div><div>${esc(t.item)} · <b>${esc(t.amount)} ${esc(t.currency)}</b>${t.tab?` <span class="muted">· "${esc(t.tab)}" left ${t.left}, top ${t.top}</span>`:""}</div><div class="row" style="margin-top:4px">${tradeCmds(t).map(([l,c],j)=>`<button class="btn ghost small" data-tc="${i}:${j}">${l}</button>`).join("")}<button class="btn ghost small" data-tx="${i}">Dismiss</button></div></li>`).join("")}</ul><p class="small muted" style="margin:0">Buttons copy the command; paste it in game chat with Enter, Ctrl+V, Enter. The app never sends anything for you.</p>`:'<p class="small muted" style="margin:0">Incoming trade whispers show up here (and on the overlay) with the item, price and stash position.</p>'}`;
-  el.querySelectorAll("[data-tc]").forEach(b=>b.onclick=()=>{const [i,j]=b.dataset.tc.split(":").map(Number);DESK.copy(tradeCmds(TRADES[i])[j][1]);b.textContent="Copied"});
-  el.querySelectorAll("[data-tx]").forEach(b=>b.onclick=()=>{const i=+b.dataset.tx,t=TRADES.splice(i,1)[0];renderTrades();publishOverlay();toast(`Dismissed ${t.name}'s request.`,()=>{TRADES.splice(i,0,t);renderTrades();publishOverlay()})});
+  const reps=S.tradeReplies||DEFAULT_REPLIES;
+  el.innerHTML=`<h2>Trade requests</h2>
+    ${TRADES.length?`<ul class="clean small">${TRADES.map((t,i)=>tradeLi(t,i,"in")).join("")}</ul>`:'<p class="small muted" style="margin:0">Incoming trade whispers will show here with the item, price, stash position and quick replies.</p>'}
+    ${BUYS.length?`<h3 style="margin:8px 0 0">You're buying</h3><ul class="clean small">${BUYS.map((t,i)=>tradeLi(t,i,"out")).join("")}</ul>`:""}
+    <p class="small muted" style="margin:0">Buttons copy the command; paste it in game chat with Enter, Ctrl+V, Enter. The app never sends anything for you. Price hints compare with poe.ninja where it has a price.</p>
+    <details class="small"><summary style="cursor:pointer">Quick replies</summary>
+      <div class="rep-list">${reps.map((r,i)=>`<div class="row" style="flex-wrap:nowrap"><input type="text" value="${esc(r.l)}" data-repl="${i}" aria-label="Button label" style="width:110px"><input type="text" value="${esc(r.t)}" data-rept="${i}" aria-label="Message" style="flex:1"><button class="btn ghost small" data-repx="${i}" aria-label="Remove">✕</button></div>`).join("")}</div>
+      <div class="row"><button class="btn ghost small" id="repAdd">Add reply</button><span class="muted">Use {name}, {item} and {price} in the message.</span></div></details>`;
+  const listOf=k=>k==="out"?BUYS:TRADES;
+  el.querySelectorAll("[data-tc]").forEach(b=>b.onclick=()=>{const [k,i,j]=b.dataset.tc.split(":");const t=listOf(k)[+i];DESK.copy(tradeCmds(t)[+j][1]);b.textContent="Copied"});
+  el.querySelectorAll("[data-tx]").forEach(b=>b.onclick=()=>{const [k,i]=b.dataset.tx.split(":");const L=listOf(k),t=L.splice(+i,1)[0];renderTrades();publishOverlay();toast(`Dismissed ${t.name}'s ${k==="out"?"listing":"request"}.`,()=>{L.splice(+i,0,t);renderTrades();publishOverlay()})});
+  const setReps=f=>{const r=(S.tradeReplies||DEFAULT_REPLIES).map(x=>({...x}));f(r);S.tradeReplies=r;save()};
+  el.querySelectorAll("[data-repl]").forEach(x=>x.onchange=()=>setReps(r=>{r[+x.dataset.repl].l=x.value.trim().slice(0,24)}));
+  el.querySelectorAll("[data-rept]").forEach(x=>x.onchange=()=>setReps(r=>{r[+x.dataset.rept].t=x.value.slice(0,240)}));
+  el.querySelectorAll("[data-repx]").forEach(x=>x.onclick=()=>{setReps(r=>r.splice(+x.dataset.repx,1));renderTrades();el.querySelector("details").open=true});
+  $("repAdd").onclick=()=>{setReps(r=>r.push({l:"Reply",t:"@{name} "}));renderTrades();el.querySelector("details").open=true};
+}
+
+/* ---------- vendor recipes (chaos / regal) from stash snapshots ---------- */
+const WEAPON_CLASS=/^(Bow|Claw|Dagger|Rune Dagger|Wand|Sceptre|Staff|Warstaff|One Handed (Sword|Axe|Mace)|Two Handed (Sword|Axe|Mace)|Thrusting One Handed Sword|Fishing Rod)$/;
+function recipeSlot(raw){
+  const base=stripTags(raw.baseType||raw.typeLine||"");const fam=familyOf(base);
+  if(["ring","amulet","belt","boots","gloves","helmet","shield"].includes(fam))return fam;
+  const p0=raw.properties&&raw.properties[0]&&raw.properties[0].name;
+  if(p0&&WEAPON_CLASS.test(p0))return /Two Handed|Bow|Staff|Warstaff/.test(p0)?"weapon2":"weapon1";
+  const armourish=(raw.properties||[]).some(p=>/Armour|Evasion Rating|Energy Shield|Ward/.test(p.name));
+  if(armourish&&raw.w===2&&raw.h===3)return "body";
+  return null;
+}
+// how many full sets you can vendor, split into chaos (lowest piece ilvl 60-74) and regal (all 75+)
+function recipeSets(items){
+  const pieces=items.filter(x=>x&&x.slot&&x.ilvl>=60);
+  const need=["helmet","body","gloves","boots","belt","amulet"];
+  const pool=pieces.slice();const take=(slot,pred)=>{const i=pool.findIndex(x=>x.slot===slot&&pred(x));return i>=0?pool.splice(i,1)[0]:null};
+  const sets=[];
+  const tryBuild=(unidOnly)=>{const pred=x=>!unidOnly||x.unid;const snapshot=pool.slice();
+    // prefer to spend one 60-74 piece per set and keep the rest high for regal sets later
+    const set=[];const lowFirst=(slot)=>take(slot,x=>pred(x)&&x.ilvl<75)||take(slot,pred);
+    for(const sl of need){const p=lowFirst(sl);if(!p){pool.splice(0,pool.length,...snapshot);return null}set.push(p)}
+    const r1=lowFirst("ring"),r2=r1&&take("ring",pred);if(!r1||!r2){pool.splice(0,pool.length,...snapshot);return null}set.push(r1,r2);
+    const w2=take("weapon2",pred);if(w2)set.push(w2);else{const a=take("weapon1",pred)||null;const b=a&&(take("weapon1",pred)||take("shield",pred));if(!a||!b){pool.splice(0,pool.length,...snapshot);return null}set.push(a,b)}
+    return set};
+  for(const unid of [true,false]){let s;while((s=tryBuild(unid)))sets.push({items:s,unid:s.every(x=>x.unid),regal:Math.min(...s.map(x=>x.ilvl))>=75})}
+  const have={};pieces.forEach(x=>{have[x.slot]=(have[x.slot]||0)+1});
+  const left={};pool.forEach(x=>{left[x.slot]=(left[x.slot]||0)+1});
+  const missing=need.filter(sl=>!left[sl]);if((left.ring||0)<2)missing.push((left.ring||0)?"1 ring":"2 rings");
+  if(!left.weapon2&&!((left.weapon1||0)+(left.shield||0)>=2&&left.weapon1))missing.push("weapon (a two-hander, or a one-hander with a shield or second one-hander)");
+  return {sets,have,missing,chaos:sets.filter(s=>!s.regal),regal:sets.filter(s=>s.regal)};
+}
+function renderRecipes(){
+  const el=$("acctRecipe");if(!el)return;
+  const items=(ACCT.stashItems||[]).filter(k=>k.raw&&k.raw.frameType===2).map(k=>({slot:recipeSlot(k.raw),ilvl:k.raw.ilvl||0,unid:k.raw.identified===false,tab:k.tab}));
+  if(!items.length){el.innerHTML=`<h2>Vendor recipes</h2>${emptyBox("Take a net worth snapshot first: the recipe tracker reads the rare items in the tabs you include.",[["Take snapshot","netSnap"]])}`;
+    el.querySelectorAll('[data-fix="netSnap"]').forEach(b=>b.onclick=e=>{e.stopPropagation();snapshotNetWorth(false)});return}
+  const r=recipeSets(items);
+  const pay=s=>s.regal?(s.unid?"2 Regal Orbs":"1 Regal Orb"):(s.unid?"2 Chaos Orbs":"1 Chaos Orb");
+  const chaosC=r.chaos.reduce((a,s)=>a+(s.unid?2:1),0),regalC=r.regal.reduce((a,s)=>a+(s.unid?2:1),0);
+  const SLOTS=[["helmet","Helmets"],["body","Body armours"],["gloves","Gloves"],["boots","Boots"],["belt","Belts"],["amulet","Amulets"],["ring","Rings"],["weapon2","Two-handers"],["weapon1","One-handers"],["shield","Shields"]];
+  const searches=[["Chaos pieces",'"rarity: rare" "item level: (6\\d|7[0-4])"'],["Regal pieces",'"rarity: rare" "item level: (7[5-9]|8\\d)"'],["Unidentified rares","\"rarity: rare\" unidentified"]];
+  el.innerHTML=`<h2>Vendor recipes</h2>
+    <p class="small muted" style="margin:0">Full sets of rare gear (item level 60+) sell to any vendor: lowest piece 60–74 for Chaos Orbs, all 75+ for Regal Orbs, doubled if every piece is unidentified. From your last snapshot of the tabs you include.</p>
+    <div class="row"><div class="stat"><div class="k">Chaos sets</div><div class="v">${r.chaos.length}</div></div><div class="stat"><div class="k">Regal sets</div><div class="v">${r.regal.length}</div></div><div class="stat"><div class="k">Payout</div><div class="v small">${chaosC} chaos${regalC?` · ${regalC} regal`:""}</div></div></div>
+    ${r.sets.length?`<p class="small" style="margin:0">${r.sets.map(s=>pay(s)).join(" · ")}</p>`:""}
+    <p class="small" style="margin:0"><b>Next set needs:</b> ${r.missing.length?esc(r.missing.join(", ")):"nothing: you have another full set"}</p>
+    <div class="row small">${SLOTS.map(([k,l])=>`<span class="pill">${l}: ${r.have[k]||0}</span>`).join("")}</div>
+    <div class="row">${searches.map(([l,q],i)=>`<button class="btn ghost small" data-rcs="${i}" title="${esc(q)}">Copy search: ${l}</button>`).join("")}</div>
+    <p class="small muted" style="margin:0">Paste a search into your stash's search box (Ctrl+F, Ctrl+V) to highlight those items. The 3.30 patch notes didn't mention the recipe, so this follows how it worked in 3.29.</p>`;
+  el.querySelectorAll("[data-rcs]").forEach(b=>b.onclick=()=>{DESK.copy(searches[+b.dataset.rcs][1]);b.textContent="Copied"});
 }
 
 /* ---------- reminders (notifications) ---------- */
@@ -3631,7 +3725,7 @@ setInterval(()=>{if(CUR_TAB==="home"&&!document.hidden)renderHome()},10000);
 const cmdk=$("cmdk");let CMDK=[],CMDK_SEL=0,CMDK_ITEMS=[];
 function cmdkIndex(){
   const out=[], names={};document.querySelectorAll("#tabs [data-tab]").forEach(b=>names[b.dataset.tab]=b.textContent.trim());
-  const acts=[["Import goal build",()=>openImport("goal")],["Import current character",()=>openImport("current")],["Run setup wizard",()=>openWizard()],["Report a problem",()=>openReport()],["Edit my loot filter",()=>showTab("filter")],["Build a map search",()=>showTab("trading")],["Plan Threads per map",()=>showTab("league")],["Saved trade searches",()=>{showTab("trading");scrollToCard("ttSaved")}],["Set a session goal",()=>{showTab("session");scrollToCard("sessGoal")}],["Recent price checks",()=>{showTab("home");scrollToCard("homeClip")}],["Open the media player",()=>{if(DESK&&DESK.mediaToggle)DESK.mediaToggle({show:true})}],["Media controls",()=>showTab("media")],["Pin the browser over the game",()=>{if(DESK&&DESK.pinToggle)DESK.pinToggle({show:true})}],["Find gear upgrades",()=>{showTab("buildtools");scrollToCard("btUpg")}],["Timeless jewel lookup",()=>showTab("buildtools")],["Cluster jewel notables",()=>{showTab("buildtools");scrollToCard("btCluster")}],["Gem levelling profit",()=>{showTab("buildtools");scrollToCard("btGems")}],["Betrayal board",()=>{showTab("league");scrollToCard("lgBetrayal")}],["Price a dump tab",()=>{showTab("trading");scrollToCard("ttDump")}],["Open the trade site",()=>{showTab("browser");brGo("https://www.pathofexile.com/trade")}],["Open poe.ninja",()=>{showTab("browser");brGo("https://poe.ninja/economy")}],["Open the wiki",()=>{showTab("browser");brGo("https://www.poewiki.net/wiki/Path_of_Exile_Wiki")}],[S.compact?"Turn compact mode off":"Turn compact mode on",()=>setCompact(!S.compact)]];
+  const acts=[["Import goal build",()=>openImport("goal")],["Import current character",()=>openImport("current")],["Run setup wizard",()=>openWizard()],["Report a problem",()=>openReport()],["Edit my loot filter",()=>showTab("filter")],["Build a map search",()=>showTab("trading")],["Plan Threads per map",()=>showTab("league")],["Chaos recipe sets",()=>{showTab("account");scrollToCard("acctRecipe")}],["Saved trade searches",()=>{showTab("trading");scrollToCard("ttSaved")}],["Set a session goal",()=>{showTab("session");scrollToCard("sessGoal")}],["Recent price checks",()=>{showTab("home");scrollToCard("homeClip")}],["Open the media player",()=>{if(DESK&&DESK.mediaToggle)DESK.mediaToggle({show:true})}],["Media controls",()=>showTab("media")],["Pin the browser over the game",()=>{if(DESK&&DESK.pinToggle)DESK.pinToggle({show:true})}],["Find gear upgrades",()=>{showTab("buildtools");scrollToCard("btUpg")}],["Timeless jewel lookup",()=>showTab("buildtools")],["Cluster jewel notables",()=>{showTab("buildtools");scrollToCard("btCluster")}],["Gem levelling profit",()=>{showTab("buildtools");scrollToCard("btGems")}],["Betrayal board",()=>{showTab("league");scrollToCard("lgBetrayal")}],["Price a dump tab",()=>{showTab("trading");scrollToCard("ttDump")}],["Open the trade site",()=>{showTab("browser");brGo("https://www.pathofexile.com/trade")}],["Open poe.ninja",()=>{showTab("browser");brGo("https://poe.ninja/economy")}],["Open the wiki",()=>{showTab("browser");brGo("https://www.poewiki.net/wiki/Path_of_Exile_Wiki")}],[S.compact?"Turn compact mode off":"Turn compact mode on",()=>setCompact(!S.compact)]];
   if(DESK)acts.push(["Change hotkeys",()=>{showTab("settings");scrollToCard("setHotkeys")}]);
   if($("sessToggle"))acts.push([S.session.start?"Pause session timer":"Start session timer",()=>$("sessToggle").click()]);
   if(DESK){acts.push([LIVE.overlayVisible?"Hide overlay":"Show overlay",()=>DESK.toggleOverlay(!LIVE.overlayVisible)]);
@@ -3703,6 +3797,7 @@ const FIX={
 document.addEventListener("click",e=>{const b=e.target.closest("[data-fix]");if(b&&FIX[b.dataset.fix]){e.preventDefault();if(b.closest("#setup"))$("setup").close();FIX[b.dataset.fix]()}});
 
 const HELP={
+  acctRecipe:"Counts full sets of rare gear in the stash tabs you include in net worth: helmet, body, gloves, boots, belt, amulet, two rings and a weapon (two-hander, or one-hander plus shield or second one-hander). Lowest item level 60–74 gives Chaos Orbs, all 75+ gives Regal Orbs; unidentified sets pay double.",
   mediaNow:"Shows what's playing anywhere in Windows (Spotify, Apple Music, a Netflix or YouTube tab in your browser, Stremio…) through Windows' own media controls, with play/pause and skip. The overlay shows it too; its buttons work in click mode.",
   mediaPlayer:"A small always-on-top player over the game for YouTube, YouTube Music, Twitch, Kick and SoundCloud. Click-through lets your clicks pass to the game. Netflix, Hulu, Disney+, Apple Music and similar can't play in it: they need copy protection the app doesn't have.",
   btUpg:"Each slot gets a score: the sum of its stats times your weights. Searches ask the trade site for items scoring at least 10% higher, cheapest first, and rank them by score gained per divine. Searches are paced to stay within the trade site's limits.",
@@ -4008,7 +4103,7 @@ function decorateNav(){
   const sb=$("openSearch");if(sb&&!sb.querySelector("svg")){const g=sb.querySelector('span[aria-hidden]');if(g)g.remove();sb.insertAdjacentHTML("afterbegin",svgIcon("search"))}
 }
 decorateNav();
-const CARD_ICONS={ttSaved:"save",mediaNow:"bell",mediaPlayer:"video",btUpg:"trade",sessGoal:"flag",homeClip:"refresh",btTimeless:"gem",btCluster:"gem",btMeta:"chart",btGems:"coins",lgThreads:"coins",lgReturn:"chart",lgBetrayal:"skull",lgExped:"compass",lgHeist:"key",lgLab:"route",lgDrops:"map",homeChar:"user",homeNext:"route",homeSession:"hourglass",homeLive:"bolt",homeQuick:"wand",
+const CARD_ICONS={acctRecipe:"coins",ttSaved:"save",mediaNow:"bell",mediaPlayer:"video",btUpg:"trade",sessGoal:"flag",homeClip:"refresh",btTimeless:"gem",btCluster:"gem",btMeta:"chart",btGems:"coins",lgThreads:"coins",lgReturn:"chart",lgBetrayal:"skull",lgExped:"compass",lgHeist:"key",lgLab:"route",lgDrops:"map",homeChar:"user",homeNext:"route",homeSession:"hourglass",homeLive:"bolt",homeQuick:"wand",
   buildSummary:"user",buildDefence:"shield",buildSkills:"gem",buildGear:"sword",buildNotes:"news",
   progSummary:"chart",progNext:"list",progCost:"coins",progStats:"chart",progTree:"tree",progGems:"gem",progItems:"sword",
   shopSummary:"bag",shopGems:"gem",shopItems:"sword",shopFilter:"filter",
