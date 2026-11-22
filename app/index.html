@@ -251,6 +251,7 @@ section.tab .card{scroll-margin-top:140px}
 .clip-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:6px}
 .clip-it{display:flex;justify-content:space-between;gap:8px;align-items:center;text-align:left;background:var(--panel2,rgba(255,255,255,.03));border:1px solid var(--line);border-radius:8px;padding:6px 10px;color:var(--text);cursor:pointer;font:inherit}
 .clip-it:hover{border-color:var(--gold)}
+.up-w{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:6px 14px;margin:8px 0}.up-w label{display:flex;justify-content:space-between;align-items:center;gap:8px}.up-w input{width:72px}
 .bt-fit td{background:color-mix(in srgb,var(--good, #6c6) 10%,transparent)}
 .bt-want{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:4px 12px;max-height:240px;overflow:auto;padding-right:4px}
 .lg-syn td{vertical-align:top;min-width:120px}.lg-syn td select{min-width:110px}
@@ -3560,7 +3561,7 @@ setInterval(()=>{if(CUR_TAB==="home"&&!document.hidden)renderHome()},10000);
 const cmdk=$("cmdk");let CMDK=[],CMDK_SEL=0,CMDK_ITEMS=[];
 function cmdkIndex(){
   const out=[], names={};document.querySelectorAll("#tabs [data-tab]").forEach(b=>names[b.dataset.tab]=b.textContent.trim());
-  const acts=[["Import goal build",()=>openImport("goal")],["Import current character",()=>openImport("current")],["Run setup wizard",()=>openWizard()],["Report a problem",()=>openReport()],["Edit my loot filter",()=>showTab("filter")],["Build a map search",()=>showTab("trading")],["Plan Threads per map",()=>showTab("league")],["Set a session goal",()=>{showTab("session");scrollToCard("sessGoal")}],["Recent price checks",()=>{showTab("home");scrollToCard("homeClip")}],["Pin the browser over the game",()=>{if(DESK&&DESK.pinToggle)DESK.pinToggle({show:true})}],["Timeless jewel lookup",()=>showTab("buildtools")],["Cluster jewel notables",()=>{showTab("buildtools");scrollToCard("btCluster")}],["Gem levelling profit",()=>{showTab("buildtools");scrollToCard("btGems")}],["Betrayal board",()=>{showTab("league");scrollToCard("lgBetrayal")}],["Price a dump tab",()=>{showTab("trading");scrollToCard("ttDump")}],["Open the trade site",()=>{showTab("browser");brGo("https://www.pathofexile.com/trade")}],["Open poe.ninja",()=>{showTab("browser");brGo("https://poe.ninja/economy")}],["Open the wiki",()=>{showTab("browser");brGo("https://www.poewiki.net/wiki/Path_of_Exile_Wiki")}],[S.compact?"Turn compact mode off":"Turn compact mode on",()=>setCompact(!S.compact)]];
+  const acts=[["Import goal build",()=>openImport("goal")],["Import current character",()=>openImport("current")],["Run setup wizard",()=>openWizard()],["Report a problem",()=>openReport()],["Edit my loot filter",()=>showTab("filter")],["Build a map search",()=>showTab("trading")],["Plan Threads per map",()=>showTab("league")],["Set a session goal",()=>{showTab("session");scrollToCard("sessGoal")}],["Recent price checks",()=>{showTab("home");scrollToCard("homeClip")}],["Pin the browser over the game",()=>{if(DESK&&DESK.pinToggle)DESK.pinToggle({show:true})}],["Find gear upgrades",()=>{showTab("buildtools");scrollToCard("btUpg")}],["Timeless jewel lookup",()=>showTab("buildtools")],["Cluster jewel notables",()=>{showTab("buildtools");scrollToCard("btCluster")}],["Gem levelling profit",()=>{showTab("buildtools");scrollToCard("btGems")}],["Betrayal board",()=>{showTab("league");scrollToCard("lgBetrayal")}],["Price a dump tab",()=>{showTab("trading");scrollToCard("ttDump")}],["Open the trade site",()=>{showTab("browser");brGo("https://www.pathofexile.com/trade")}],["Open poe.ninja",()=>{showTab("browser");brGo("https://poe.ninja/economy")}],["Open the wiki",()=>{showTab("browser");brGo("https://www.poewiki.net/wiki/Path_of_Exile_Wiki")}],[S.compact?"Turn compact mode off":"Turn compact mode on",()=>setCompact(!S.compact)]];
   if(DESK)acts.push(["Change hotkeys",()=>{showTab("settings");scrollToCard("setHotkeys")}]);
   if($("sessToggle"))acts.push([S.session.start?"Pause session timer":"Start session timer",()=>$("sessToggle").click()]);
   if(DESK){acts.push([LIVE.overlayVisible?"Hide overlay":"Show overlay",()=>DESK.toggleOverlay(!LIVE.overlayVisible)]);
@@ -3632,6 +3633,7 @@ const FIX={
 document.addEventListener("click",e=>{const b=e.target.closest("[data-fix]");if(b&&FIX[b.dataset.fix]){e.preventDefault();if(b.closest("#setup"))$("setup").close();FIX[b.dataset.fix]()}});
 
 const HELP={
+  btUpg:"Each slot gets a score: the sum of its stats times your weights. Searches ask the trade site for items scoring at least 10% higher, cheapest first, and rank them by score gained per divine. Searches are paced to stay within the trade site's limits.",
   sessGoal:"Set a target for this session: divines or chaos earned (maps you log plus sales), maps run, or hours played. Progress shows on Home and the overlay, and you get a notification when you reach it.",
   btTimeless:"Pick a timeless jewel, seed, conqueror and socket to see what each notable in its radius becomes. Find seeds ranks every seed by how many notables get the results you tick. Data from Path of Building.",
   btGems:"Uncorrupted gem prices from poe.ninja: what a gem costs at low level and what it sells for levelled (and with 20% quality). Listings filter out thin markets.",
@@ -3934,7 +3936,7 @@ function decorateNav(){
   const sb=$("openSearch");if(sb&&!sb.querySelector("svg")){const g=sb.querySelector('span[aria-hidden]');if(g)g.remove();sb.insertAdjacentHTML("afterbegin",svgIcon("search"))}
 }
 decorateNav();
-const CARD_ICONS={sessGoal:"flag",homeClip:"refresh",btTimeless:"gem",btCluster:"gem",btMeta:"chart",btGems:"coins",lgThreads:"coins",lgReturn:"chart",lgBetrayal:"skull",lgExped:"compass",lgHeist:"key",lgLab:"route",lgDrops:"map",homeChar:"user",homeNext:"route",homeSession:"hourglass",homeLive:"bolt",homeQuick:"wand",
+const CARD_ICONS={btUpg:"trade",sessGoal:"flag",homeClip:"refresh",btTimeless:"gem",btCluster:"gem",btMeta:"chart",btGems:"coins",lgThreads:"coins",lgReturn:"chart",lgBetrayal:"skull",lgExped:"compass",lgHeist:"key",lgLab:"route",lgDrops:"map",homeChar:"user",homeNext:"route",homeSession:"hourglass",homeLive:"bolt",homeQuick:"wand",
   buildSummary:"user",buildDefence:"shield",buildSkills:"gem",buildGear:"sword",buildNotes:"news",
   progSummary:"chart",progNext:"list",progCost:"coins",progStats:"chart",progTree:"tree",progGems:"gem",progItems:"sword",
   shopSummary:"bag",shopGems:"gem",shopItems:"sword",shopFilter:"filter",

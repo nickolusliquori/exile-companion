@@ -425,6 +425,10 @@ const ALLOWED_HOSTS = ["www.pathofexile.com", "pathofexile.com", "poe.ninja", "w
 const cache = new Map(); // url -> {t, data}
 const userAgent = () => `ExileCompanion/${VERSION} (desktop companion for Path of Exile${cfg.contact ? "; contact: " + cfg.contact : ""})`;
 let tradeBlockedUntil = 0;
+const { createLimiter, groupOf } = require("./lib/ratelimit");
+const tradeLimiter = createLimiter();
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+let tradeQueue = Promise.resolve();
 async function http({ url, method = "GET", body = null, cacheMs = 0, text = false }) {
   const u = new URL(url);
   if (u.protocol !== "https:" || !ALLOWED_HOSTS.includes(u.hostname)) throw new Error("Host not allowed: " + u.hostname);
@@ -433,12 +437,27 @@ async function http({ url, method = "GET", body = null, cacheMs = 0, text = fals
   if (cacheMs && hit && Date.now() - hit.t < cacheMs) return { ...hit.res, cached: true };
   const isTrade = u.hostname.endsWith("pathofexile.com");
   if (isTrade && Date.now() < tradeBlockedUntil) return { status: 429, retryAfter: Math.ceil((tradeBlockedUntil - Date.now()) / 1000), data: null };
+  // trade requests go out one at a time, paced to stay under GGG's limits (waits longer than 20 s report "busy" instead)
+  const group = isTrade ? groupOf(url) : null;
+  if (isTrade) {
+    const turn = tradeQueue.then(async () => {
+      const w = tradeLimiter.waitFor(group);
+      if (w > 20000) return w;
+      if (w) await sleep(w);
+      tradeLimiter.sent(group);
+      return 0;
+    });
+    tradeQueue = turn.catch(() => 0);
+    const tooLong = await turn;
+    if (tooLong) return { status: 429, retryAfter: Math.ceil(tooLong / 1000), data: null };
+  }
   const res = await fetch(url, {
     method, headers: { "User-Agent": userAgent(), "Accept": text ? "text/html,text/plain,*/*" : "application/json", ...(body ? { "Content-Type": "application/json" } : {}) },
     body: body ? JSON.stringify(body) : undefined,
   });
   let data = null; try { data = text ? await res.text() : await res.json(); } catch (e) { data = null; }
   const retryAfter = +res.headers.get("retry-after") || 0;
+  if (isTrade) tradeLimiter.learn(group, (h) => res.headers.get(h));
   if (isTrade && res.status === 429) tradeBlockedUntil = Date.now() + Math.max(retryAfter, 10) * 1000;
   const out = { status: res.status, retryAfter, data, rate: res.headers.get("x-rate-limit-ip-state") || "" };
   if (cacheMs && res.ok) cache.set(key, { t: Date.now(), res: out });

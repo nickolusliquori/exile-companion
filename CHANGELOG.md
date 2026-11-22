@@ -2,6 +2,14 @@
 
 What changed in each release, newest first. Installed copies update themselves; see the [Releases page](https://github.com/nickolusliquori/exile-companion/releases) for the installers. Planned releases are on the [roadmap](README.md#roadmap).
 
+## [1.15.0] - 2026-11-22
+
+### Added
+- **Upgrade finder** (top of Character → Build tools): scores each gear slot (helmet, body, gloves, boots, belt, amulet, rings) by the stats your build values. Weights start from your goal build: life or energy shield, resistances you haven't capped, attack or spell stats for your main skill, movement speed on boots. You can change any of them. **Search** or **Check all slots** asks the trade site for items scoring at least 10% more than what you wear, with an optional max price, and ranks them by score gained per divine. Copy a seller's whisper or open the search on the trade site.
+
+### Changed
+- Trade site requests are now paced using the rate limits GGG publishes with each response, so price checks and searches wait their turn instead of getting the app temporarily blocked.
+
 ## [1.14.0] - 2026-11-21
 
 ### Added

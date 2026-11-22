@@ -91,7 +91,7 @@ Your character at a glance: progress toward the goal build, what to do next (cam
 | **Loot filter** | Edit the NeverSink filter you use: show or hide rules, restyle them (size, colours, sound, beam, minimap icon), preview 36 typical drops through it, re-tier currency, cards and uniques with today's poe.ninja prices, and add highlights for your build. Saves a separate `ExileCompanion-…` copy; your original is never changed. |
 | **Trading** | A map search builder that hides every tier of the mods you won't run (like poe.re), ready-made vendor searches, a dump-tab pricer that writes `~b/o` notes to copy onto items, a currency flip watcher, and divination card and unique collections. |
 | **League** | Built for 3.30's Threads: the cost of the Threads you put in each map (with free Shaped Region Threads and the 8-Thread cap), what each strategy returns for the Threads you spend (from your map log), a Betrayal board with the 3.30 rewards and the moves left to reach your plan, Expedition currency values, and Heist and Labyrinth notes. |
-| **Build tools** | Timeless jewel lookup and seed finder (Lethal Pride, Brutal Restraint, Militant Faith, Elegant Hubris, Heroic Tragedy) using Path of Building's tables, with a trade search for the seed. Also: cluster jewel notables and their odds for each enchant, gem levelling profit from poe.ninja, and a meta check against poe.ninja's builds page. |
+| **Build tools** | Upgrade finder: scores your gear by the stats your build values and finds trade items that beat each slot, ranked by score gained per divine. Timeless jewel lookup and seed finder (Lethal Pride, Brutal Restraint, Militant Faith, Elegant Hubris, Heroic Tragedy) using Path of Building's tables, with a trade search for the seed. Also: cluster jewel notables and their odds for each enchant, gem levelling profit from poe.ninja, and a meta check against poe.ninja's builds page. |
 | **Quality of life** | Recent price checks: the last 20 items you copied, each re-checkable with one click (kept in memory only). Session goals (divines, chaos, maps or hours) with progress on Home and the overlay and a notification when reached. The in-app browser pinned over the game in an always-on-top window, with a hotkey and adjustable see-through. |
 | **Look and feel** | Three themes (Dark minimal, Modern, Path of Exile), light animations that respect Windows "reduce motion", a loading bar, and minimal synthesized sounds (button clicks, a cue for empty required fields) with volume control. |
 | **Browser** (desktop) | The trade site, poe.ninja, the wiki, poedb, poelab, Craft of Exile, FilterBlade, poe.re and pobb.in inside the app, signed in, with quick links and a wiki search. Links from the price window and elsewhere open here. Pages are sandboxed away from the app and your saved secrets; other sites open in your own browser. |
@@ -140,7 +140,9 @@ The loot filter editor shipped in 1.8, the in-app browser in 1.9, the trading to
 
 | Version | Feature |
 |---|---|
-| Next | Ideas welcome: open a feature request on GitHub or use Settings → Report a problem.|
+| **1.16** | **Price check depth:** tick individual mods, adjust ranges and see roll tiers in the price popup.|
+| **1.17** | **Media:** a YouTube / YouTube Music / Twitch mini player over the game, plus a Now playing bar with controls for whatever plays in Windows (Spotify, Apple Music, Netflix in a browser…).|
+| **1.18** | **Data and history:** league data that updates without an app release, a net worth graph and saved trade searches.|
 
 Not planned: anything that sends input to the game (auto-setting stash notes, chat macros) or uploads to your GGG account, because GGG isn't approving new third-party sign-ins.
 

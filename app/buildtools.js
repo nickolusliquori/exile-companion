@@ -111,10 +111,12 @@ async function seedSearch(T,name,socket,want,onlyIds){
 /* ---------- UI ---------- */
 async function render(){
   const root=$("buildTools");if(!root)return;
-  root.innerHTML=`<div class="card hl" id="btTimeless"></div>
+  root.innerHTML=`<div class="card hl" id="btUpg"></div>
+    <div class="card" id="btTimeless"></div>
     <div class="grid"><div class="card" id="btCluster"></div><div class="card" id="btMeta"></div></div>
     <div class="card" id="btGems"></div>`;
   renderMeta();renderTimeless();
+  loadScriptOnce("upgrades.js","Upgrades").then(()=>Upgrades.render()).catch(e=>{const u=$("btUpg");if(u)u.innerHTML=`<h2>Upgrade finder</h2>${emptyBox("Couldn't load: "+(e.message||e))}`});
   if(!window.CLUSTERDATA){try{await loadScriptOnce("clusterdata.js","CLUSTERDATA")}catch(e){}}
   renderCluster();renderGems();
   if(typeof DESK!=="undefined"&&DESK&&typeof ninjaPrices==="function"){try{P=await ninjaPrices(false)}catch(e){P=null}renderGems()}

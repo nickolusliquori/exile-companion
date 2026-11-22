@@ -301,6 +301,48 @@ try {
   ok("look and feel: 3 themes, applied before paint, motion respects Windows settings, sounds synthesized");
 } catch (e) { fail("look and feel: " + e.message); }
 
+// trade rate limiter and upgrade finder
+try {
+  const { createLimiter, parseRules, groupOf } = require(path.join(root, "lib", "ratelimit.js"));
+  assert.deepStrictEqual(parseRules("8:10:60,15:60:120"), [{ max: 8, period: 10 }, { max: 15, period: 60 }]);
+  assert.strictEqual(groupOf("https://www.pathofexile.com/api/trade/search/Standard"), "trade-search");
+  assert.strictEqual(groupOf("https://www.pathofexile.com/api/trade/fetch/a,b?query=x"), "trade-fetch");
+  let t = 0; const L = createLimiter({ now: () => t });
+  L.learn("trade-search", (h) => ({ "x-rate-limit-rules": "Ip", "x-rate-limit-ip": "5:10:60,15:60:120" })[h]);
+  for (let i = 0; i < 4; i++) { assert.strictEqual(L.waitFor("trade-search"), 0, "first requests go straight out"); L.sent("trade-search"); t += 100; }
+  const w = L.waitFor("trade-search"); assert(w > 9000 && w <= 10100, "waits for the 10 s window before the 5th: " + w);
+  t += w; assert.strictEqual(L.waitFor("trade-search"), 0, "free again after the window");
+  for (let i = 0; i < 20; i++) { t += L.waitFor("trade-search"); L.sent("trade-search"); }
+  const recent = L._groups.get("trade-search").sent.filter((x) => t - x < 60000).length; assert(recent <= 14, "never more than max-1 in the 60 s window: " + recent);
+  assert.strictEqual(L.waitFor("trade-fetch"), 0, "groups are paced separately");
+
+  const ctx = { console, S: {}, save() {}, toast() {}, emptyBox: (m) => m, $: () => null, DESK: null };
+  ctx.window = ctx; vm.createContext(ctx);
+  vm.runInContext(fs.readFileSync(path.join(appDir, "upgrades.js"), "utf8"), ctx);
+  const U = ctx.Upgrades._test;
+  const w1 = U.defaultWeights({ esBased: false, elems: ["lightning"], minion: false }, { res: { fire: 75, cold: 60, lightning: 75, chaos: -30 } }, "Lightning Arrow Mirage Archer Elemental Damage with Attacks");
+  assert(w1.life && !w1.es && w1.coldRes > w1.fireRes, "uncapped resistances weigh more");
+  assert(w1.atkSpeed && w1.addsLightning && !w1.castSpeed, "attack build gets attack stats");
+  const w2 = U.defaultWeights({ esBased: true, elems: ["cold"], minion: false }, { res: {} }, "Frostbolt Controlled Destruction Spell Echo");
+  assert(w2.es && w2.castSpeed && w2.incCold && !w2.atkSpeed, "spell ES build gets spell stats");
+  const ring = { implicits: [{ text: "+20 to maximum Energy Shield" }], mods: [{ text: "+70 to maximum Life" }, { text: "+40 to Strength" }, { text: "+12% to all Elemental Resistances" }, { text: "+30% to Fire and Cold Resistances" }, { text: "Adds 10 to 50 Lightning Damage to Attacks" }, { text: "+15% to Cold and Chaos Resistances" }] };
+  const sc = U.score(U.itemLines(ring), { life: 1, fireRes: 1, coldRes: 1, lightningRes: 1, chaosRes: 1, addsLightning: 2 }, "Ring 1");
+  assert.strictEqual(sc.parts.life, 90, "life includes half of strength");
+  assert.deepStrictEqual([sc.parts.fireRes, sc.parts.coldRes, sc.parts.lightningRes, sc.parts.chaosRes], [42, 57, 12, 15], "resistances count dual and all-res mods");
+  assert.strictEqual(sc.parts.addsLightning, 30, "added damage uses the average");
+  assert.strictEqual(sc.total, 90 + 42 + 57 + 12 + 15 + 60);
+  assert.strictEqual(U.score(["30% increased Movement Speed"], { move: 2 }, "Gloves").total, 0, "movement speed only counts on boots");
+  const { q, used } = U.query({ life: "pseudo.pseudo_total_life", fireRes: "pseudo.x" }, { life: 1, fireRes: 1.2, move: 2 }, "Helmet", "armour.helmet", 120.4, 3);
+  assert.strictEqual(used, 2, "only stats with a trade id and allowed on the slot are searched");
+  assert.strictEqual(q.query.stats[0].type, "weight"); assert.strictEqual(q.query.stats[0].value.min, 120);
+  assert.strictEqual(q.query.filters.trade_filters.filters.price.max, 3);
+  const P = { div: 200, cur: { "Exalted Orb": 10 } };
+  const ranked = U.rank([{ item: { name: "A", typeLine: "Ring", explicitMods: ["+80 to maximum Life"] }, listing: { price: { amount: 1, currency: "divine" } } }, { item: { name: "B", typeLine: "Ring", explicitMods: ["+60 to maximum Life"] }, listing: { price: { amount: 20, currency: "chaos" } } }, { item: { name: "C", typeLine: "Ring", explicitMods: ["+10 to maximum Life"] }, listing: { price: { amount: 1, currency: "chaos" } } }], { life: 1 }, "Ring 1", 40, P);
+  assert.deepStrictEqual(ranked.map((r) => r.name), ["B Ring", "A Ring"], "ranked by gain per divine; worse items dropped");
+  assert.strictEqual(U.toChaos({ amount: 3, currency: "exalted" }, P), 30);
+  ok("trade requests are paced by GGG's rules; upgrade finder scores, searches and ranks correctly");
+} catch (e) { fail("upgrade finder: " + e.message); }
+
 Promise.all(pending).then(() => {
   if (failures) { console.error(`\n${failures} check(s) failed`); process.exit(1); }
   console.log("\nAll checks passed");
