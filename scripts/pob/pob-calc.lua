@@ -20,7 +20,7 @@ local okB, errB = xpcall(function() loadBuildFromXML(read(xmlPath)) end, debug.t
 if not okB then io.stderr:write(tostring(errB), "\n"); print('{"ok":false,"error":"loading the build failed"}'); os.exit(3) end
 -- the build finishes loading and calculating over the next frames of Path of Building's main loop
 for _ = 1, 4 do runCallback("OnFrame") end
-build = mainObject.main.modes["BUILD"] or build
+build = __mainObject__.main.modes["BUILD"] or build
 local out = build.calcsTab.mainOutput
 local function pick(o)
   return { dps = o.FullDPS or o.CombinedDPS or o.TotalDPS or 0, life = o.Life or 0, es = o.EnergyShield or 0, ehp = o.TotalEHP or 0,
@@ -31,9 +31,13 @@ local base = pick(out)
 if itemPath then
   local with
   local okI, errI = xpcall(function()
-    local item = new("Item", read(itemPath))
+    -- the same steps Path of Building's item tab uses for a pasted item, then its tooltip comparison
+    local item = new("Item"):Item(read(itemPath))
+    if not item.base then error("Path of Building didn't recognise this item's base") end
+    item:NormaliseQuality(); item:BuildModList()
     local calcFunc = build.calcsTab:GetMiscCalculator()
-    with = pick(calcFunc({ repSlotName = slotName, repItem = item }))
+    base = pick(calcFunc({}, true))
+    with = pick(calcFunc({ repSlotName = slotName, repItem = item }, true))
   end, debug.traceback)
   if not okI then print("ITEM ERROR: " .. tostring(errI)); print('{"ok":false,"error":"item compare failed"}'); os.exit(4) end
   print('{"ok":true,"skill":"' .. tostring(build.calcsTab.mainEnv and build.calcsTab.mainEnv.player and build.calcsTab.mainEnv.player.mainSkill and build.calcsTab.mainEnv.player.mainSkill.activeEffect.grantedEffect.name or "") .. '","now":' .. json(base) .. ',"with":' .. json(with) .. '}')
