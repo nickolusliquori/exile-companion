@@ -2,6 +2,13 @@
 
 What changed in each release, newest first. Installed copies update themselves; see the [Releases page](https://github.com/nickolusliquori/exile-companion/releases) for the installers. Planned releases are on the [roadmap](README.md#roadmap).
 
+## [1.22.0] - 2026-11-22
+
+### Changed
+- **Price checks now start with Ctrl+C, then Ctrl+D** (or your price hotkey). GGG's developer guidelines allow reading the clipboard only once per manual key press. The old automatic mode read it in the background several times a second, so it has been removed. The hotkey reads it once, when you press it.
+- GGG's disclaimer ("This product isn't affiliated with or endorsed by Grinding Gear Games in any way.") now shows at the bottom of the app.
+- README rewritten: everything the app does as of this release, and a section on how it follows GGG's Terms of Use and developer guidelines.
+
 ## [1.21.0] - 2026-11-22
 
 ### Added

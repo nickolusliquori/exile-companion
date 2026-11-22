@@ -14,7 +14,7 @@ Open an issue describing what you want to do in the game and what gets in the wa
 
 ## Ground rules for changes
 
-- **Read-only toward the game.** The app may read the game's log file and the clipboard. It must never send key presses or clicks to the game, read game memory, or automate actions. Every price check starts from the player's own Ctrl+C.
+- **Read-only toward the game, following [GGG's developer guidelines](https://www.pathofexile.com/developer/docs).** The app may read the game's log file, and the clipboard only once per manual key press (never on a timer). It must never send key presses or clicks to the game, read game memory, touch game files, or automate actions. Follow GGG's rate-limit headers, never commit credentials, and keep GGG's disclaimer visible. Every price check starts from the player's own Ctrl+C.
 - **No secrets in the repository.** Never commit tokens, POESESSIDs or keys. Secrets are encrypted at runtime with Electron's `safeStorage`.
 - **Keep the security settings.** Every window runs with context isolation, the sandbox on and Node.js off; every page has a Content-Security-Policy; new network hosts must be added to the allowlist in `main.js` deliberately.
 - **Plain language in the interface.** Short sentences, the game's own terms, and a fix-it button when something is missing.

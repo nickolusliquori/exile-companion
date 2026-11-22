@@ -4,7 +4,7 @@ Exile Companion handles two sensitive things: your Path of Exile session (POESES
 
 ## What the app can access
 
-- **Reads** your Path of Exile `Client.txt` log and the clipboard, to follow your play and price-check items you copy with Ctrl+C. It never sends key presses or clicks to the game and never reads game memory.
+- **Reads** your Path of Exile `Client.txt` log to follow your play, and the clipboard **once each time you press the price hotkey** (Ctrl+D after copying an item with Ctrl+C), as GGG's developer guidelines require. It never watches the clipboard in the background or reads the screen. It never sends key presses or clicks to the game and never reads game memory.
 - **Writes** only its own settings and data folder, loot filters named `ExileCompanion….filter` in your Path of Exile documents folder, cheat-sheet images you add, and files you choose to save (backups, problem reports).
 - **Network:** price checks and account features only talk to `pathofexile.com`, `poe.ninja`, `poewiki.net`, `pobb.in` and `pastebin.com`. Item pictures load from `web.poecdn.com`. Updates come from this repository's GitHub Releases. The crafting data ships with the app; the Craft lab makes no requests of its own.
 - **Local servers** (the GGG sign-in callback and the optional OBS stream page) listen on `127.0.0.1` only, so nothing on your network can reach them.

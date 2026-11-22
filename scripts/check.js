@@ -434,6 +434,16 @@ try {
   ok("trade companion price hints and quick replies; chaos/regal recipe sets counted correctly");
 } catch (e) { fail("trade companion / recipes: " + e.message); }
 
+// GGG developer guidelines: no background clipboard polling, required disclaimer shown, no credentials in code
+try {
+  const mainSrc = fs.readFileSync(path.join(root, "main.js"), "utf8"), html = fs.readFileSync(path.join(appDir, "index.html"), "utf8");
+  assert(!/setInterval\([^)]*clip/i.test(mainSrc) && !/clipWatch\.poll\(/.test(mainSrc), "the clipboard is never read on a timer");
+  assert(/bind\(cfg\.priceHotkey[\s\S]{0,80}clipRead\(\)/.test(mainSrc), "price checks read the clipboard from the hotkey");
+  assert(html.includes("This product isn't affiliated with or endorsed by Grinding Gear Games in any way."), "GGG's disclaimer is shown in the app");
+  assert(/oauthClientId: ""/.test(mainSrc) && !/client_secret/.test(mainSrc + fs.readFileSync(path.join(root, "lib", "ggg.js"), "utf8")), "no OAuth client id or secret is shipped in code");
+  ok("GGG guidelines: clipboard read once per key press, disclaimer shown, no credentials in code");
+} catch (e) { fail("GGG guidelines: " + e.message); }
+
 Promise.all(pending).then(() => {
   if (failures) { console.error(`\n${failures} check(s) failed`); process.exit(1); }
   console.log("\nAll checks passed");

@@ -252,6 +252,7 @@ section.tab .card{scroll-margin-top:140px}
 .clip-it{display:flex;justify-content:space-between;gap:8px;align-items:center;text-align:left;background:var(--panel2,rgba(255,255,255,.03));border:1px solid var(--line);border-radius:8px;padding:6px 10px;color:var(--text);cursor:pointer;font:inherit}
 .clip-it:hover{border-color:var(--gold)}
 .rep-list{display:grid;gap:4px;margin:6px 0}
+.appfoot{max-width:1200px;margin:0 auto;padding:8px 16px 24px;text-align:center;font-size:.75rem}
 .np-big{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}.np-t{font-weight:700;font-size:1.05rem}
 .up-w{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:6px 14px;margin:8px 0}.up-w label{display:flex;justify-content:space-between;align-items:center;gap:8px}.up-w input{width:72px}
 .bt-fit td{background:color-mix(in srgb,var(--good, #6c6) 10%,transparent)}
@@ -676,6 +677,7 @@ header{transition:transform .2s ease}
     <div class="card" id="sessLog"></div>
   </section>
 </main>
+<footer class="appfoot small muted">Exile Companion is a free, open-source fan tool. This product isn't affiliated with or endorsed by Grinding Gear Games in any way. Path of Exile is a trademark of Grinding Gear Games.</footer>
 
 <dialog id="cmdk" aria-label="Search">
   <div class="cmdk-in"><input type="search" id="cmdkQ" placeholder="Search pages, cards, items and actions…" autocomplete="off" spellcheck="false" aria-controls="cmdkList"></div>
@@ -2309,8 +2311,8 @@ function renderDesktop(){
   $("dkReset").onclick=()=>DESK.resetOverlay();
   $("dkOpacity").onchange=async e=>{LIVE.cfg=await DESK.setConfig({overlayOpacity:+e.target.value});renderDesktop()};
   $("deskPrice").innerHTML=`<h2>Price check</h2>
-    <p class="small" style="margin:0">Hover an item in game and press <b>Ctrl+C</b> (the game's own copy). A price window pops up next to your cursor with poe.ninja values and the cheapest live listings. For rares it searches by the item's best mods, and you can tick mods on or off and search again.</p>
-    <p class="small muted" style="margin:0">${c.priceOnCopy!==false?"Automatic on Ctrl+C is on.":"Automatic on Ctrl+C is off."} <b>${esc(keyName(c.priceHotkey||"Ctrl+D"))}</b> re-opens the last check. League ${esc(c.league||"detected automatically")}. <a href="#settings">Change in Settings</a>.</p>
+    <p class="small" style="margin:0">Hover an item in game, press <b>Ctrl+C</b> (the game's own copy), then <b>${esc(keyName(c.priceHotkey||"Ctrl+D"))}</b>. A price window pops up next to your cursor with poe.ninja values and the cheapest live listings. For rares and magic items it searches for items with similar mods, and you can tick mods on or off and search again.</p>
+    <p class="small muted" style="margin:0">The app reads the clipboard only when you press <b>${esc(keyName(c.priceHotkey||"Ctrl+D"))}</b>, once per press, as GGG's rules ask. League ${esc(c.league||"detected automatically")}. <a href="#settings">Change in Settings</a>.</p>
     <details class="small"><summary style="cursor:pointer">Test with pasted item text</summary><textarea id="dkTest" placeholder="Paste text copied from an item in game"></textarea><button class="btn" id="dkTestGo" style="margin-top:6px">Run price check</button></details>
     <p class="note" style="margin:0">Prices come from pathofexile.com/trade and poe.ninja, cached for 15 minutes. The trade site limits how often you can search, so the app waits when it's told to.</p>`;
   $("dkTestGo").onclick=()=>{const t=$("dkTest").value.trim();if(t)DESK.testPrice(t)};
@@ -2319,7 +2321,7 @@ function renderDesktop(){
   $("deskRules").innerHTML=`<h2>Playing by the rules</h2>
     <ul class="small" style="margin:0;padding-left:18px">
       <li>The app only <b>reads</b> your log file and clipboard. It never presses keys, clicks, or reads game memory.</li>
-      <li>Price checks start from the game's own Ctrl+C, so it's always one key press, one action.</li>
+      <li>Price checks read the clipboard once, only when you press the price hotkey. The app never presses keys in the game for you.</li>
       <li>Hotkeys only affect this app (show the overlay, copy a search). You paste searches yourself.</li>
     </ul>
     <p class="note" style="margin:0">GGG doesn't certify third-party tools and can change its policy. This app follows the same approach as long-standing tools like PoE Overlay and Exile UI.</p>
@@ -3707,7 +3709,7 @@ function renderHome(){
     </ul>`;
     const hu=$("hUp");if(hu)hu.onclick=()=>DESK.installUpdate();
   } else {
-    $("homeLive").innerHTML=`<h2>Desktop app</h2><p class="small" style="margin:0">The Windows app adds a live game log, an in-game overlay, Ctrl+C price checks, stash net worth and trade alerts, and updates itself.</p>
+    $("homeLive").innerHTML=`<h2>Desktop app</h2><p class="small" style="margin:0">The Windows app adds a live game log, an in-game overlay, price checks (Ctrl+C then Ctrl+D), stash net worth and trade alerts, and updates itself.</p>
       <div class="row"><a class="btn" href="https://github.com/nickolusliquori/exile-companion/releases/latest" target="_blank" rel="noopener">Download for Windows</a></div>`;
   }
 
@@ -3870,7 +3872,7 @@ const HELP={
   acctSales:"Items you sold, read from trade whispers in your game log.",
   deskLog:"Connects the app to Client.txt so it follows your game live.",
   deskOverlay:"A click-through panel over the game. It shows act steps in the campaign and map info in maps.",
-  deskPrice:"Ctrl+C on an item in game opens a price window with poe.ninja values and live listings.",
+  deskPrice:"Press Ctrl+C on an item in game, then the price hotkey (Ctrl+D): a price window opens with poe.ninja values and live listings. The clipboard is read once per hotkey press.",
   deskTrades:"Incoming trade whispers with the item, price and stash position. Buttons copy the reply for you to paste.",
   deskAlerts:"Get a notification when an item drops to your target price.",
   deskCheats:"Your own reference images (Betrayal board, Lab layout) shown over the game with a hotkey.",
@@ -3909,7 +3911,7 @@ async function importBuild(input,slot){
 }
 
 /* settings page */
-const HOTKEYS=[["overlayHotkey","Show / hide overlay","Ctrl+Shift+O"],["interactHotkey","Overlay click mode","Ctrl+Shift+I"],["widgetHotkey","Overlay tools (searches, stopwatch, notes)","Ctrl+Shift+Space"],["pageHotkey","Next overlay page","Ctrl+Shift+P"],["copyHotkey","Copy overlay search","Ctrl+Shift+F"],["priceHotkey","Re-open price check","Ctrl+D"],["wikiHotkey","Wiki lookup","Ctrl+Alt+W"],["cheatHotkey","Cheat sheets","Ctrl+Shift+H"],["pinHotkey","Browser over the game","Ctrl+Shift+B"],["mediaHotkey","Media player","Ctrl+Shift+M"],["mediaPlayHotkey","Play / pause music","",],["mediaClickHotkey","Media player click-through",""]];
+const HOTKEYS=[["overlayHotkey","Show / hide overlay","Ctrl+Shift+O"],["interactHotkey","Overlay click mode","Ctrl+Shift+I"],["widgetHotkey","Overlay tools (searches, stopwatch, notes)","Ctrl+Shift+Space"],["pageHotkey","Next overlay page","Ctrl+Shift+P"],["copyHotkey","Copy overlay search","Ctrl+Shift+F"],["priceHotkey","Price check (after Ctrl+C)","Ctrl+D"],["wikiHotkey","Wiki lookup","Ctrl+Alt+W"],["cheatHotkey","Cheat sheets","Ctrl+Shift+H"],["pinHotkey","Browser over the game","Ctrl+Shift+B"],["mediaHotkey","Media player","Ctrl+Shift+M"],["mediaPlayHotkey","Play / pause music","",],["mediaClickHotkey","Media player click-through",""]];
 const RESERVED_KEYS=["Ctrl+C","Ctrl+V","Ctrl+X","Ctrl+A","Ctrl+Z","Ctrl+F","Alt+F4","Ctrl+Enter"];
 function accelFrom(e){
   if(["Control","Shift","Alt","Meta"].includes(e.key)) return null;
@@ -3920,7 +3922,7 @@ function accelFrom(e){
   const mods=[e.ctrlKey&&"Ctrl",e.altKey&&"Alt",e.shiftKey&&"Shift"].filter(Boolean);
   if(!mods.length&&!/^F\d/.test(k)) return {err:"Add Ctrl, Alt or Shift so the key still works normally in game."};
   const a=mods.concat([k]).join("+");
-  if(RESERVED_KEYS.includes(a)) return {err:`${a} is used by the game (Ctrl+C is how price checks start), so it can't be a hotkey.`};
+  if(RESERVED_KEYS.includes(a)) return {err:`${a} is used by the game (Ctrl+C copies the item for a price check), so it can't be a hotkey.`};
   return {a};
 }
 function renderSettings(){
@@ -3935,7 +3937,7 @@ function renderSettings(){
       <li class="row" style="justify-content:space-between"><span><b>Current:</b> ${bname(C,exC)}</span><span class="row"><button class="btn ghost small" id="stImpC">${C&&!exC?"Replace":"Import"}</button>${C&&!exC?'<button class="btn ghost small" id="stDelC">Remove</button>':""}</span></li>
     </ul>
     ${DESK?`<h3>Price check</h3>
-    <label class="row small"><input type="checkbox" id="stOnCopy"${c.priceOnCopy!==false?" checked":""}> Price-check automatically when I press Ctrl+C on an item</label>
+    <p class="small muted" style="margin:0">Price checks run when you press the price hotkey after Ctrl+C. The app doesn't watch the clipboard in the background: GGG allows one clipboard read per key press.</p>
     <div class="fgrid"><label class="f" for="stLeague">Trade league<input type="text" id="stLeague" value="${esc(c.league||"")}" data-cfg="league" placeholder="detected automatically"></label>
       <label class="f" for="stContact">Contact for API requests (optional)<input type="text" id="stContact" value="${esc(c.contact||"")}" data-cfg="contact" placeholder="email or forum name"></label></div>`:""}
     ${DESK?`<h3>Web links</h3>
@@ -3962,7 +3964,7 @@ function renderSettings(){
   if(DESK){const ia=$("stInApp");if(ia)ia.onchange=async e=>{LIVE.cfg=await DESK.setConfig({inAppBrowser:e.target.checked});toast(e.target.checked?"Links open in the app's browser.":"Links open in your own browser.")};
     const bc=$("stBrClear");if(bc)bc.onclick=async()=>{const r=await DESK.browserClear();toast(r&&r.ok?"Browser data cleared. You're signed out of pathofexile.com in the app.":"Couldn't clear browser data.")}}
   if(DESK){
-    $("stOnCopy").onchange=async e=>{LIVE.cfg=await DESK.setConfig({priceOnCopy:e.target.checked});renderDesktop()};
+
     g.querySelectorAll("[data-cfg]").forEach(inp=>inp.onchange=async()=>{const patch={};patch[inp.dataset.cfg]=inp.value.trim()||null;LIVE.cfg=await DESK.setConfig(patch);if(inp.dataset.cfg==="league"&&LIVE.cfg.league){S.league=LIVE.cfg.league;save();renderShop()}publishOverlay();renderDesktop()});
   }
   const hkEl=$("setHotkeys");
@@ -4032,7 +4034,7 @@ function wizRender(){
     <p class="status ${WIZ.ovl?"ok":""}" id="wzOvl" style="margin:0">${WIZ.ovl?"✓ Hotkey works. ":""}The overlay is ${LIVE.overlayVisible?"showing":"hidden"}.</p>
     <div class="row"><button class="btn ghost" id="wzOvlBtn">Show / hide it for me</button><a class="small" href="#settings" data-fix="none">Use a different key</a></div>
     <h3>Price check</h3>
-    <p class="small" style="margin:0">In game, hover an item and press <kbd>Ctrl+C</kbd>. A price window opens next to your cursor. <kbd>${esc(keyName(c.priceHotkey||"Ctrl+D"))}</kbd> re-opens the last one.</p>`;
+    <p class="small" style="margin:0">In game, hover an item and press <kbd>Ctrl+C</kbd>, then <kbd>${esc(keyName(c.priceHotkey||"Ctrl+D"))}</kbd>. A price window opens next to your cursor.</p>`;
     $("wzOvlBtn").onclick=()=>DESK.toggleOverlay(!LIVE.overlayVisible);
     body.querySelector('a[href="#settings"]').onclick=e=>{e.preventDefault();$("setup").close();showTab("settings");scrollToCard("setHotkeys")};
     WIZ.t=setInterval(()=>{if(LIVE.overlayVisible!==last){last=LIVE.overlayVisible;WIZ.ovl=true;const s=$("wzOvl");if(s){s.className="status ok";s.textContent=`✓ Hotkey works. The overlay is ${last?"showing":"hidden"}.`}}},300);}

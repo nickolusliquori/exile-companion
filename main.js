@@ -50,8 +50,9 @@ const DEFAULTS = {
   logPath: null,
   league: null,                 // trade league id, auto-detected when null
   contact: "",                  // optional email/handle sent in the User-Agent (GGG and poe.ninja ask for one)
-  priceOnCopy: true,            // price-check automatically when you Ctrl+C an item in game
-  priceHotkey: "Ctrl+D",          // re-open the last price check / check clipboard
+  // Price checks run only when you press the price hotkey: GGG allows reading the clipboard once per manual key press,
+  // so the app no longer watches the clipboard on a timer (the old "automatic on Ctrl+C" mode was removed in 1.22).
+  priceHotkey: "Ctrl+D",          // price check: reads the clipboard once (press Ctrl+C on the item first)
   overlayHotkey: "Ctrl+Shift+O",  // show / hide overlay
   interactHotkey: "Ctrl+Shift+I", // make overlay clickable / click-through
   copyHotkey: "Ctrl+Shift+F",     // copy the overlay's current search string
@@ -288,10 +289,8 @@ const isItemText = (t) => typeof t === "string" && /^Item Class: /m.test(t) && t
 const clipWatch = createClipWatcher({ read: clipRead, write: clipWrite, isItem: isItemText, enabled: () => cfg.priceOnCopy, onItem: (t) => showPrice(t) });
 // anything the app itself copies (searches, trade replies) must not look like a new copy from the game
 const ignoreClip = (t) => clipWatch.expect(t);
-async function startClipboardWatch() {
-  await clipWatch.prime();
-  clipTimer = setInterval(() => { clipWatch.poll().catch(() => {}); }, 250);
-}
+// No background clipboard polling (GGG: clipboard reads only once per manual key press). Kept as a no-op for startup order.
+async function startClipboardWatch() {}
 
 /* ---------------- live log ---------------- */
 let tail = null;
