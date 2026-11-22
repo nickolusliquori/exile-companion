@@ -140,7 +140,7 @@ function renderDesktop(){
     </ul>
     <p class="note" style="margin:0">GGG doesn't certify third-party tools and can change its policy. This app follows the same approach as long-standing tools like PoE Overlay and Exile UI.</p>
     ${LIVE.warn?`<p class="small" style="margin:0;color:var(--warn)">${esc(LIVE.warn)}</p>`:""}`;
-  renderTrades();renderDiscordCard();renderAlerts();renderStreamCard();renderPhoneCard();renderBackup();renderCheats();renderNews();renderUpdates();
+  renderTrades();renderDiscordCard();renderAlerts();renderStreamCard();renderPhoneCard();renderTwitchCard();renderBackup();renderCheats();renderNews();renderUpdates();
 }
 async function initDesktop(){
   if(!DESK) return;
@@ -807,6 +807,7 @@ async function initAccount(){
   try{const it=await idbGet("stashItems");if(it)ACCT.stashItems=it}catch(e){}
   DESK.onDiscordStatus(s=>{LIVE.discord=s;renderDiscordCard()});
   if(DESK.onStreamStatus)DESK.onStreamStatus(s=>{LIVE.stream=s;renderStreamCard()});
+  if(DESK.onTwitchStatus){DESK.onTwitchStatus(s=>{LIVE.twitch=s;renderTwitchCard()});DESK.onTwitchReply(r=>{(LIVE.twitchLog=LIVE.twitchLog||[]).unshift(r);LIVE.twitchLog.length=Math.min(LIVE.twitchLog.length,8);renderTwitchCard()});DESK.twitchStatus().then(s=>{LIVE.twitch=s;renderTwitchCard()}).catch(()=>{})}
   if(DESK.onPhoneStatus){DESK.onPhoneStatus(s=>{LIVE.phone=s;renderPhoneCard()});DESK.phoneStatus().then(s=>{LIVE.phone=s;renderPhoneCard()}).catch(()=>{})}
   if(DESK.onUpdate){DESK.onUpdate(s=>{LIVE.update={...(LIVE.update||{}),...s};renderUpdates()});DESK.updateStatus().then(s=>{LIVE.update=s;renderUpdates()})}
   startAlerts();setTimeout(()=>checkAlerts(false),5000);

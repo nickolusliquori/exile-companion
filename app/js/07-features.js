@@ -194,7 +194,8 @@ function publishStream(p){
   if(!DESK||!DESK.publishStream) return;
   const b=C||G;
   const deaths=S.session.maps.reduce((a,m)=>{const x=String(m.note||"").match(/(\d+) death/);return a+(x?+x[1]:0)},0);
-  DESK.publishStream({cls:b.ascend||b.className,level:(S.logInfo&&S.logInfo.level)||b.level,deaths});
+  const link=S.twitchLink||S.goalLink||"";
+  DESK.publishStream({cls:b.ascend||b.className,level:(S.logInfo&&S.logInfo.level)||b.level,deaths,skill:(()=>{try{return mainSkillName(G||b)}catch(e){return ""}})(),link:/^https:\/\/(pobb\.in|pastebin\.com|poe\.ninja|maxroll\.gg|mobalytics\.gg)\//.test(link)?link:"",league:S.league||(LIVE.cfg&&LIVE.cfg.league)||"",name:S.logInfo&&S.logInfo.name||""});
 }
 /* ---------- phone screen: the overlay's information on your phone, over your home network ---------- */
 function renderPhoneCard(){
@@ -215,6 +216,46 @@ function renderPhoneCard(){
   $("phPort").onchange=e=>DESK.phoneSet({port:+e.target.value});
   const c=$("phCopy");if(c)c.onclick=()=>{DESK.copy(p.urls[0]);c.textContent="Copied"};
   const n=$("phNew");if(n)n.onclick=()=>{DESK.phoneSet({newKey:true});toast("New phone link made: scan the new QR code. The old link no longer works.")};
+}
+/* ---------- Twitch chat commands ---------- */
+const TW_CMDS=[["build","!build","your class, main skill and guide link"],["level","!level","character level and time to the next one"],["map","!map","the map or zone you're in"],["deaths","!deaths","deaths this session"],["profit","!profit","maps, divine/hour and net worth"],["league","!league","the league you're playing"],["commands","!commands","lists the commands"]];
+function renderTwitchCard(){
+  const el=$("deskTwitch");if(!el||!DESK||!DESK.twitchSet)return;const t=LIVE.twitch||{},c=LIVE.cfg||{},cmds=c.twitchCmds||{},custom=c.twitchCustom||[];
+  const st={connected:["good",`Answering in #${esc(t.channel||"")}`],connecting:["warn",esc(t.message||"Connecting…")],code:["warn","Waiting for you to approve on Twitch"],"signed-out":["warn","Not signed in"],off:["",t.login?"Off":"Not signed in"],error:["bad",esc(t.message||"Error")]}[t.state]||["","Off"];
+  el.innerHTML=`<h2>Twitch chat commands</h2>
+    <p class="small" style="margin:0">Your chat can ask <b>!build</b>, <b>!level</b>, <b>!map</b>, <b>!deaths</b>, <b>!profit</b> and more, and the app answers from what it already knows. It only reads chat and posts those replies.</p>
+    ${!t.hasClient?`<p class="small err" style="margin:0">Twitch commands aren't available in this version yet.</p>`:""}
+    <div class="row"><span class="pill ${st[0]}">${st[1]}</span>${t.login?`<span class="small muted">signed in as ${esc(t.login)}</span>`:""}</div>
+    ${t.state==="code"?`<div class="sg"><p class="small" style="margin:0">On the Twitch page that just opened, check the code is <b style="font-size:1.3em;letter-spacing:.08em">${esc(t.code)}</b> and press <b>Activate</b>, then <b>Authorize</b>.</p>
+      <div class="row"><button class="btn ghost small" id="twOpen">Open twitch.tv/activate</button><button class="btn ghost small" id="twCancel">Cancel</button></div></div>`
+    :t.login?`<label class="row small"><input type="checkbox" id="twOn"${t.enabled?" checked":""}> Answer commands in chat</label>`
+    :`<div class="row"><button class="btn primary small" id="twIn"${t.hasClient?"":" disabled"}>Sign in with Twitch</button></div><p class="small muted" style="margin:0">Sign in with your streaming account (or a separate bot account, then set your channel below).</p>`}
+    ${t.login?`<div class="row small"><label for="twCh">Channel</label><input id="twCh" value="${esc(c.twitchChannel||"")}" placeholder="${esc(t.login)}" style="width:150px"><span class="muted">leave empty for your own</span></div>
+      <div class="col small" role="group" aria-label="Commands" style="gap:2px">${TW_CMDS.map(([k,n,d])=>`<label class="row" style="gap:6px"><input type="checkbox" data-twc="${k}"${cmds[k]!==false?" checked":""}> <b>${n}</b> <span class="muted">${d}</span></label>`).join("")}</div>
+      <div class="row small"><label for="twLink">Link for !build</label><input id="twLink" value="${esc(S.twitchLink||"")}" placeholder="${esc(S.goalLink||"pobb.in link to your build")}" style="flex:1;min-width:180px"></div>
+      <details class="small"${custom.length?" open":""}><summary style="cursor:pointer">Your own commands (${custom.length})</summary>
+        ${custom.map((x,i)=>`<div class="row" style="flex-wrap:nowrap;margin-top:4px">!<input data-twn="${i}" value="${esc(x.name)}" aria-label="Command name" style="width:90px"><input data-twt="${i}" value="${esc(x.text)}" aria-label="Reply" style="flex:1"><button class="btn ghost small" data-twx="${i}" aria-label="Remove">×</button></div>`).join("")}
+        <button class="btn ghost small" id="twAdd" style="margin-top:4px">＋ Add a command</button></details>
+      <div class="row small"><label class="row" style="gap:4px"><input type="checkbox" id="twMods"${c.twitchModsOnly?" checked":""}> Mods only</label><label for="twCd">Cooldown</label><input id="twCd" type="number" min="5" max="600" value="${c.twitchCooldown||20}" style="width:70px"> s</div>
+      ${(LIVE.twitchLog||[]).length?`<h3>Recent replies</h3><ul class="clean small">${LIVE.twitchLog.map(r=>`<li><span class="muted">${new Date(r.t).toLocaleTimeString()} · ${esc(r.by)} !${esc(r.cmd)}:</span> ${esc(r.text)}</li>`).join("")}</ul>`:""}
+      <button class="btn ghost small" id="twOut">Sign out of Twitch</button>`:""}`;
+  const on=(id,f)=>{const x=$(id);if(x)f(x)};
+  on("twIn",b=>b.onclick=()=>DESK.twitchSignIn());
+  on("twOpen",b=>b.onclick=()=>{const u=/^https:\/\/(www\.)?twitch\.tv\/activate/.test(t.uri||"")?t.uri:"https://www.twitch.tv/activate";(DESK.browserExternal||DESK.openExternal)(u)});
+  on("twCancel",b=>b.onclick=()=>DESK.twitchCancel());
+  on("twOut",b=>b.onclick=()=>{if(confirm("Sign out of Twitch? Commands stop until you sign in again."))DESK.twitchSignOut()});
+  on("twOn",b=>b.onchange=e=>DESK.twitchSet({enabled:e.target.checked}));
+  const setCfg=async o=>{DESK.twitchSet(o);LIVE.cfg=await DESK.getConfig()};
+  on("twCh",b=>b.onchange=e=>setCfg({channel:e.target.value.trim()}));
+  el.querySelectorAll("[data-twc]").forEach(b=>b.onchange=()=>setCfg({cmds:{...cmds,[b.dataset.twc]:b.checked}}));
+  on("twLink",b=>b.onchange=e=>{const v=e.target.value.trim();S.twitchLink=/^https:\/\//.test(v)?v.slice(0,200):"";save();publishOverlay();if(v&&!S.twitchLink)toast("Use a full https:// link (pobb.in, poe.ninja, maxroll, mobalytics or pastebin).")});
+  const saveCustom=list=>setCfg({custom:list}).then(renderTwitchCard);
+  on("twAdd",b=>b.onclick=()=>saveCustom([...custom,{name:"discord",text:"Join the Discord: "}]));
+  el.querySelectorAll("[data-twn]").forEach(b=>b.onchange=()=>{const l=custom.map(x=>({...x}));l[+b.dataset.twn].name=b.value;saveCustom(l)});
+  el.querySelectorAll("[data-twt]").forEach(b=>b.onchange=()=>{const l=custom.map(x=>({...x}));l[+b.dataset.twt].text=b.value;saveCustom(l)});
+  el.querySelectorAll("[data-twx]").forEach(b=>b.onclick=()=>{const l=custom.filter((x,i)=>i!==+b.dataset.twx);saveCustom(l)});
+  on("twMods",b=>b.onchange=e=>setCfg({modsOnly:e.target.checked}));
+  on("twCd",b=>b.onchange=e=>setCfg({cooldown:+e.target.value}));
 }
 function renderStreamCard(){
   const el=$("deskStream");if(!el) return;const c=LIVE.cfg||{};

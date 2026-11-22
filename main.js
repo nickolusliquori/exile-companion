@@ -87,6 +87,13 @@ const DEFAULTS = {
   phoneEnabled: false,            // phone screen on your home network (needs the private link)
   phonePort: 47778,
   phoneKey: "",                   // the private part of the phone link (made on first use; "New link" replaces it)
+  twitchEnabled: false,           // answer chat commands in your Twitch chat
+  twitchChannel: "",              // chat to join (empty = the account you signed in with)
+  twitchClientId: "",             // overrides the built-in client ID (only needed for your own Twitch app)
+  twitchCmds: {},                 // { build: false, ... } turns single commands off
+  twitchCustom: [],               // [{ name, text }] your own text commands
+  twitchCooldown: 20,             // seconds before the same command answers again
+  twitchModsOnly: false,          // only the broadcaster and moderators can use commands
   overlayVisible: true,
   overlayOpacity: 0.92,
   overlayBounds: null,
@@ -350,6 +357,106 @@ ipcMain.on("phone:set", (e, o) => {
   if (o.port != null) { const p = Math.round(+o.port); if (p >= 1024 && p <= 65535) cfg.phonePort = p; }
   if (o.newKey) cfg.phoneKey = require("crypto").randomBytes(18).toString("base64url");
   saveCfg(); startPhone();
+});
+
+/* ---------------- Twitch chat commands ----------------
+   Signs in with Twitch's device code flow (public client, no secret), keeps the token encrypted with the other
+   secrets, joins your chat and answers !build, !level, !map, !deaths, !profit, !league, !commands and your own. */
+const TWITCH_CLIENT_ID = "";   // Exile Companion's public Twitch client ID (not a secret)
+const twitchLib = require("./lib/twitch");
+let twitchWs = null, twitchState = { state: "off" }, twitchTimer = null, twitchBackoff = 1000, twitchCmdState = {}, twitchFlow = null;
+const twitchClient = () => String(cfg.twitchClientId || TWITCH_CLIENT_ID || "").trim();
+const twitchTokens = () => { try { const t = secretStore.get("twitch"); return t && typeof t === "object" ? t : null; } catch (e) { return null; } };
+function twitchSend(st) { twitchState = { ...st, login: (twitchTokens() || {}).login || null, channel: twitchChannelName(), enabled: !!cfg.twitchEnabled, hasClient: !!twitchClient() }; sendMain("twitch:status", twitchState); }
+const twitchChannelName = () => String(cfg.twitchChannel || (twitchTokens() || {}).login || "").toLowerCase().replace(/^#/, "").replace(/[^a-z0-9_]/g, "").slice(0, 25);
+async function twitchForm(url, data) {
+  const r = await fetch(url, { method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" }, body: new URLSearchParams(data).toString() });
+  let j = null; try { j = await r.json(); } catch (e) { j = null; }
+  return { status: r.status, data: j };
+}
+async function twitchValidate(access) {
+  const r = await fetch("https://id.twitch.tv/oauth2/validate", { headers: { Authorization: "OAuth " + access } });
+  if (r.status !== 200) return null; const j = await r.json(); return { login: j.login, expires: Date.now() + (+j.expires_in || 0) * 1000 };
+}
+async function twitchRefresh() {
+  const t = twitchTokens(); if (!t || !t.refresh) return false;
+  const r = await twitchForm("https://id.twitch.tv/oauth2/token", { client_id: twitchClient(), grant_type: "refresh_token", refresh_token: t.refresh });
+  if (r.status !== 200 || !r.data || !r.data.access_token) { LOG.warn("twitch", `refresh failed (${r.status})`); return false; }
+  secretStore.set("twitch", { ...t, access: r.data.access_token, refresh: r.data.refresh_token || t.refresh, expires: Date.now() + (+r.data.expires_in || 14000) * 1000 });
+  return true;
+}
+// sign in: show a code, the user approves it on twitch.tv/activate, we poll for the token
+async function twitchSignIn() {
+  if (!twitchClient()) { twitchSend({ state: "error", message: "Twitch commands need the app's Twitch client ID (see Desktop tools → Twitch)." }); return; }
+  if (twitchFlow) twitchFlow.cancelled = true;
+  const flow = (twitchFlow = { cancelled: false });
+  try {
+    const r = await twitchForm("https://id.twitch.tv/oauth2/device", { client_id: twitchClient(), scopes: "chat:read chat:edit" });
+    if (r.status !== 200 || !r.data || !r.data.device_code) { twitchSend({ state: "error", message: `Twitch didn't start the sign-in (${(r.data && r.data.message) || r.status}).` }); return; }
+    const { device_code, user_code, verification_uri, expires_in, interval } = r.data;
+    twitchSend({ state: "code", code: user_code, uri: verification_uri, until: Date.now() + (+expires_in || 1800) * 1000 });
+    if (/^https:\/\/(www\.)?twitch\.tv\/activate/.test(verification_uri)) shell.openExternal(verification_uri);
+    let wait = Math.max(5, +interval || 5) * 1000; const end = Date.now() + (+expires_in || 1800) * 1000;
+    while (!flow.cancelled && Date.now() < end) {
+      await sleep(wait); if (flow.cancelled) return;
+      const t = await twitchForm("https://id.twitch.tv/oauth2/token", { client_id: twitchClient(), scopes: "chat:read chat:edit", device_code, grant_type: "urn:ietf:params:oauth:grant-type:device_code" });
+      if (t.status === 200 && t.data && t.data.access_token) {
+        const v = await twitchValidate(t.data.access_token);
+        secretStore.set("twitch", { access: t.data.access_token, refresh: t.data.refresh_token, expires: Date.now() + (+t.data.expires_in || 14000) * 1000, login: v ? v.login : "" });
+        LOG.info("twitch", "signed in"); cfg.twitchEnabled = true; saveCfg(); twitchFlow = null; twitchConnect(); return;
+      }
+      const msg = String((t.data && (t.data.message || t.data.error)) || "");
+      if (/slow_down/.test(msg)) wait += 5000; else if (!/authorization_pending/.test(msg)) { twitchSend({ state: "error", message: `Sign-in stopped: ${msg || t.status}` }); twitchFlow = null; return; }
+    }
+    if (!flow.cancelled) twitchSend({ state: "error", message: "The sign-in code expired. Try again." });
+  } catch (e) { twitchSend({ state: "error", message: "Couldn't reach Twitch: " + e.message }); }
+}
+function twitchClose() { clearTimeout(twitchTimer); twitchTimer = null; if (twitchWs) { const w = twitchWs; twitchWs = null; try { w.onclose = null; w.close(); } catch (e) { /* ignore */ } } }
+async function twitchConnect() {
+  twitchClose();
+  if (!cfg.twitchEnabled) { twitchSend({ state: "off" }); return; }
+  let t = twitchTokens(); if (!t) { twitchSend({ state: "signed-out" }); return; }
+  if (typeof WebSocket !== "function") { twitchSend({ state: "error", message: "This version can't open a chat connection." }); return; }
+  if (!t.expires || t.expires - Date.now() < 10 * 60e3) { if (!(await twitchRefresh())) { twitchSend({ state: "signed-out", message: "Twitch sign-in expired: sign in again." }); return; } t = twitchTokens(); }
+  const channel = twitchChannelName(); if (!channel) { twitchSend({ state: "error", message: "No channel to join." }); return; }
+  twitchSend({ state: "connecting" });
+  const ws = (twitchWs = new WebSocket("wss://irc-ws.chat.twitch.tv:443"));
+  let buf = "";
+  ws.onopen = () => { ws.send("CAP REQ :twitch.tv/tags twitch.tv/commands"); ws.send("PASS oauth:" + t.access); ws.send("NICK " + (t.login || "justinfan" + Math.floor(Math.random() * 1e5))); ws.send("JOIN #" + channel); };
+  ws.onmessage = async (ev) => {
+    buf += String(ev.data); const lines = buf.split("\r\n"); buf = lines.pop();
+    for (const line of lines) {
+      if (!line) continue; const m = twitchLib.parseIrc(line);
+      if (m.command === "PING") { ws.send("PONG :" + (m.trailing || "tmi.twitch.tv")); continue; }
+      if (m.command === "001") { twitchBackoff = 1000; }
+      if (m.command === "JOIN" && m.nick === t.login) { twitchSend({ state: "connected" }); LOG.info("twitch", "joined #" + channel); }
+      if (m.command === "RECONNECT") { twitchClose(); twitchTimer = setTimeout(twitchConnect, 1000); return; }
+      if (m.command === "NOTICE" && /authentication failed|improperly formatted auth/i.test(m.trailing || "")) {
+        twitchClose(); if (await twitchRefresh()) twitchTimer = setTimeout(twitchConnect, 1000); else twitchSend({ state: "signed-out", message: "Twitch sign-in expired: sign in again." }); return;
+      }
+      if (m.command === "PRIVMSG") {
+        const r = twitchLib.handleMessage(m, { overlay: lastOverlayData, stream: streamData }, { cmds: cfg.twitchCmds || {}, custom: cfg.twitchCustom || [], cooldown: cfg.twitchCooldown, modsOnly: cfg.twitchModsOnly, self: t.login }, twitchCmdState);
+        if (r && twitchWs === ws) { ws.send(`${r.replyTo ? `@reply-parent-msg-id=${r.replyTo} ` : ""}PRIVMSG #${channel} :${r.text}`); sendMain("twitch:reply", { cmd: r.cmd, by: m.nick, text: r.text, t: Date.now() }); }
+      }
+    }
+  };
+  ws.onclose = () => { if (twitchWs !== ws) return; twitchWs = null; if (!cfg.twitchEnabled) return; twitchSend({ state: "connecting", message: "Reconnecting…" }); twitchTimer = setTimeout(twitchConnect, twitchBackoff); twitchBackoff = Math.min(60000, twitchBackoff * 2); };
+  ws.onerror = () => { LOG.warn("twitch", "chat connection error"); };
+}
+ipcMain.handle("twitch:status", () => ({ ...twitchState, login: (twitchTokens() || {}).login || null, channel: twitchChannelName(), enabled: !!cfg.twitchEnabled, hasClient: !!twitchClient() }));
+ipcMain.on("twitch:signin", () => { twitchSignIn(); });
+ipcMain.on("twitch:cancel", () => { if (twitchFlow) twitchFlow.cancelled = true; twitchFlow = null; twitchSend({ state: twitchTokens() ? (cfg.twitchEnabled ? "connecting" : "off") : "signed-out" }); if (twitchTokens() && cfg.twitchEnabled) twitchConnect(); });
+ipcMain.on("twitch:signout", () => { twitchClose(); secretStore.set("twitch", null); cfg.twitchEnabled = false; saveCfg(); twitchSend({ state: "signed-out" }); });
+ipcMain.on("twitch:set", (e, o) => {
+  if (!o || typeof o !== "object") return;
+  const reconnect = ("enabled" in o) || ("channel" in o);
+  if ("enabled" in o) cfg.twitchEnabled = !!o.enabled;
+  if ("channel" in o) cfg.twitchChannel = String(o.channel || "").toLowerCase().replace(/^#/, "").replace(/[^a-z0-9_]/g, "").slice(0, 25);
+  if ("cmds" in o && o.cmds && typeof o.cmds === "object") cfg.twitchCmds = Object.fromEntries(Object.keys(twitchLib.DEFAULT_CMDS).map((k) => [k, o.cmds[k] !== false]));
+  if ("custom" in o && Array.isArray(o.custom)) cfg.twitchCustom = o.custom.map((c) => ({ name: String(c && c.name || "").toLowerCase().replace(/[^a-z0-9_]/g, "").slice(0, 20), text: String(c && c.text || "").replace(/[\r\n]+/g, " ").slice(0, 400) })).filter((c) => c.name.length >= 2 && c.text && !(c.name in twitchLib.DEFAULT_CMDS)).slice(0, 20);
+  if ("cooldown" in o) cfg.twitchCooldown = Math.max(5, Math.min(600, Math.round(+o.cooldown) || 20));
+  if ("modsOnly" in o) cfg.twitchModsOnly = !!o.modsOnly;
+  saveCfg(); if (reconnect) twitchConnect(); else twitchSend(twitchState);
 });
 
 /* ---------------- clipboard helpers ----------------
@@ -1245,6 +1352,16 @@ async function runSmoke() {
       const ok = no.code === 403 && page.code === 200 && /Exile Companion/.test(page.body) && data.code === 200 && JSON.parse(data.body).overlay && /^<svg/.test(st.qr || "<svg");
       return { ok, info: `no key ${no.code}, page ${page.code}, data ${data.code}, addresses ${st.urls.length}` };
     });
+    await run("Twitch: chat connection opens (anonymous, read-only)", async () => {
+      if (typeof WebSocket !== "function") return { ok: false, info: "no WebSocket" };
+      const r = await new Promise((resolve) => {
+        const ws = new WebSocket("wss://irc-ws.chat.twitch.tv:443"); const to = setTimeout(() => { try { ws.close(); } catch (e) { /* ignore */ } resolve("timeout"); }, 15000);
+        ws.onopen = () => { ws.send("NICK justinfan" + Math.floor(10000 + Math.random() * 80000)); };
+        ws.onmessage = (ev) => { const m = twitchLib.parseIrc(String(ev.data).split("\r\n")[0]); if (m.command === "001") { clearTimeout(to); ws.close(); resolve("welcome"); } };
+        ws.onerror = () => { clearTimeout(to); resolve("error"); };
+      });
+      return { ok: r === "welcome", info: r };
+    });
     await run("safe-mode state answers", () => ({ info: JSON.stringify({ safe: SAFE }) }));
   } catch (e) { step("test run", false, (e && e.stack) || e); }
   clearTimeout(guard);
@@ -1298,9 +1415,9 @@ else {
       if (SAFE) return;
       detectLeague().then((l) => sendMain("league", l));
       setInterval(() => { detectLeague().then((l) => l && sendMain("league", l)).catch(() => {}); }, 6 * 3600e3);
-      startDiscord(); startStream(); startPhone();
+      startDiscord(); startStream(); startPhone(); twitchConnect();
     });
   });
-  app.on("will-quit", () => { LOG.info("app", "quit"); if (GUARD) GUARD.started(); /* a normal quit (or an update restart) is not a failed start */ globalShortcut.unregisterAll(); clearInterval(clipTimer); if (tail) tail.stop(); if (discord) discord.close(); if (streamServer) streamServer.close(); if (phoneServer) phoneServer.close(); });
+  app.on("will-quit", () => { LOG.info("app", "quit"); if (GUARD) GUARD.started(); /* a normal quit (or an update restart) is not a failed start */ globalShortcut.unregisterAll(); clearInterval(clipTimer); if (tail) tail.stop(); if (discord) discord.close(); if (streamServer) streamServer.close(); if (phoneServer) phoneServer.close(); twitchClose(); });
   app.on("window-all-closed", () => app.quit());
 }

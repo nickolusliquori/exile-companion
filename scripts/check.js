@@ -11,7 +11,7 @@ const pending = [];
 const fail = (msg) => { console.error("✗ " + msg); failures++; };
 const ok = (msg) => console.log("✓ " + msg);
 
-for (const f of ["main.js", "preload.js", "lib/logtail.js", "lib/ggg.js", "lib/discord.js", "lib/clip.js", "lib/diag.js", "lib/files.js", "lib/webhosts.js", "lib/crashlog.js", "lib/qr.js"]) {
+for (const f of ["main.js", "preload.js", "lib/logtail.js", "lib/ggg.js", "lib/discord.js", "lib/clip.js", "lib/diag.js", "lib/files.js", "lib/webhosts.js", "lib/crashlog.js", "lib/qr.js", "lib/twitch.js"]) {
   try { new vm.Script(fs.readFileSync(path.join(root, f), "utf8"), { filename: f }); ok(`${f} parses`); }
   catch (e) { fail(`${f}: ${e.message}`); }
 }
@@ -697,6 +697,37 @@ try {
   let threw = false; try { qrMatrix("x".repeat(400)); } catch (e) { threw = true; } assert(threw, "too-long text is refused");
   ok("QR code encoder matches the decoded reference grids");
 } catch (e) { fail("QR code: " + e.message); }
+
+// Twitch: IRC parsing (tags, replies), command replies, switches, mods-only, cooldowns, no answering ourselves
+try {
+  const T = require(path.join(root, "lib", "twitch.js"));
+  const m = T.parseIrc("@badges=moderator/1;id=abc-1;display-name=Viewer\\sOne;mod=1 :viewer!viewer@viewer.tmi.twitch.tv PRIVMSG #me :!build please");
+  assert(m.command === "PRIVMSG" && m.nick === "viewer" && m.tags.id === "abc-1" && m.tags["display-name"] === "Viewer One" && m.trailing === "!build please" && m.params[0] === "#me", "IRC parse: " + JSON.stringify(m));
+  assert.strictEqual(T.parseIrc("PING :tmi.twitch.tv").command, "PING");
+  const d = { overlay: { char: { name: "MyRanger", level: 94 }, eta: "1h 20m", zone: { name: "Cemetery", lvl: 83 }, maps: { current: { name: "Cemetery", tier: 16, deaths: 2 }, session: { count: 14, avgMs: 245000, div: 3.4 } }, pages: { session: { net: 152.3 } } },
+    stream: { cls: "Deadeye", skill: "Lightning Arrow", link: "https://pobb.in/abc", deaths: 3, league: "Umbra" } };
+  const say = (c, o) => T.replyFor(c, d, o || {});
+  assert.strictEqual(say("build"), "Deadeye, Lightning Arrow · https://pobb.in/abc");
+  assert.strictEqual(say("level"), "MyRanger is level 94, next level in about 1h 20m.");
+  assert.strictEqual(say("map"), "Cemetery (tier 16), 2 deaths.");
+  assert.strictEqual(say("deaths"), "3 deaths this session.");
+  assert(/^14 maps this session, 4 min each on average, about 3\.4 divine\/hour · net worth 152\.3 divine\.$/.test(say("profit")), say("profit"));
+  assert.strictEqual(say("commands", { custom: [{ name: "discord", text: "x" }] }), "Commands: !build !level !map !deaths !profit !league !discord");
+  const msg = (text, extra) => T.parseIrc(`@id=m1${extra || ""} :v!v@v PRIVMSG #me :${text}`);
+  const st = {}; let now = 1e9;
+  assert.strictEqual(T.handleMessage(msg("!map"), d, {}, st, now).text, "Cemetery (tier 16), 2 deaths.");
+  assert.strictEqual(T.handleMessage(msg("!map"), d, {}, st, now + 3000), null, "cooldown");
+  assert(T.handleMessage(msg("!level"), d, {}, st, now + 3000), "other commands still answer");
+  assert.strictEqual(T.handleMessage(msg("!level"), d, {}, st, now + 3500), null, "1.5 s between any replies / cooldown");
+  assert.strictEqual(T.handleMessage(msg("!deaths"), d, { cmds: { deaths: false } }, {}, now), null, "switched off");
+  assert.strictEqual(T.handleMessage(msg("!build"), d, { modsOnly: true }, {}, now), null, "mods only: viewer ignored");
+  assert(T.handleMessage(msg("!build", ";mod=1"), d, { modsOnly: true }, {}, now), "mods only: mod answered");
+  assert.strictEqual(T.handleMessage(msg("!build"), d, { self: "v" }, {}, now), null, "never answers itself");
+  assert.strictEqual(T.handleMessage(msg("!discord"), d, { custom: [{ name: "discord", text: "Join\nus" }] }, {}, now).text, "Join us", "custom commands, newlines removed");
+  assert.strictEqual(T.handleMessage(msg("hello !build"), d, {}, {}, now), null, "only messages that start with a command");
+  assert.strictEqual(T.handleMessage(msg("!unknown"), d, {}, {}, now), null);
+  ok("Twitch: chat parsing, replies, switches, mods-only, cooldowns");
+} catch (e) { fail("Twitch: " + e.message); }
 
 Promise.all(pending).then(() => {
   if (failures) { console.error(`\n${failures} check(s) failed`); process.exit(1); }

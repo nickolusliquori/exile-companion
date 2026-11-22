@@ -128,10 +128,12 @@ const h2Text=h=>[...h.childNodes].filter(n=>!(n.classList&&n.classList.contains(
 /* shared build import (dialog + wizard) */
 async function importBuild(input,slot){
   input=String(input||"").trim();if(!input) throw new Error("Paste a Path of Building code or link first.");
-  if(window.exileDesktop&&/^https?:\/\//i.test(input)) input=await fetchPobLink(input);
+  let link=null;
+  if(window.exileDesktop&&/^https?:\/\//i.test(input)){link=input.slice(0,200);input=await fetchPobLink(input)}
   const xml=await decodePob(input);
   if(slot==="goal"&&exC&&C){C=null}
   await loadSlot(slot,xml,false);
+  if(slot==="goal"){S.goalLink=link;save()}   /* the guide's link, for Twitch !build */
   S.view=slot;save();renderBuild();bindItems();
 }
 

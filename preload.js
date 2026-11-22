@@ -139,6 +139,13 @@ contextBridge.exposeInMainWorld("exileDesktop", {
   phoneStatus: () => ipcRenderer.invoke("phone:status"),
   phoneSet: (o) => ipcRenderer.send("phone:set", o),
   onPhoneStatus: on("phone:status"),
+  twitchStatus: () => ipcRenderer.invoke("twitch:status"),
+  twitchSignIn: () => ipcRenderer.send("twitch:signin"),
+  twitchCancel: () => ipcRenderer.send("twitch:cancel"),
+  twitchSignOut: () => ipcRenderer.send("twitch:signout"),
+  twitchSet: (o) => ipcRenderer.send("twitch:set", o),
+  onTwitchStatus: on("twitch:status"),
+  onTwitchReply: on("twitch:reply"),
   // updates
   updateStatus: () => ipcRenderer.invoke("update:status"),
   checkUpdate: () => ipcRenderer.invoke("update:check"),
