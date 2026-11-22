@@ -91,6 +91,8 @@ contextBridge.exposeInMainWorld("exileDesktop", {
   onMediaBlocked: on("media:blocked"),
   onMediaClick: on("media:click"),
   setZoom: (f) => { const z = Math.min(2, Math.max(0.75, Number(f) || 1)); webFrame.setZoomFactor(z); return z; },
+  uiScale: (s) => ipcRenderer.send("ui:scale", s),
+  overlayResize: (ratio) => ipcRenderer.send("overlay:resize", ratio),
   safeState: () => ipcRenderer.invoke("app:safe"),
   restartApp: (mode) => ipcRenderer.send("app:restart", mode === "safe" ? "safe" : "normal"),
   openLogFolder: () => ipcRenderer.send("log:open"),

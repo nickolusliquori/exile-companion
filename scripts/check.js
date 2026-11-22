@@ -563,7 +563,10 @@ try {
   }
   const h = fs.readFileSync(path.join(root, "app", "index.html"), "utf8");
   assert(/class="skip" href="#main"/.test(h) && /<main id="main"/.test(h), "skip link");
-  assert(/setZoom:/.test(fs.readFileSync(path.join(root, "preload.js"), "utf8")), "desktop zoom bridge");
+  for (const f of ["index.html", "price.html", "overlay.html"]) assert(/d\.setZoom\(1\);h\.style\.zoom=/.test(fs.readFileSync(path.join(root, "app", f), "utf8")), f + " uses CSS zoom and resets Electron zoom");
+  assert(fs.readFileSync(path.join(root, "app", "overlay.html"), "utf8").includes("u.overlayScale"), "overlay has its own text size");
+  const rel = fs.readFileSync(path.join(root, ".github/workflows/release.yml"), "utf8");
+  assert(rel.indexOf("smoke-windows.ps1") > 0 && rel.indexOf("smoke-windows.ps1") < rel.indexOf("gh release create"), "release runs the Windows test before publishing");
   // a saved state with parts missing still gets every default
   const m = h.match(/const S_DEFAULT=[\s\S]*?return s\}\)\(\);/); assert(m, "state loader found");
   const run = (saved) => vm.runInNewContext(m[0] + ";S", { store: { get: () => saved } });

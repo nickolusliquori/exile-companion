@@ -112,7 +112,7 @@ Your character at a glance: progress toward the goal build, what to do next (cam
 
 ### Settings
 
-General options and your builds, a **hotkey recorder**, **Look and feel** (three themes: Dark minimal, Modern and Path of Exile; animations that respect Windows "reduce motion"; minimal sounds with a volume slider; **text size** from 90% to 150% with Ctrl + plus / minus / 0; **higher contrast**; **colorblind-friendly colors** that also apply to the overlay and price check; starter mode and the tour), your GGG account, Discord status and notifications, updates, backups (plus automatic daily ones), sync with the web version on your phone, the OBS stream overlay, display options and **Report a problem**.
+General options and your builds, a **hotkey recorder**, **Look and feel** (three themes: Dark minimal, Modern and Path of Exile; animations that respect Windows "reduce motion"; minimal sounds with a volume slider; **text size** from 90% to 150% with Ctrl + plus / minus / 0, plus a separate **overlay text size**; **higher contrast**; **colorblind-friendly colors** that also apply to the overlay and price check; starter mode and the tour), your GGG account, Discord status and notifications, updates, backups (plus automatic daily ones), sync with the web version on your phone, the OBS stream overlay, display options and **Report a problem**.
 
 - **Desktop tools:** the game log, overlay, price check, trade requests, price alerts, cheat sheets and recent price checks.
 - **Media:** a YouTube / YouTube Music / Twitch / Kick / SoundCloud **mini player** that stays on top of the game (with click-through, volume and see-through), and **Now playing** controls for whatever plays in Windows (Spotify, Apple Music, Netflix or YouTube in your browser, Stremio…). Netflix, Hulu, Disney+, Apple Music and similar can't play inside the app because they need copy protection (Widevine) it doesn't have.
@@ -175,7 +175,7 @@ If GGG asks for any change, it will be made. Contact: open an issue on this repo
 
 ## Roadmap
 
-Shipped so far: the loot filter editor (1.8), in-app browser (1.9), trading tools (1.10), League page (1.11), build tools (1.12), quality of life (1.13), themes and motion (1.14), upgrade finder (1.15), deeper price checks (1.16), media (1.17), league data updates and saved searches (1.18), map marks and item links (1.19), trade companion and recipe tracker (1.20), overlay tools (1.21), the clipboard-rule update (1.22), new-league handling (1.23), an automatic game data pipeline (1.24), the first-time experience (1.25), crash recovery with safe mode (1.26) and accessibility options (1.27). Every release ships through auto-update and gets tested in game afterwards; problems found are fixed in a follow-up patch. See the [changelog](CHANGELOG.md) for details.
+Shipped so far: the loot filter editor (1.8), in-app browser (1.9), trading tools (1.10), League page (1.11), build tools (1.12), quality of life (1.13), themes and motion (1.14), upgrade finder (1.15), deeper price checks (1.16), media (1.17), league data updates and saved searches (1.18), map marks and item links (1.19), trade companion and recipe tracker (1.20), overlay tools (1.21), the clipboard-rule update (1.22), new-league handling (1.23), an automatic game data pipeline (1.24), the first-time experience (1.25), crash recovery with safe mode (1.26), accessibility options (1.27) and a Windows test run before every release (1.28). Every release ships through auto-update and gets tested in game afterwards; problems found are fixed in a follow-up patch. See the [changelog](CHANGELOG.md) for details.
 
 | Version | Feature |
 |---|---|
@@ -215,6 +215,8 @@ The app is an [Electron](https://www.electronjs.org/) app with no frontend frame
 npm install
 npm start          # run from source
 npm run check      # automated checks (also run on every push)
+# Windows test run: set EC_SMOKE=C:\path\report.json and start the built app; it opens every page and window
+# in a throwaway profile, writes the report and quits (scripts/smoke-windows.ps1 does this on GitHub Actions)
 npm run dist:local # build an installer on your own PC
 ```
 
@@ -222,7 +224,7 @@ npm run dist:local # build an installer on your own PC
 |---|---|
 | `main.js` | Main process: windows, overlay, price window, pinned browser, media player, hotkeys, game log, GGG and poe.ninja requests (rate-limited), updater |
 | `preload.js` | The small, fixed set of actions pages may call |
-| `lib/` | Testable modules: log parsing (`logtail.js`), GGG API and OAuth (`ggg.js`), trade rate limiter (`ratelimit.js`), allowed sites (`webhosts.js`), Windows media controls (`media.js`), Discord (`discord.js`), clipboard helpers (`clip.js`), filter file names (`files.js`), problem-report redaction (`diag.js`) |
+| `lib/` | Testable modules: log parsing (`logtail.js`), GGG API and OAuth (`ggg.js`), trade rate limiter (`ratelimit.js`), allowed sites (`webhosts.js`), Windows media controls (`media.js`), Discord (`discord.js`), clipboard helpers (`clip.js`), filter file names (`files.js`), problem-report redaction (`diag.js`), local log and safe mode (`crashlog.js`) |
 | `app/index.html` | The main app: every page, card and the Ctrl+K search |
 | `app/craftlab.js`, `app/craftdata.js` | The Craft lab engine and its game data (loaded when the page opens) |
 | `app/filterlab.js`, `tradetools.js`, `league.js`, `buildtools.js`, `upgrades.js` | Loot filter editor, trading tools, League page, build tools and upgrade finder (each loaded when its page opens) |

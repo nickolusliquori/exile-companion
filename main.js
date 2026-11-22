@@ -133,7 +133,8 @@ function createMain() {
 
 function defaultOverlayBounds() {
   const wa = screen.getPrimaryDisplay().workArea;
-  return { width: 340, height: 460, x: wa.x + wa.width - 360, y: wa.y + 140 };
+  const k = Math.min(2, Math.max(0.75, (+cfg.overlayScale || 100) / 100)), width = Math.round(340 * k), height = Math.min(wa.height - 160, Math.round(460 * k));
+  return { width, height, x: wa.x + wa.width - width - 20, y: wa.y + 140 };
 }
 function createOverlay() {
   let b = cfg.overlayBounds || defaultOverlayBounds();
@@ -211,6 +212,7 @@ function rememberItem(text) {
 }
 function showPrice(text) {
   if (!priceWin) createPrice();
+  sizePrice();
   lastPriceText = text;
   rememberItem(text);
   const pt = screen.getCursorScreenPoint();
@@ -989,6 +991,25 @@ app.on("web-contents-created", (e, wc) => {
 app.on("child-process-gone", (e, d) => { if (d.reason !== "clean-exit") LOG.error("app", `${d.type} process stopped (${d.reason}${d.name ? ", " + d.name : ""}, exit code ${d.exitCode})`); });
 app.on("before-quit", () => { app.isQuitting = true; });
 
+// text size: the price popup grows with the app's text size; the overlay grows when its own text size changes
+const PRICE_BASE = { width: 400, height: 520 };
+function sizePrice() {
+  if (!priceWin || priceWin.isDestroyed() || priceWin.isVisible()) return;
+  const k = Math.min(2, Math.max(0.75, (+cfg.uiScale || 100) / 100)), wa = screen.getPrimaryDisplay().workArea;
+  priceWin.setSize(Math.min(wa.width - 20, Math.round(PRICE_BASE.width * k)), Math.min(wa.height - 20, Math.round(PRICE_BASE.height * k)));
+}
+ipcMain.on("ui:scale", (e, s) => {
+  const v = (x) => Math.min(200, Math.max(75, Math.round(+x) || 100));
+  if (!s || typeof s !== "object") return;
+  cfg.uiScale = v(s.main); cfg.overlayScale = v(s.overlay); saveCfg(); sizePrice();
+});
+ipcMain.on("overlay:resize", (e, ratio) => {
+  const r = +ratio; if (!overlayWin || overlayWin.isDestroyed() || !(r > 0.3 && r < 3)) return;
+  const b = overlayWin.getBounds(), wa = screen.getDisplayMatching(b).workArea;
+  const width = Math.min(wa.width, Math.max(200, Math.round(b.width * r))), height = Math.min(wa.height, Math.max(120, Math.round(b.height * r)));
+  const nb = { x: Math.min(b.x, wa.x + wa.width - width), y: Math.min(b.y, wa.y + wa.height - height), width, height };
+  overlayWin.setBounds(nb); cfg.overlayBounds = nb; saveCfg();
+});
 ipcMain.handle("app:safe", () => ({ safe: SAFE, fails: GUARD ? GUARD.fails : 0 }));
 ipcMain.on("app:restart", (e, mode) => {
   if (GUARD) GUARD.reset();
@@ -1051,6 +1072,13 @@ async function runSmoke() {
       const r = await Promise.race([mediaBridge.now(), wait(25e3).then(() => ({ error: "no answer in 25 s" }))]);
       if (r && r.error && /doesn't offer/.test(r.error)) { rep.warnings.push("This Windows build has no media controls: " + r.error); return { info: r.error }; }
       return { ok: !(r && r.error), info: JSON.stringify(r) };
+    });
+    await run("text size: the overlay and price check follow their own settings", async () => {
+      await js(mainWin.webContents, "UI.overlayScale=150;UI.scale=125;save();applyA11y();pushScale()"); await wait(800);
+      const o = await js(overlayWin.webContents, "document.documentElement.style.zoom"), p = await js(priceWin.webContents, "document.documentElement.style.zoom"), m = await js(mainWin.webContents, "document.documentElement.style.zoom");
+      const zf = mainWin.webContents.getZoomFactor();
+      await js(mainWin.webContents, "UI.overlayScale=100;UI.scale=100;save();applyA11y();pushScale()");
+      return { ok: o === "1.5" && p === "1.25" && m === "1.25" && Math.abs(zf - 1) < 0.01, info: `main ${m}, price ${p}, overlay ${o}, Electron zoom ${zf}` };
     });
     await run("safe-mode state answers", () => ({ info: JSON.stringify({ safe: SAFE }) }));
   } catch (e) { step("test run", false, (e && e.stack) || e); }

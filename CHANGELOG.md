@@ -2,6 +2,16 @@
 
 What changed in each release, newest first. Installed copies update themselves; see the [Releases page](https://github.com/nickolusliquori/exile-companion/releases) for the installers. Planned releases are on the [roadmap](README.md#roadmap).
 
+## [1.28.0] - 2026-11-22
+
+### Added
+- **Windows test run:** every release is now opened on a real Windows machine (GitHub Actions) before it's published. The test goes through every page, the overlay, price check, pinned browser and media player windows, reading a game log, Windows' media controls and the text size settings, and the release stops if anything fails or logs an error. Pull requests (such as the weekly data update) get the same test.
+- **Overlay text size** (Settings → Look and feel), separate from the app's. The overlay window grows or shrinks to fit when you change it.
+
+### Fixed
+- At text sizes other than 100%, the in-app browser was placed in the wrong spot. Text size now scales each window by itself (main window, price check, overlay), and the old zoom from 1.27 is reset once.
+- The price check popup now grows with the text size instead of cutting content off.
+
 ## [1.27.0] - 2026-11-22
 
 ### Added

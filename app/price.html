@@ -89,7 +89,7 @@ html[data-cb="1"][data-cb]{--good:#56b4e9;--warn:#f0e442;--bad:#ff8a3d}
 /* accessibility options from Settings (text size, contrast, colorblind colors); follows changes made in other windows */
 (function(){function A(){try{var u=(JSON.parse(localStorage.getItem("ec330.state")||"{}").ui)||{},h=document.documentElement;
 h.dataset.contrast=u.contrast?"high":"";h.dataset.cb=u.cb?"1":"";
-var z=Math.min(2,Math.max(.75,(+u.scale||100)/100)),d=window.exileDesktop;if(d&&d.setZoom){d.setZoom(z);h.style.zoom=""}else h.style.zoom=z===1?"":String(z);}catch(e){}}
+var z=Math.min(2,Math.max(.75,(+u.scale||100)/100)),d=window.exileDesktop;if(d&&d.setZoom)d.setZoom(1);h.style.zoom=z===1?"":String(z);}catch(e){}}
 A();addEventListener("storage",function(e){if(!e.key||e.key==="ec330.state")A()});window.__applyA11y=A})();
 </script>
 </head>
