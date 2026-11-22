@@ -380,6 +380,27 @@ try {
   ok("index.html declares DESK before any top-level use");
 } catch (e) { fail("index.html load order: " + e.message); }
 
+// league data published in the repo (data/league.json): valid, not older than the built-in copy, and applied safely
+try {
+  const ctx = { console, S: {}, save() {}, toast() {}, emptyBox: (m) => m, $: () => null, DESK: null };
+  ctx.window = ctx; vm.createContext(ctx);
+  vm.runInContext(fs.readFileSync(path.join(appDir, "league.js"), "utf8"), ctx);
+  const L = ctx.LeagueTools._test;
+  const pub = JSON.parse(fs.readFileSync(path.join(root, "data", "league.json"), "utf8"));
+  assert(L.validData(pub), "data/league.json has the expected shape");
+  assert(pub.v >= L.BUILT_V, `data/league.json (${pub.v}) is not older than the app's built-in data (${L.BUILT_V})`);
+  const clone = () => JSON.parse(JSON.stringify(pub));
+  let bad = clone(); bad.threads = "Legion"; assert(!L.validData(bad), "threads must be a list");
+  bad = clone(); bad.syn.Rin.R = { html: "<b>" }; assert(!L.validData(bad), "rewards must be text");
+  bad = clone(); bad.presets.x = { name: "X", t: { Nobody: "R" } }; assert(!L.validData(bad), "presets only name real members");
+  bad = clone(); bad.v = "yesterday"; assert(!L.validData(bad), "version must be a date");
+  const older = clone(); older.v = "2026-01-01"; assert(!L.applyData(older), "older data is ignored");
+  const newer = clone(); newer.v = "2099-01-01"; newer.threads = newer.threads.concat(["Delve"]); newer.syn.Rin.R = "Updated reward";
+  assert(L.applyData(newer, "test"), "newer valid data is applied");
+  assert(L.cur().THREADS.includes("Delve") && L.reward("Rin", "R") === "Updated reward", "the page uses the new data");
+  ok(`league data: data/league.json (${pub.v}) is valid; newer data applies, bad or older data is ignored`);
+} catch (e) { fail("league data: " + e.message); }
+
 Promise.all(pending).then(() => {
   if (failures) { console.error(`\n${failures} check(s) failed`); process.exit(1); }
   console.log("\nAll checks passed");

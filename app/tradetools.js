@@ -68,8 +68,9 @@ async function render(){
   if(!window.MAPMOD_DATA){try{await loadScriptOnce("mapmods.js","MAPMOD_DATA")}catch(e){}}
   root.innerHTML=`<div class="grid"><div class="card hl" id="ttSearch"></div><div class="card" id="ttVendor"></div></div>
     <div class="card" id="ttDump"></div>
-    <div class="grid"><div class="card" id="ttFlip"></div><div class="card" id="ttCollect"></div></div>`;
-  renderSearch();renderVendor();renderDump();renderFlip();renderCollect();
+    <div class="grid"><div class="card" id="ttFlip"></div><div class="card" id="ttCollect"></div></div>
+    <div class="card" id="ttSaved"></div>`;
+  renderSearch();renderVendor();renderDump();renderFlip();renderCollect();renderSaved();
 }
 function renderSearch(){
   const el=$("ttSearch");if(!el)return;const s=st();const all=(window.MAPMOD_DATA&&MAPMOD_DATA.mods)||[];
@@ -200,6 +201,21 @@ async function scanCollect(){
       }}
     s.collect={t:Date.now(),div,uniques:Object.values(uniq).sort((a,b)=>(b.price||0)-(a.price||0))};save();
   }finally{btn.disabled=false;renderCollect()}
+}
+function renderSaved(){
+  const el=$("ttSaved");if(!el)return;const saved=S.tradeSaved||[],hist=(S.tradeHist||[]).filter(h=>!saved.some(x=>x.url===h.url)).slice(0,10);
+  const go=u=>{if(DESK&&DESK.openExternal)DESK.openExternal(u);else window.open(u,"_blank","noopener")};
+  const when=t=>{const m=Math.round((Date.now()-t)/60000);return m<60?m+"m ago":m<1440?Math.round(m/60)+"h ago":Math.round(m/1440)+"d ago"};
+  el.innerHTML=`<h2>Saved trade searches</h2>
+    <p class="small muted" style="margin:0">Searches you open in the app's browser are remembered here. Click ☆ Save search in the browser, or Save below, to keep one with a name.</p>
+    ${saved.length?`<div class="tw"><table><thead><tr><th>Name</th><th>League</th><th>Kind</th><th></th></tr></thead><tbody>${saved.map((x,i)=>`<tr><td><input type="text" value="${esc2(x.name)}" data-svn="${i}" aria-label="Name"></td><td class="small">${esc2(x.league)}</td><td class="small">${x.kind==="exchange"?"Bulk":"Search"}</td><td class="row" style="flex-wrap:nowrap"><button class="btn small" data-svo="${i}">Open</button><button class="btn ghost small" data-svd="${i}" aria-label="Remove ${esc2(x.name)}">✕</button></td></tr>`).join("")}</tbody></table></div>`:emptyBox("No saved searches yet. Open a search on the trade site in the app's browser and click ☆ Save search.",[["Open the trade site","openTrade"]])}
+    ${hist.length?`<details class="small"${saved.length?"":" open"}><summary style="cursor:pointer"><b>Recent searches</b> (${hist.length})</summary><ul class="clean" style="margin-top:6px">${hist.map((h,i)=>`<li class="row" style="justify-content:space-between"><span>${h.kind==="exchange"?"Bulk exchange":"Search"} · ${esc2(h.league)} · <span class="muted">${when(h.t)}</span></span><span class="row"><button class="btn ghost small" data-hso="${i}">Open</button><button class="btn ghost small" data-hss="${i}">Save</button></span></li>`).join("")}</ul></details>`:""}`;
+  el.querySelectorAll("[data-svo]").forEach(b=>b.onclick=()=>go(saved[+b.dataset.svo].url));
+  el.querySelectorAll("[data-svn]").forEach(i=>i.onchange=()=>{saved[+i.dataset.svn].name=i.value.trim()||saved[+i.dataset.svn].name;save()});
+  el.querySelectorAll("[data-svd]").forEach(b=>b.onclick=()=>{const i=+b.dataset.svd,x=saved.splice(i,1)[0];S.tradeSaved=saved;save();renderSaved();toast(`Removed "${x.name}".`,()=>{saved.splice(i,0,x);S.tradeSaved=saved;save();renderSaved()})});
+  el.querySelectorAll("[data-hso]").forEach(b=>b.onclick=()=>go(hist[+b.dataset.hso].url));
+  el.querySelectorAll("[data-hss]").forEach(b=>b.onclick=()=>{const h=hist[+b.dataset.hss];saveTradeSearch(h.url,"");renderSaved()});
+  el.querySelectorAll('[data-fix="openTrade"]').forEach(b=>b.onclick=e=>{e.stopPropagation();go("https://www.pathofexile.com/trade")});
 }
 TT.render=render;TT.startFlipWatch=startFlipWatch;
 TT._test={avoidTokens,geq,buildSearch,noteFor,familyLines};

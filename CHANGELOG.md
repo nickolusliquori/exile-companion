@@ -2,6 +2,13 @@
 
 What changed in each release, newest first. Installed copies update themselves; see the [Releases page](https://github.com/nickolusliquori/exile-companion/releases) for the installers. Planned releases are on the [roadmap](README.md#roadmap).
 
+## [1.18.0] - 2026-11-22
+
+### Added
+- **League data updates between releases:** the League page (Betrayal rewards, Threads, Expedition) now checks this project's GitHub repo for newer data (`data/league.json`), so mid-league corrections arrive without installing anything. Only checked text and lists are used; anything malformed or older is ignored. The Betrayal card shows which data version you're on.
+- **Saved trade searches** (Economy → Trading): every trade search you open in the app's browser goes into a recent list. Click **☆ Save search** in the browser bar (or Save in the list) to keep one, rename it and open it again later.
+- **Net worth graph:** choose 24 hours, 7 days or all, in divines (at each snapshot's divine price) or chaos, with the change over the range and the average per day. Home shows your latest net worth and the 24-hour change.
+
 ## [1.17.0] - 2026-11-22
 
 ### Added

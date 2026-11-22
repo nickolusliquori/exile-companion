@@ -442,7 +442,9 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 let tradeQueue = Promise.resolve();
 async function http({ url, method = "GET", body = null, cacheMs = 0, text = false }) {
   const u = new URL(url);
-  if (u.protocol !== "https:" || !ALLOWED_HOSTS.includes(u.hostname)) throw new Error("Host not allowed: " + u.hostname);
+  // league data published in this app's own GitHub repo (JSON only) is the one exception to the host list
+  const repoData = u.hostname === "raw.githubusercontent.com" && u.pathname.startsWith("/nickolusliquori/exile-companion/main/data/") && u.pathname.endsWith(".json");
+  if (u.protocol !== "https:" || (!ALLOWED_HOSTS.includes(u.hostname) && !repoData)) throw new Error("Host not allowed: " + u.hostname);
   const key = method + " " + url + (body ? JSON.stringify(body) : "");
   const hit = cache.get(key);
   if (cacheMs && hit && Date.now() - hit.t < cacheMs) return { ...hit.res, cached: true };

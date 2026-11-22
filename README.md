@@ -89,7 +89,7 @@ Your character at a glance: progress toward the goal build, what to do next (cam
 | **Crafting** | A crafting plan for each gear slot, crafts that tend to sell for profit, a cost calculator and a 3.30 crafting cheat sheet. |
 | **Craft lab** | Mod pools from the game files (patch 3.30.0.4) for any base, item level and influence, with tiers, roll ranges and weights. Tick the mods you want to see the chance and cost of chaos spam, essences, fossils and alteration methods; practise on an **emulator** item; or **simulate** a whole plan 2,000 times for its average and unlucky cost. |
 | **Loot filter** | Edit the NeverSink filter you use: show or hide rules, restyle them (size, colours, sound, beam, minimap icon), preview 36 typical drops through it, re-tier currency, cards and uniques with today's poe.ninja prices, and add highlights for your build. Saves a separate `ExileCompanion-…` copy; your original is never changed. |
-| **Trading** | A map search builder that hides every tier of the mods you won't run (like poe.re), ready-made vendor searches, a dump-tab pricer that writes `~b/o` notes to copy onto items, a currency flip watcher, and divination card and unique collections. |
+| **Trading** | Saved trade searches and recent search history, a map search builder that hides every tier of the mods you won't run (like poe.re), ready-made vendor searches, a dump-tab pricer that writes `~b/o` notes to copy onto items, a currency flip watcher, and divination card and unique collections. |
 | **League** | Built for 3.30's Threads: the cost of the Threads you put in each map (with free Shaped Region Threads and the 8-Thread cap), what each strategy returns for the Threads you spend (from your map log), a Betrayal board with the 3.30 rewards and the moves left to reach your plan, Expedition currency values, and Heist and Labyrinth notes. |
 | **Build tools** | Upgrade finder: scores your gear by the stats your build values and finds trade items that beat each slot, ranked by score gained per divine. Timeless jewel lookup and seed finder (Lethal Pride, Brutal Restraint, Militant Faith, Elegant Hubris, Heroic Tragedy) using Path of Building's tables, with a trade search for the seed. Also: cluster jewel notables and their odds for each enchant, gem levelling profit from poe.ninja, and a meta check against poe.ninja's builds page. |
 | **Quality of life** | Recent price checks: the last 20 items you copied, each re-checkable with one click (kept in memory only). Session goals (divines, chaos, maps or hours) with progress on Home and the overlay and a notification when reached. The in-app browser pinned over the game in an always-on-top window, with a hotkey and adjustable see-through. |
@@ -142,7 +142,7 @@ The loot filter editor shipped in 1.8, the in-app browser in 1.9, the trading to
 
 | Version | Feature |
 |---|---|
-| **1.18** | **Data and history:** league data that updates without an app release, a net worth graph and saved trade searches.|
+| Next | Ideas welcome: open a feature request on GitHub or use Settings → Report a problem.|
 
 Not planned: anything that sends input to the game (auto-setting stash notes, chat macros) or uploads to your GGG account, because GGG isn't approving new third-party sign-ins.
 

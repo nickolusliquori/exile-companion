@@ -1,0 +1,164 @@
+{
+  "v": "2026-11-22",
+  "game": "3.30",
+  "threads": [
+    "Abyss",
+    "Bestiary",
+    "Betrayal",
+    "Blight",
+    "Breach",
+    "Expedition",
+    "Incursion",
+    "Legion",
+    "Ritual",
+    "Ultimatum"
+  ],
+  "intervention": "Trapped stash of one class of unique items (more and rarer at higher rank)",
+  "syn": {
+    "Aisling": {
+      "T": "Items with two veiled mods",
+      "F": "Bench: Veiled Exalted Orb",
+      "R": "Bench: Veiled Chaos Orb"
+    },
+    "Cameria": {
+      "T": "Chests with a specific Allflame Ember",
+      "F": "Trapped chest: jewels",
+      "R": "Bench: crafting currency on a jewel",
+      "c": "T"
+    },
+    "Elreon": {
+      "T": "Chests with a specific Allflame Ember",
+      "F": "Trapped chest: corrupted equipment",
+      "R": "Bench: Tainted currency on a corrupted item",
+      "c": "T"
+    },
+    "Gravicius": {
+      "T": "Stack of divination cards",
+      "F": "Trapped chest: divination cards",
+      "R": "Bench: swap a divination card"
+    },
+    "Guff": {
+      "T": "Random currency",
+      "F": "Trapped chest: rare equipment",
+      "R": "Bench: Reflecting Mist on a jewel"
+    },
+    "Haku": {
+      "T": "Unique strongbox",
+      "F": "Chests with a specific Allflame Ember",
+      "R": "Bench: Hinekora's Lock / influenced Exalted Orb",
+      "c": "F"
+    },
+    "Hillock": {
+      "T": "Trapped chest: influenced equipment",
+      "F": "Bench: influenced Exalted Orb",
+      "R": "Bench: Eldritch implicit"
+    },
+    "It That Fled": {
+      "T": "Trapped chest: Foulborn uniques",
+      "F": "Bench: Foulborn currency on a Breach ring",
+      "R": "Bench: Tainted socket currency"
+    },
+    "Janus": {
+      "T": "Gold piles",
+      "F": "Chests with a specific Allflame Ember",
+      "R": "Cadiro's offer (buy a unique)",
+      "c": "F"
+    },
+    "Jorgin": {
+      "T": "Chests with a specific Allflame Ember",
+      "F": "Trapped chest: Delve equipment",
+      "R": "Bench: Tainted currency on a talisman",
+      "c": "T"
+    },
+    "Korell": {
+      "T": "Chests with a specific Allflame Ember",
+      "F": "Trapped chest: Essence equipment",
+      "R": "Bench: Essences on an item",
+      "c": "T"
+    },
+    "Leo": {
+      "T": "Chests with a specific Allflame Ember",
+      "F": "Trapped chest: corrupted unique",
+      "R": "Bench: special corruption on a unique",
+      "c": "T"
+    },
+    "Riker": {
+      "T": "Unique items",
+      "F": "Chests with Ancient Orbs",
+      "R": "Bench: Ancient Orb on a unique",
+      "c": "F"
+    },
+    "Rin": {
+      "T": "Originator maps",
+      "F": "Chests with Threads",
+      "R": "Trapped stash: Threads in various stack sizes",
+      "c": "FR"
+    },
+    "Tora": {
+      "T": "Quality gems and Facetor's Lens",
+      "F": "Trapped chest: gems",
+      "R": "Bench: gem currency"
+    },
+    "Vagan": {
+      "T": "Incubators",
+      "F": "Bench: complete all Incubators",
+      "R": "Bench: Fracturing Orb"
+    },
+    "Vorici": {
+      "T": "Stack of currency",
+      "F": "Bench: reforge colours, sockets and links",
+      "R": "Trapped stashes: quality skill gems with a Soul Core",
+      "c": "R"
+    }
+  },
+  "presets": {
+    "threads": {
+      "name": "Threads and Ancient Orbs",
+      "t": {
+        "Rin": "R",
+        "Riker": "F",
+        "Gravicius": "T",
+        "Janus": "T"
+      }
+    },
+    "benches": {
+      "name": "Crafting benches",
+      "t": {
+        "Aisling": "R",
+        "Cameria": "R",
+        "Vagan": "R",
+        "Hillock": "F"
+      }
+    },
+    "gems": {
+      "name": "Gems",
+      "t": {
+        "Vorici": "R",
+        "Tora": "R",
+        "Rin": "F",
+        "Riker": "F"
+      }
+    },
+    "uniques": {
+      "name": "Uniques",
+      "t": {
+        "Riker": "T",
+        "It That Fled": "T",
+        "Leo": "F",
+        "Janus": "I"
+      }
+    }
+  },
+  "artifacts": [
+    "Exotic Coinage",
+    "Burial Medallion",
+    "Scrap Metal",
+    "Astragali"
+  ],
+  "artifactVendor": {
+    "Exotic Coinage": "Rog (reroll deals: 1, 3 or 5 rerolls in 3.30)",
+    "Burial Medallion": "Dannig",
+    "Scrap Metal": "Tujen (no longer sells Oils)",
+    "Astragali": "Gwennen (now modifies one rare item instead of gambling)"
+  }
+}

@@ -7,12 +7,12 @@ const esc2=s=>String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;
 const go=u=>{if(typeof showTab==="function"&&typeof brGo==="function"&&DESK){showTab("browser");brGo(u)}else window.open(u,"_blank","noopener")};
 
 /* ---------- data ---------- */
-const THREADS=["Abyss","Bestiary","Betrayal","Blight","Breach","Expedition","Incursion","Legion","Ritual","Ultimatum"];
+let THREADS=["Abyss","Bestiary","Betrayal","Blight","Breach","Expedition","Incursion","Legion","Ritual","Ultimatum"];
 const CAP=8;
 const DIVS=[["T","Transportation"],["F","Fortification"],["R","Research"],["I","Intervention"]];
-const INTERVENTION="Trapped stash of one class of unique items (more and rarer at higher rank)";
+let INTERVENTION="Trapped stash of one class of unique items (more and rarer at higher rank)";
 // c:1 = changed in 3.30 (patch notes); other cells are unchanged from 3.29
-const SYN={
+let SYN={
   "Aisling":{T:"Items with two veiled mods",F:"Bench: Veiled Exalted Orb",R:"Bench: Veiled Chaos Orb"},
   "Cameria":{T:"Chests with a specific Allflame Ember",F:"Trapped chest: jewels",R:"Bench: crafting currency on a jewel",c:"T"},
   "Elreon":{T:"Chests with a specific Allflame Ember",F:"Trapped chest: corrupted equipment",R:"Bench: Tainted currency on a corrupted item",c:"T"},
@@ -31,18 +31,48 @@ const SYN={
   "Vagan":{T:"Incubators",F:"Bench: complete all Incubators",R:"Bench: Fracturing Orb"},
   "Vorici":{T:"Stack of currency",F:"Bench: reforge colours, sockets and links",R:"Trapped stashes: quality skill gems with a Soul Core",c:"R"}
 };
-const MEMBERS=Object.keys(SYN);
+let MEMBERS=Object.keys(SYN);
+// league data can be refreshed from the app's GitHub repo (data/league.json) between releases.
+// Only plain text and lists are taken from it, after checking their shape; it's shown escaped like everything else.
+const BUILT_V="2026-11-22";
+let DATA_INFO={v:BUILT_V,src:"built in"};
+const RAW_LEAGUE="https://raw.githubusercontent.com/nickolusliquori/exile-companion/main/data/league.json";
+function builtData(){return {v:BUILT_V,game:"3.30",threads:THREADS,intervention:INTERVENTION,syn:SYN,presets:PRESETS,artifacts:ARTIFACTS,artifactVendor:ARTIFACT_VENDOR}}
+function validData(d){
+  const str=(x,n)=>typeof x==="string"&&x.length>0&&x.length<=(n||160);
+  try{
+    if(!d||!str(d.v,20)||!/^\d{4}-\d{2}-\d{2}$/.test(d.v))return false;
+    if(!Array.isArray(d.threads)||d.threads.length<1||d.threads.length>20||!d.threads.every(t=>str(t,40)))return false;
+    if(!str(d.intervention))return false;
+    const mem=Object.keys(d.syn||{});if(mem.length<5||mem.length>30)return false;
+    for(const m of mem){const r=d.syn[m];if(!str(m,40)||!["T","F","R"].every(k=>str(r[k]))||(r.c!=null&&!/^[TFRI]{0,4}$/.test(r.c)))return false}
+    for(const [k,p] of Object.entries(d.presets||{})){if(!str(k,30)||!str(p.name,60))return false;for(const [m,dv] of Object.entries(p.t||{}))if(!d.syn[m]||!"TFRI".includes(dv)||dv.length!==1)return false}
+    if(!Array.isArray(d.artifacts)||!d.artifacts.every(a=>str(a,40)))return false;
+    if(d.artifactVendor&&!Object.values(d.artifactVendor).every(x=>str(x)))return false;
+    return true;
+  }catch(e){return false}
+}
+function applyData(d,src){
+  if(!validData(d)||d.v<BUILT_V)return false;
+  THREADS=d.threads.slice();INTERVENTION=d.intervention;SYN=JSON.parse(JSON.stringify(d.syn));MEMBERS=Object.keys(SYN);
+  PRESETS=JSON.parse(JSON.stringify(d.presets||{}));ARTIFACTS=d.artifacts.slice();ARTIFACT_VENDOR={...(d.artifactVendor||{})};
+  DATA_INFO={v:d.v,src:src||"GitHub",game:d.game};return true;
+}
+async function refreshData(){
+  if(typeof DESK==="undefined"||!DESK||!DESK.http)return false;
+  try{const r=await DESK.http({url:RAW_LEAGUE,cacheMs:6*3600e3});return r&&r.status===200&&applyData(r.data,"GitHub")}catch(e){return false}
+}
 const reward=(m,d)=>d==="I"?INTERVENTION:(SYN[m]&&SYN[m][d])||"";
 const changed=(m,d)=>d==="I"||String((SYN[m]&&SYN[m].c)||"").includes(d);
 // starting ideas, not rules: who to keep where
-const PRESETS={
+let PRESETS={
   threads:{name:"Threads and Ancient Orbs",t:{"Rin":"R","Riker":"F","Gravicius":"T","Janus":"T"}},
   benches:{name:"Crafting benches",t:{"Aisling":"R","Cameria":"R","Vagan":"R","Hillock":"F"}},
   gems:{name:"Gems",t:{"Vorici":"R","Tora":"R","Rin":"F","Riker":"F"}},
   uniques:{name:"Uniques",t:{"Riker":"T","It That Fled":"T","Leo":"F","Janus":"I"}}
 };
-const ARTIFACTS=["Exotic Coinage","Burial Medallion","Scrap Metal","Astragali"];
-const ARTIFACT_VENDOR={"Exotic Coinage":"Rog (reroll deals: 1, 3 or 5 rerolls in 3.30)","Burial Medallion":"Dannig","Scrap Metal":"Tujen (no longer sells Oils)","Astragali":"Gwennen (now modifies one rare item instead of gambling)"};
+let ARTIFACTS=["Exotic Coinage","Burial Medallion","Scrap Metal","Astragali"];
+let ARTIFACT_VENDOR={"Exotic Coinage":"Rog (reroll deals: 1, 3 or 5 rerolls in 3.30)","Burial Medallion":"Dannig","Scrap Metal":"Tujen (no longer sells Oils)","Astragali":"Gwennen (now modifies one rare item instead of gambling)"};
 
 /* ---------- maths ---------- */
 function priceOf(P,name){if(!P)return null;const v=(P.cur&&P.cur[name])??(P.ex&&P.ex[name]);return v==null||!isFinite(v)?null:v}
@@ -91,6 +121,7 @@ async function render(){
     <div class="card" id="lgBetrayal"></div>
     <div class="grid"><div class="card" id="lgExped"></div><div class="card" id="lgHeist"></div></div>
     <div class="grid"><div class="card" id="lgLab"></div><div class="card" id="lgDrops"></div></div>`;
+  if(!LG._fetched){LG._fetched=true;if(await refreshData()){/* newer league data from the repo */}}
   renderThreads();renderReturn();renderBetrayal();renderExped();renderHeist();renderLab();renderDrops();
   if(DESK&&typeof ninjaPrices==="function"){try{P=await ninjaPrices(false)}catch(e){P=null}renderThreads();renderReturn();renderExped()}
 }
@@ -150,7 +181,7 @@ function renderBetrayal(){
       <td><select data-lgr="${esc2(m)}" aria-label="${esc2(m)} rank">${[0,1,2,3].map(r=>`<option${(b.r||0)===r?" selected":""}>${r}</option>`).join("")}</select></td>
       <td><select data-lgw="${esc2(m)}" aria-label="${esc2(m)} target division"><option value="">–</option>${DIVS.map(([d,n])=>`<option value="${d}"${w===d?" selected":""}>${n}</option>`).join("")}</select></td></tr>`}).join("")}
     </tbody></table></div>
-    <p class="small muted" style="margin:0">Rewards not named in the 3.30 patch notes are shown as they were in 3.29. The patch notes don't say which unique class each member's Intervention stash holds.</p>`;
+    <p class="small muted" style="margin:0">League data: ${esc2(DATA_INFO.v)} (${esc2(DATA_INFO.src)}). Rewards not named in the 3.30 patch notes are shown as they were in 3.29. The patch notes don't say which unique class each member's Intervention stash holds.</p>`;
   const upd=(k,m,v)=>{if(k==="w"){if(v)s.target[m]=v;else delete s.target[m];s.preset=""}else{const b=s.board[m]||(s.board[m]={});b[k]=k==="r"?+v:v;if(!b.d&&!b.r)delete s.board[m]}save();renderBetrayal()};
   el.querySelectorAll("[data-lgd]").forEach(x=>x.onchange=()=>upd("d",x.dataset.lgd,x.value));
   el.querySelectorAll("[data-lgr]").forEach(x=>x.onchange=()=>upd("r",x.dataset.lgr,x.value));
@@ -205,5 +236,5 @@ function renderDrops(){
     </ul>`;
 }
 LG.render=render;
-LG._test={planCost,mapReturn,boardAdvice,reward,changed,threadPrices,PRESETS,MEMBERS,THREADS};
+LG._test={cur:()=>({THREADS,SYN,MEMBERS,PRESETS}),builtData,validData,applyData,BUILT_V,planCost,mapReturn,boardAdvice,reward,changed,threadPrices,PRESETS,MEMBERS,THREADS};
 })();

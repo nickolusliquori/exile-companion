@@ -2550,12 +2550,24 @@ function lineChart(points,{w=560,h=160,fmtY=v=>fmt(v)+"c"}={}){
   const grid=[0,0.5,1].map(f=>{const v=y0+(y1-y0)*f;return `<line x1="40" x2="${w-10}" y1="${Y(v)}" y2="${Y(v)}" stroke="var(--line)" stroke-dasharray="3 3"/><text x="36" y="${Y(v)+4}" text-anchor="end" font-size="10" fill="var(--muted)">${fmtY(v)}</text>`}).join("");
   return `<svg viewBox="0 0 ${w} ${h}" width="100%" role="img" aria-label="Trend chart">${grid}<path d="${path} L${X(last.t)},${h-22} L${X(points[0].t)},${h-22} Z" fill="var(--gold)" opacity=".12"/><path d="${path}" fill="none" stroke="var(--gold)" stroke-width="2"/><circle cx="${X(last.t)}" cy="${Y(last.v)}" r="4" fill="var(--gold)"/><text x="40" y="${h-6}" font-size="10" fill="var(--muted)">${new Date(x0).toLocaleDateString()}</text><text x="${w-10}" y="${h-6}" font-size="10" fill="var(--muted)" text-anchor="end">${new Date(x1).toLocaleString()}</text></svg>`;
 }
+// net worth history for a range, in divines (each snapshot's own divine price) or chaos
+function netSeries(range,unit){
+  const span={day:864e5,week:7*864e5}[range];const now=Date.now();
+  const pts=(S.netWorth||[]).filter(p=>!span||now-p.t<=span).map(p=>({t:p.t,v:unit==="div"&&p.div?p.total/p.div:p.total}));
+  const fmtv=unit==="div"?(v=>(Math.abs(v)>=100?Math.round(v):v.toFixed(1))+" div"):(v=>fmt(v)+"c");
+  if(pts.length<2)return {points:pts,delta:null,perDay:null,fmt:fmtv};
+  const d=pts[pts.length-1].v-pts[0].v,days=(pts[pts.length-1].t-pts[0].t)/864e5;
+  return {points:pts,delta:d,perDay:days>=0.5?d/days:null,fmt:fmtv};
+}
 function renderNetWorth(){
   const el=$("acctNet");if(!el) return;
   const L=S.netLatest, hist=S.netWorth||[];
   el.innerHTML=`<div class="row" style="justify-content:space-between"><h2>Net worth</h2>${L?`<span class="big num" style="font-size:1.8rem">${L.div?(L.total/L.div).toFixed(1)+" div":fmt(L.total)+"c"}</span>`:""}</div>
     ${L?`<p class="small muted" style="margin:0">${fmt(L.total)}c · ${L.priced} priced items${L.unpriced?`, ${L.unpriced} without a price`:""} · ${new Date(L.t).toLocaleString()}</p>`:""}
-    ${lineChart(hist.map(p=>({t:p.t,v:p.total})))}
+    ${(()=>{const nw=netSeries(S.nwRange||"week",S.nwUnit||"div");return `<div class="row" style="justify-content:space-between"><div class="seg" role="group" aria-label="Range">${[["day","24 h"],["week","7 days"],["all","All"]].map(([k,l])=>`<button data-nwr="${k}" aria-pressed="${(S.nwRange||"week")===k}">${l}</button>`).join("")}</div>
+      <div class="seg" role="group" aria-label="Unit">${[["div","Divines"],["chaos","Chaos"]].map(([k,l])=>`<button data-nwu="${k}" aria-pressed="${(S.nwUnit||"div")===k}">${l}</button>`).join("")}</div></div>
+      ${nw.delta!=null?`<p class="small" style="margin:0"><span class="delta ${nw.delta>=0?"pos":"neg"}">${nw.delta>=0?"+":""}${nw.fmt(nw.delta)}</span> <span class="muted">over this range${nw.perDay!=null?` · about ${nw.perDay>=0?"+":""}${nw.fmt(nw.perDay)} a day`:""}</span></p>`:""}
+      ${lineChart(nw.points,{fmtY:nw.fmt})}`})()}
     <div class="row"><button class="btn primary" id="nwSnap"${ACCT.snapBusy?" disabled":""}>${ACCT.snapBusy?"Working…":"Take snapshot"}</button><button class="btn ghost" id="nwTabs">${ACCT.tabs?"Reload tabs":"Choose tabs"}</button>
       <label class="small row">Auto<select id="nwEvery">${[[0,"Off"],[30,"30 min"],[60,"1 hour"]].map(([v,t])=>`<option value="${v}"${(+S.netEvery||0)===v?" selected":""}>${t}</option>`).join("")}</select></label></div>
     ${ACCT.busy&&ACCT.snapBusy?`<p class="small muted" style="margin:0">${esc(ACCT.busy)}</p>`:""}
@@ -2564,6 +2576,8 @@ function renderNetWorth(){
     ${L?`<details class="small"><summary style="cursor:pointer">By tab</summary><ul class="clean" style="margin-top:6px">${Object.entries(L.byTab).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`<li class="row" style="justify-content:space-between"><span>${esc(k)}</span><span class="num">${fmt(v)}c</span></li>`).join("")}</ul></details>`:""}
     <p class="note" style="margin:0">Values use poe.ninja prices for currency, fragments, cards, essences and similar, uniques and gems. Rares aren't valued (see Stash finds). Reading tabs is slow on purpose: GGG limits how fast stash data can be fetched.</p>`;
   $("nwSnap").onclick=()=>snapshotNetWorth(false);
+  el.querySelectorAll("[data-nwr]").forEach(b=>b.onclick=()=>{S.nwRange=b.dataset.nwr;save();renderNetWorth()});
+  el.querySelectorAll("[data-nwu]").forEach(b=>b.onclick=()=>{S.nwUnit=b.dataset.nwu;save();renderNetWorth()});
   $("nwTabs").onclick=loadTabs;
   $("nwEvery").onchange=e=>{S.netEvery=+e.target.value;save();startNetTimer()};
   el.querySelectorAll("[data-nt]").forEach(c=>c.onchange=()=>{S.netTabs[c.dataset.nt]=c.checked;save();renderNetWorth()});
@@ -3567,6 +3581,7 @@ function renderHome(){
       <div class="stat"><div class="k">Avg map</div><div class="v num">${timed.length?hms(mapMs/timed.length):"–"}</div></div>
       <div class="stat"><div class="k">Per hour</div><div class="v num">${perHr?(S.divine?(perHr/S.divine).toFixed(1)+" div":fmt(perHr)+"c"):"–"}</div></div></div>
     ${goalState()?goalBar(goalState()):""}
+    ${S.netLatest?(()=>{const nw=netSeries("day","div");const L=S.netLatest;return `<p class="small" style="margin:0"><b>Net worth</b> ${L.div?(L.total/L.div).toFixed(1)+" div":fmt(L.total)+"c"}${nw.delta!=null?` <span class="delta ${nw.delta>=0?"pos":"neg"}">${nw.delta>=0?"+":""}${nw.fmt(nw.delta)}</span> <span class="muted">in 24 h</span>`:""}</p>`})():""}
     <div class="row"><button class="btn" id="hSess">${s.start?"Pause timer":"Start timer"}</button>${goalState()?"":'<button class="btn ghost" id="hGoal">Set a goal</button>'}<button class="btn ghost" data-hgo="session">Open session</button></div>`;
   $("hSess").onclick=()=>{const t=$("sessToggle");if(t){t.click();renderHome()}};
   if($("hGoal"))$("hGoal").onclick=()=>{showTab("session");scrollToCard("sessGoal");setTimeout(()=>{const i=$("goalN");if(i)i.focus()},400)};
@@ -3606,7 +3621,7 @@ setInterval(()=>{if(CUR_TAB==="home"&&!document.hidden)renderHome()},10000);
 const cmdk=$("cmdk");let CMDK=[],CMDK_SEL=0,CMDK_ITEMS=[];
 function cmdkIndex(){
   const out=[], names={};document.querySelectorAll("#tabs [data-tab]").forEach(b=>names[b.dataset.tab]=b.textContent.trim());
-  const acts=[["Import goal build",()=>openImport("goal")],["Import current character",()=>openImport("current")],["Run setup wizard",()=>openWizard()],["Report a problem",()=>openReport()],["Edit my loot filter",()=>showTab("filter")],["Build a map search",()=>showTab("trading")],["Plan Threads per map",()=>showTab("league")],["Set a session goal",()=>{showTab("session");scrollToCard("sessGoal")}],["Recent price checks",()=>{showTab("home");scrollToCard("homeClip")}],["Open the media player",()=>{if(DESK&&DESK.mediaToggle)DESK.mediaToggle({show:true})}],["Media controls",()=>showTab("media")],["Pin the browser over the game",()=>{if(DESK&&DESK.pinToggle)DESK.pinToggle({show:true})}],["Find gear upgrades",()=>{showTab("buildtools");scrollToCard("btUpg")}],["Timeless jewel lookup",()=>showTab("buildtools")],["Cluster jewel notables",()=>{showTab("buildtools");scrollToCard("btCluster")}],["Gem levelling profit",()=>{showTab("buildtools");scrollToCard("btGems")}],["Betrayal board",()=>{showTab("league");scrollToCard("lgBetrayal")}],["Price a dump tab",()=>{showTab("trading");scrollToCard("ttDump")}],["Open the trade site",()=>{showTab("browser");brGo("https://www.pathofexile.com/trade")}],["Open poe.ninja",()=>{showTab("browser");brGo("https://poe.ninja/economy")}],["Open the wiki",()=>{showTab("browser");brGo("https://www.poewiki.net/wiki/Path_of_Exile_Wiki")}],[S.compact?"Turn compact mode off":"Turn compact mode on",()=>setCompact(!S.compact)]];
+  const acts=[["Import goal build",()=>openImport("goal")],["Import current character",()=>openImport("current")],["Run setup wizard",()=>openWizard()],["Report a problem",()=>openReport()],["Edit my loot filter",()=>showTab("filter")],["Build a map search",()=>showTab("trading")],["Plan Threads per map",()=>showTab("league")],["Saved trade searches",()=>{showTab("trading");scrollToCard("ttSaved")}],["Set a session goal",()=>{showTab("session");scrollToCard("sessGoal")}],["Recent price checks",()=>{showTab("home");scrollToCard("homeClip")}],["Open the media player",()=>{if(DESK&&DESK.mediaToggle)DESK.mediaToggle({show:true})}],["Media controls",()=>showTab("media")],["Pin the browser over the game",()=>{if(DESK&&DESK.pinToggle)DESK.pinToggle({show:true})}],["Find gear upgrades",()=>{showTab("buildtools");scrollToCard("btUpg")}],["Timeless jewel lookup",()=>showTab("buildtools")],["Cluster jewel notables",()=>{showTab("buildtools");scrollToCard("btCluster")}],["Gem levelling profit",()=>{showTab("buildtools");scrollToCard("btGems")}],["Betrayal board",()=>{showTab("league");scrollToCard("lgBetrayal")}],["Price a dump tab",()=>{showTab("trading");scrollToCard("ttDump")}],["Open the trade site",()=>{showTab("browser");brGo("https://www.pathofexile.com/trade")}],["Open poe.ninja",()=>{showTab("browser");brGo("https://poe.ninja/economy")}],["Open the wiki",()=>{showTab("browser");brGo("https://www.poewiki.net/wiki/Path_of_Exile_Wiki")}],[S.compact?"Turn compact mode off":"Turn compact mode on",()=>setCompact(!S.compact)]];
   if(DESK)acts.push(["Change hotkeys",()=>{showTab("settings");scrollToCard("setHotkeys")}]);
   if($("sessToggle"))acts.push([S.session.start?"Pause session timer":"Start session timer",()=>$("sessToggle").click()]);
   if(DESK){acts.push([LIVE.overlayVisible?"Hide overlay":"Show overlay",()=>DESK.toggleOverlay(!LIVE.overlayVisible)]);
@@ -3983,7 +3998,7 @@ function decorateNav(){
   const sb=$("openSearch");if(sb&&!sb.querySelector("svg")){const g=sb.querySelector('span[aria-hidden]');if(g)g.remove();sb.insertAdjacentHTML("afterbegin",svgIcon("search"))}
 }
 decorateNav();
-const CARD_ICONS={mediaNow:"bell",mediaPlayer:"video",btUpg:"trade",sessGoal:"flag",homeClip:"refresh",btTimeless:"gem",btCluster:"gem",btMeta:"chart",btGems:"coins",lgThreads:"coins",lgReturn:"chart",lgBetrayal:"skull",lgExped:"compass",lgHeist:"key",lgLab:"route",lgDrops:"map",homeChar:"user",homeNext:"route",homeSession:"hourglass",homeLive:"bolt",homeQuick:"wand",
+const CARD_ICONS={ttSaved:"save",mediaNow:"bell",mediaPlayer:"video",btUpg:"trade",sessGoal:"flag",homeClip:"refresh",btTimeless:"gem",btCluster:"gem",btMeta:"chart",btGems:"coins",lgThreads:"coins",lgReturn:"chart",lgBetrayal:"skull",lgExped:"compass",lgHeist:"key",lgLab:"route",lgDrops:"map",homeChar:"user",homeNext:"route",homeSession:"hourglass",homeLive:"bolt",homeQuick:"wand",
   buildSummary:"user",buildDefence:"shield",buildSkills:"gem",buildGear:"sword",buildNotes:"news",
   progSummary:"chart",progNext:"list",progCost:"coins",progStats:"chart",progTree:"tree",progGems:"gem",progItems:"sword",
   shopSummary:"bag",shopGems:"gem",shopItems:"sword",shopFilter:"filter",
@@ -4144,6 +4159,11 @@ function renderBrowser(){
   renderBrowserBar();
   if(!BR.started){BR.started=true;DESK.browserState().then(st=>{if(st&&st.url&&st.url!=="about:blank"){BR.state=st;renderBrowserBar()}else if(!BR.asked)brGo(S.browserLast||BR_LINKS[0][1])})}
 }
+/* trade searches: an automatic history of the last 30, and the ones you save */
+const TRADE_RE=/^https:\/\/(www\.)?pathofexile\.com\/trade\/(search|exchange)\/([^/?#]+)\/([A-Za-z0-9]+)/;
+function tradeKey(u){const m=String(u||"").match(TRADE_RE);return m?{kind:m[2],league:decodeURIComponent(m[3]),id:m[4],url:`https://www.pathofexile.com/trade/${m[2]}/${m[3]}/${m[4]}`}:null}
+function rememberTradeSearch(u){const k=tradeKey(u);if(!k)return;S.tradeHist=(S.tradeHist||[]).filter(h=>h.url!==k.url);S.tradeHist.unshift({...k,t:Date.now()});S.tradeHist=S.tradeHist.slice(0,30)}
+function saveTradeSearch(u,name){const k=tradeKey(u);if(!k)return false;S.tradeSaved=(S.tradeSaved||[]).filter(h=>h.url!==k.url);S.tradeSaved.unshift({...k,name:(name||"").trim()||`${k.kind==="exchange"?"Bulk exchange":"Search"} ${new Date().toLocaleDateString()}`,t:Date.now()});save();return true}
 function renderBrowserBar(){
   const bar=$("brBar");if(!bar)return;const st=BR.state||{};const editing=document.activeElement&&document.activeElement.id==="brAddr";
   const host=(()=>{try{return new URL(st.url).hostname.replace(/^www\./,"")}catch(e){return ""}})();
@@ -4152,6 +4172,7 @@ function renderBrowserBar(){
       <button class="btn ghost small" id="brFwd" aria-label="Forward"${st.canForward?"":" disabled"}>▶</button>
       <button class="btn ghost small" id="brReload" aria-label="${st.loading?"Stop":"Reload"}">${st.loading?"✕":"⟳"}</button>
       <form id="brForm" class="br-addr"><input id="brAddr" type="text" spellcheck="false" autocomplete="off" aria-label="Address or wiki search" placeholder="Address, or search the wiki" value="${esc(editing?$("brAddr").value:(st.url&&st.url!=="about:blank"?st.url:""))}"></form>
+      <button class="btn ghost small" id="brSave" title="Save this trade search"${tradeKey(st.url)?"":" hidden"}>${(S.tradeSaved||[]).some(x=>tradeKey(st.url)&&x.url===tradeKey(st.url).url)?"★ Saved":"☆ Save search"}</button>
       <button class="btn ghost small" id="brPin" title="Show this page in a window over the game (${esc(keyName((LIVE.cfg&&LIVE.cfg.pinHotkey)||"Ctrl+Shift+B"))})"${DESK.pinToggle?"":" hidden"}>Pin over game</button>
       <button class="btn ghost small" id="brExt" title="Open this page in your own web browser"${st.url&&/^https:/.test(st.url)?"":" disabled"}>Open in my browser</button>
     </div>
@@ -4164,6 +4185,7 @@ function renderBrowserBar(){
   $("brReload").onclick=()=>DESK.browserNav(st.loading?"stop":"reload");
   $("brForm").onsubmit=e=>{e.preventDefault();brGo($("brAddr").value);$("brAddr").blur()};
   $("brExt").onclick=()=>{if(st.url)DESK.browserExternal(st.url)};
+  $("brSave").onclick=()=>{const k=tradeKey(st.url);if(!k)return;if((S.tradeSaved||[]).some(x=>x.url===k.url)){toast("Already saved. Rename or remove it on the Trading page.");return}saveTradeSearch(st.url,"");renderBrowserBar();toast("Search saved. Find it on the Trading page.",()=>{S.tradeSaved=S.tradeSaved.filter(x=>x.url!==k.url);save();renderBrowserBar()})};
   $("brPin").onclick=()=>{if(DESK.pinToggle)DESK.pinToggle({show:true,url:st.url&&/^https:/.test(st.url)?st.url:null})};
   bar.querySelectorAll("[data-brgo]").forEach(b=>b.onclick=()=>brGo(b.dataset.brgo));
   const bo=$("brBlockedOpen");if(bo)bo.onclick=()=>{DESK.browserExternal(BR.blocked.url);BR.blocked=null;renderBrowserBar()};
@@ -4182,7 +4204,7 @@ function brSync(){
   const key=JSON.stringify(b);if(key!==BR.last){BR.last=key;DESK.browserBounds(b)}
 }
 if(DESK&&DESK.onBrowserState){
-  DESK.onBrowserState(st=>{BR.state=st;if(st&&st.url&&/^https:/.test(st.url)&&!st.error){S.browserLast=st.url;save()}if(CUR_TAB==="browser")renderBrowserBar()});
+  DESK.onBrowserState(st=>{BR.state=st;if(st&&st.url&&/^https:/.test(st.url)&&!st.error){S.browserLast=st.url;rememberTradeSearch(st.url);save()}if(CUR_TAB==="browser")renderBrowserBar()});
   DESK.onBrowserBlocked(x=>{BR.blocked=x;if(CUR_TAB!=="browser")showTab("browser");renderBrowserBar()});
   if(DESK.onMediaNow){DESK.onMediaNow(n=>{MNOW=n;if(CUR_TAB==="media")renderMedia()});DESK.onMediaPlayer(s=>{MPL=s;if(CUR_TAB==="media"&&!(document.activeElement&&/mpVol|mpOp|mpUrl/.test(document.activeElement.id)))renderMedia()})}
   if(DESK.clipHistory){DESK.clipHistory().then(h=>{CLIP=h||[];renderClip()}).catch(()=>{});DESK.onClipHistory(h=>{CLIP=h||[];renderClip()})}
