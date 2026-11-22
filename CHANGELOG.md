@@ -2,6 +2,12 @@
 
 What changed in each release, newest first. Installed copies update themselves; see the [Releases page](https://github.com/nickolusliquori/exile-companion/releases) for the installers. Planned releases are on the [roadmap](README.md#roadmap).
 
+## [1.33.0] - 2026-11-22
+
+### Added
+- **Chat scanner** (Desktop tools): alerts when trade, global, local, party or guild chat mentions your keywords, on the overlay, as a Windows notification and/or with a sound. Keywords match anywhere in any case; add `-word` to skip messages with that word, or write `/regex/`. Recent matches have Copy whisper and Ignore buttons, and repeated messages alert once. It reads chat from your game log only and never sends anything.
+- The game log reader now understands public chat lines (with guild tags) without mistaking debug lines for chat.
+
 ## [1.32.0] - 2026-11-22
 
 ### Added

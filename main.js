@@ -1125,6 +1125,12 @@ async function runSmoke() {
       for (let i = 0; i < 20; i++) { await wait(500); const z = await js(mainWin.webContents, "LIVE.zone&&LIVE.zone.id"); if (z === "1_1_1") return { info: "zone 1_1_1 seen" }; }
       return { ok: false, info: "the zone never arrived" };
     });
+    await run("chat scanner: a trade chat line with a keyword is caught", async () => {
+      await js(mainWin.webContents, "Object.assign(chatCfg(),{on:true,words:['smoketestword'],ch:{trade:true},overlay:false,notify:false,sound:false,hits:[]});save()");
+      fs.appendFileSync(cfg.logPath, "2026/11/22 12:00:09 4 ab [INFO Client 1] $<GLD> SmokeSeller: WTS smoketestword 5 chaos\r\n");
+      for (let i = 0; i < 20; i++) { await wait(500); const h = await js(mainWin.webContents, "chatCfg().hits.map(x=>x.name).join()"); if (h === "SmokeSeller") return { info: "caught SmokeSeller" }; }
+      return { ok: false, info: "no match arrived" };
+    });
     // Windows media controls ("now playing"): must answer; nothing playing is fine
     await run("Windows media bridge answers", async () => {
       const r = await Promise.race([mediaBridge.now(), wait(25e3).then(() => ({ error: "no answer in 25 s" }))]);

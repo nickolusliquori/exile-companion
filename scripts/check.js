@@ -47,6 +47,29 @@ for (const f of fs.readdirSync(appDir).filter((x) => x.endsWith(".js"))) {
   catch (e) { fail(`app/${f}: ${e.message}`); }
 }
 
+// chat lines: channels, guild tags, and debug lines that only look like chat
+try {
+  const { parseEvents } = require(path.join(root, "lib", "logtail.js"));
+  const T = "2026/11/22 12:00:00 1 ab ";
+  const ev = parseEvents([
+    T + "[INFO Client 9] $<GLD> Seller_1: WTS Mageblood 150 div",
+    T + "[INFO Client 9] #Talker: anyone doing carries?",
+    T + "[INFO Client 9] %Partyguy: ready",
+    T + "[INFO Client 9] &Guildie: gz",
+    T + "[INFO Client 9] LocalDude: hi",
+    T + "[INFO Client 9] @From <ABC> Buyer: Hi, I would like to buy your Headhunter Leather Belt listed for 100 divine in Standard",
+    T + "[INFO Client 9] : You have entered Hideout.",
+    T + "[INFO Client 9] Connecting to instance server at 1.2.3.4:6112",
+    T + "[DEBUG Client 9] Something: not chat",
+    T + "[INFO Client 9] Got Instance Details from login server",
+  ].join("\n"));
+  const chats = ev.filter((e) => e.type === "chat");
+  assert.strictEqual(chats.map((c) => c.ch + ":" + c.name).join(","), "trade:Seller_1,global:Talker,party:Partyguy,guild:Guildie,local:LocalDude", "chat channels: " + JSON.stringify(chats));
+  assert.strictEqual(chats[0].text, "WTS Mageblood 150 div");
+  assert(ev.some((e) => e.type === "whisper" && e.name === "Buyer") && ev.some((e) => e.type === "system"), "whispers and system lines unchanged");
+  ok("chat lines: trade, global, party, guild and local chat; debug lines aren't chat");
+} catch (e) { fail("chat lines: " + e.message); }
+
 try {
   const { parseEvents, parseTrade } = require(path.join(root, "lib", "logtail.js"));
   const ev = parseEvents([
@@ -461,12 +484,24 @@ try {
   const code = fam + "\n" + cut("/* ---------- trades (log whispers) ----------", "/* ---------- reminders (notifications) ---------- */");
   const ctx = { console, S: {}, fmt: (v) => String(Math.round(v)), stripTags: (x) => x, esc: (x) => x, $: () => null, ACCT: {}, DESK: null };
   vm.createContext(ctx);
-  vm.runInContext(code + "\n;this.__t={recipeSets,recipeSlot,fairHint,tradeCmds,fillReply,quadTab,latestStashTrade,TRADES};", ctx);
+  vm.runInContext(code + "\n;this.__t={recipeSets,recipeSlot,fairHint,tradeCmds,fillReply,quadTab,latestStashTrade,TRADES,chatRules,chatMatch};", ctx);
   const T = ctx.__t;
   // stash highlight: quad tabs by name, and the latest trade with a position (a buyer who has arrived comes first)
   ctx.S.quadTabs = ["Sell"]; assert(T.quadTab("sell") && !T.quadTab("Dump"), "quad tabs by name, any case");
   T.TRADES.push({ name: "a", t: 1, tab: "x", left: 1, top: 1 }, { name: "b", t: 3, tab: "x", left: 2, top: 2 }, { name: "c", t: 2, tab: "x", left: 3, top: 3, joined: true }, { name: "d", t: 9 });
   assert.strictEqual(T.latestStashTrade().name, "c", "a buyer in your hideout comes first"); T.TRADES.length = 0;
+  // chat scanner rules
+  const R = T.chatRules(["Mageblood -wtb", "carry", "/\\bmirror (service|tier)\\b/", "/[broken/"]);
+  const C = { on: true, ch: { trade: true, global: true }, ignore: ["Spammer"] };
+  const m = (ch, name, text) => T.chatMatch({ type: "chat", ch, name, text }, C, R);
+  assert.strictEqual(m("trade", "A", "WTS Mageblood 150 div"), "Mageblood");
+  assert.strictEqual(m("trade", "A", "WTB mageblood"), null, "-word excludes");
+  assert.strictEqual(m("global", "B", "selling CARRY for uber elder"), "carry", "any case");
+  assert.strictEqual(m("global", "B", "mirror service open"), "/\\bmirror (service|tier)\\b/", "regex keywords");
+  assert.strictEqual(m("local", "B", "carry"), null, "channels you didn't pick are skipped");
+  assert.strictEqual(m("trade", "Spammer", "carry"), null, "ignored names");
+  ctx.S.logChar = "Me"; assert.strictEqual(m("trade", "Me", "carry"), null, "your own messages"); ctx.S.logChar = null;
+  assert.strictEqual(T.chatMatch({ type: "chat", ch: "trade", name: "A", text: "carry" }, { ...C, on: false }, R), null, "off means off");
   const P = { cur: { "Chaos Orb": 1, "Divine Orb": 200 }, ex: { "Divine Orb": 200 }, items: { "Headhunter": [{ chaosValue: 3000 }] } };
   assert.strictEqual(T.fairHint({ dir: "in", bulk: true, item: "10 Divine Orb", amount: "1500", currency: "Chaos Orb" }, P).cls, "bad", "bulk offer 25% under is flagged");
   assert.strictEqual(T.fairHint({ dir: "in", bulk: true, item: "1 Divine Orb", amount: "205", currency: "Chaos Orb" }, P).cls, "", "fair bulk offer");

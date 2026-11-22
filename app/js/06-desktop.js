@@ -16,6 +16,7 @@ const keyName=a=>String(a||"").replace(/CommandOrControl|CmdOrCtrl/g,"Ctrl").rep
 function onLiveEvents(evs){
   let levelChanged=false;const actBefore=S.campAct;
   onTradeEvents(evs);
+  onChatEvents(evs);
   for(const e of evs){
     if(e.type==="zone"){
       const ar=AREAS[e.id];
@@ -573,6 +574,55 @@ function fairHint(tr,P){
 }
 const DEFAULT_REPLIES=[{l:"One moment",t:"@{name} One moment please, finishing a map."},{l:"Thanks",t:"@{name} Thanks, good luck!"}];
 const fillReply=(t,tr)=>String(t).replace(/\{name\}/g,tr.name).replace(/\{item\}/g,tr.item).replace(/\{price\}/g,`${tr.amount} ${tr.currency}`);
+/* ---------- chat scanner: alerts when chat mentions your keywords (from the game log only) ---------- */
+const CHAT_CH=[["trade","Trade"],["global","Global"],["local","Local"],["party","Party"],["guild","Guild"]];
+function chatCfg(){const c=S.chatScan||(S.chatScan={on:false,words:[],ch:{trade:true,global:true},overlay:true,notify:true,sound:false,ignore:[],hits:[]});c.ch=c.ch||{};c.words=c.words||[];c.ignore=c.ignore||[];c.hits=c.hits||[];return c}
+// a keyword is plain text (case-insensitive), or /regex/ ; "-word" on the same line excludes messages with that word
+function chatRules(words){return (words||[]).map(w=>String(w).trim()).filter(Boolean).slice(0,40).map(line=>{
+  const parts=line.split(/\s+(?=-\S)/),main=parts[0],not=parts.slice(1).map(x=>x.slice(1).toLowerCase()).filter(Boolean);
+  let test;const m=main.match(/^\/(.+)\/$/);if(m){try{const re=new RegExp(m[1],"i");test=t=>re.test(t)}catch(e){test=()=>false}}else{const k=main.toLowerCase();test=t=>t.toLowerCase().includes(k)}
+  return {line,main,test:t=>test(t)&&!not.some(n=>t.toLowerCase().includes(n))}})}
+function chatMatch(e,c,rules){
+  if(!e||e.type!=="chat"||!c.on||!c.ch[e.ch])return null;
+  if(c.ignore.some(n=>n.toLowerCase()===String(e.name).toLowerCase()))return null;
+  if(S.logChar&&e.name===S.logChar)return null;          // your own messages
+  const r=rules.find(x=>x.test(e.text));return r?r.main:null;
+}
+const CHAT_SEEN=new Map();
+function onChatEvents(evs){
+  const c=chatCfg();if(!c.on||!c.words.length)return;const rules=chatRules(c.words);let n=0;
+  for(const e of evs){const k=chatMatch(e,c,rules);if(!k)continue;
+    const key=e.name+"|"+e.text;if(CHAT_SEEN.has(key)&&Date.now()-CHAT_SEEN.get(key)<5*60e3)continue;CHAT_SEEN.set(key,Date.now());if(CHAT_SEEN.size>500)CHAT_SEEN.delete(CHAT_SEEN.keys().next().value);
+    c.hits.unshift({t:e.t||Date.now(),ch:e.ch,name:e.name,text:e.text,k});n++;
+    const msg=`${e.ch==="trade"?"Trade":e.ch[0].toUpperCase()+e.ch.slice(1)} · ${e.name}: ${e.text}`.slice(0,200);
+    if(c.overlay&&DESK&&DESK.overlayHint)DESK.overlayHint(msg);
+    if(c.notify&&DESK&&DESK.notify)DESK.notify({kind:"chat",title:`Chat: "${k}"`,body:`${e.name}: ${e.text}`.slice(0,240)});
+    if(c.sound&&typeof SND!=="undefined")SND.warn();
+  }
+  if(n){c.hits=c.hits.slice(0,40);save();renderChatCard()}
+}
+function renderChatCard(){
+  const el=$("deskChat");if(!el)return;const c=chatCfg();
+  el.innerHTML=`<h2>Chat scanner</h2>
+    <p class="small" style="margin:0">Get an alert when chat mentions something you want, like an item you're hunting or "carry". It reads chat from your game log only.</p>
+    <label class="row small"><input type="checkbox" id="chOn"${c.on?" checked":""}> Scan chat</label>
+    <label class="small" for="chWords">Keywords, one per line. <span class="muted">Text matches anywhere, any case. Add <code>-word</code> to skip messages with that word, or write <code>/regex/</code>.</span></label>
+    <textarea id="chWords" rows="4" placeholder="Mageblood -wtb&#10;carry&#10;/\bmirror (service|tier)\b/">${esc(c.words.join("\n"))}</textarea>
+    <div class="row small" role="group" aria-label="Channels">${CHAT_CH.map(([k,l])=>`<label class="row" style="gap:4px"><input type="checkbox" data-chch="${k}"${c.ch[k]?" checked":""}> ${l}</label>`).join("")}</div>
+    <div class="row small" role="group" aria-label="Alerts"><label class="row" style="gap:4px"><input type="checkbox" id="chOv"${c.overlay?" checked":""}> On the overlay</label><label class="row" style="gap:4px"><input type="checkbox" id="chNt"${c.notify?" checked":""}> Windows notification</label><label class="row" style="gap:4px"><input type="checkbox" id="chSd"${c.sound?" checked":""}> Sound</label></div>
+    ${c.ignore.length?`<p class="small muted" style="margin:0">Ignoring: ${c.ignore.map((n,i)=>`${esc(n)} <button class="btn ghost small" data-chun="${i}" aria-label="Stop ignoring ${esc(n)}">×</button>`).join(" ")}</p>`:""}
+    ${c.hits.length?`<h3>Recent matches</h3><ul class="clean small" style="display:grid;gap:6px;max-height:260px;overflow:auto">${c.hits.map((h,i)=>`<li class="sg"><div class="row" style="justify-content:space-between"><b>${esc(h.name)}</b><span class="muted">${esc(h.ch)} · ${new Date(h.t).toLocaleTimeString()}</span></div>
+      <div>${esc(h.text)}</div><div class="row" style="margin-top:4px"><button class="btn ghost small" data-chw="${i}">Copy whisper</button><button class="btn ghost small" data-chig="${i}">Ignore ${esc(h.name)}</button></div></li>`).join("")}</ul>
+      <button class="btn ghost small" id="chClear">Clear matches</button>`:`<p class="small muted" style="margin:0">${c.on&&c.words.length?"No matches yet.":"Add keywords and turn it on."}</p>`}`;
+  $("chOn").onchange=e=>{c.on=e.target.checked;save();renderChatCard()};
+  $("chWords").onchange=e=>{c.words=e.target.value.split("\n").map(x=>x.trim()).filter(Boolean).slice(0,40);save();renderChatCard()};
+  el.querySelectorAll("[data-chch]").forEach(b=>b.onchange=()=>{c.ch[b.dataset.chch]=b.checked;save()});
+  $("chOv").onchange=e=>{c.overlay=e.target.checked;save()};$("chNt").onchange=e=>{c.notify=e.target.checked;save()};$("chSd").onchange=e=>{c.sound=e.target.checked;save()};
+  el.querySelectorAll("[data-chw]").forEach(b=>b.onclick=()=>{const h=c.hits[+b.dataset.chw];DESK.copy(`@${h.name} Hi, about your message: "${h.text.slice(0,80)}"`);b.textContent="Copied"});
+  el.querySelectorAll("[data-chig]").forEach(b=>b.onclick=()=>{const h=c.hits[+b.dataset.chig];c.ignore=[...new Set([...c.ignore,h.name])].slice(0,100);c.hits=c.hits.filter(x=>x.name!==h.name);save();renderChatCard()});
+  el.querySelectorAll("[data-chun]").forEach(b=>b.onclick=()=>{c.ignore.splice(+b.dataset.chun,1);save();renderChatCard()});
+  const cl=$("chClear");if(cl)cl.onclick=()=>{const prev=c.hits;c.hits=[];save();renderChatCard();toast("Matches cleared.",()=>{c.hits=prev;save();renderChatCard()})};
+}
 function onTradeEvents(evs){
   let changed=false;
   for(const e of evs){
@@ -624,7 +674,7 @@ function tradeLi(t,i,list){return `<li class="sg"><div class="row" style="justif
   ${t.hint?`<div class="small" style="color:var(--${t.hint.cls==="bad"?"bad":t.hint.cls==="warn"?"warn":t.hint.cls==="good"?"good":"muted"})">${esc(t.hint.text)}</div>`:""}
   <div class="row" style="margin-top:4px">${tradeCmds(t).map(([l,c],j)=>`<button class="btn ghost small" data-tc="${list}:${i}:${j}" title="${esc(c)}">${esc(l)}</button>`).join("")}${list==="in"&&t.tab&&t.left?`<button class="btn small" data-tsh="${i}" title="Outline it on the stash grid over the game (${esc(keyName((LIVE.cfg&&LIVE.cfg.stashHotkey)||"Ctrl+Shift+G"))})">Show in stash</button>`:""}<button class="btn ghost small" data-tx="${list}:${i}">Dismiss</button></div></li>`}
 function renderTrades(){
-  renderStashCard();
+  renderStashCard();renderChatCard();
   const el=$("deskTrades");if(!el) return;
   const reps=S.tradeReplies||DEFAULT_REPLIES;
   el.innerHTML=`<h2>Trade requests</h2>
