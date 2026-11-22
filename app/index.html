@@ -235,6 +235,29 @@ section.tab .card{scroll-margin-top:140px}
 [hidden]{display:none!important}
 
 
+
+/* loot filter editor */
+.fl-label{display:inline-flex;align-items:center;gap:4px;border:1.5px solid transparent;padding:1px 7px;font-family:var(--display);line-height:1.35;white-space:nowrap;max-width:100%;overflow:hidden;text-overflow:ellipsis}
+.fl-label.hid{opacity:.35;text-decoration:line-through}
+.fl-beam{display:inline-block;width:4px;height:1.1em;border-radius:2px;box-shadow:0 0 8px currentColor}
+.fl-icon{font-style:normal;font-size:.8em}
+.fl-snd{font-style:normal;font-size:.75em;opacity:.8}
+.fl-ground{display:flex;flex-wrap:wrap;gap:6px 8px;align-items:center;padding:12px;border-radius:4px;background:radial-gradient(ellipse at 50% 40%,#2a2a22,#121210 70%);border:1px solid #2a2118;min-height:120px}
+.fl-drop{background:none;border:0;padding:0;cursor:pointer;max-width:100%}
+.fl-drop:hover .fl-label,.fl-drop:focus-visible .fl-label{outline:1px dashed var(--gold-dim);outline-offset:2px}
+.fl-tree{max-height:560px;overflow:auto;display:grid;gap:4px;padding-right:4px}
+.fl-tree summary{cursor:pointer;padding:4px 2px}
+.fl-rule{display:grid;grid-template-columns:62px minmax(0,auto) 1fr;gap:8px;align-items:center;padding:4px 6px;border-radius:3px;cursor:pointer;background:#0b0907;margin:2px 0}
+.fl-rule.on{box-shadow:inset 2px 0 0 var(--gold);background:linear-gradient(90deg,rgba(212,174,98,.12),transparent 70%),#0b0907}
+.fl-rule .fl-label{font-size:12px!important}
+.fl-what{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fl-vis{font-size:.7rem;text-transform:uppercase;letter-spacing:.05em;color:var(--good)}
+.fl-vis.Hide{color:var(--muted)}.fl-vis.Minimal{color:var(--gold-dim)}
+.fl-big{padding:16px;border-radius:4px;background:radial-gradient(ellipse at 50% 40%,#2a2a22,#121210 70%);text-align:center}
+.fl-crow{display:grid;grid-template-columns:100px 56px auto;gap:8px;align-items:center;font-size:.9rem}
+.fl-crow input[type=color]{width:48px;height:28px;padding:0;border:1px solid var(--line);background:none}
+#flEdit select,#flTweaks select{width:100%}
+.fl-opt{flex-wrap:nowrap;align-items:flex-start;gap:8px}.fl-opt input{margin-top:3px;flex:none}
 /* craft lab */
 .gtip{background:rgba(5,4,3,.97);border:1px solid #3d3121;box-shadow:0 8px 30px rgba(0,0,0,.7);text-align:center;font-family:var(--body);max-width:420px}
 .gtip .th{padding:6px 14px;font:700 1rem/1.25 var(--display);letter-spacing:.02em;border-bottom:1px solid #000}
@@ -390,6 +413,7 @@ header{transition:transform .2s ease}
     <button role="tab" data-tab="session" data-g="play" aria-selected="false">Session</button>
     <button role="tab" data-tab="craft" data-g="trade" aria-selected="false">Crafting</button>
     <button role="tab" data-tab="craftlab" data-g="trade" aria-selected="false">Craft lab</button>
+    <button role="tab" data-tab="filter" data-g="trade" aria-selected="false">Loot filter</button>
     <button role="tab" data-tab="account" data-g="trade" aria-selected="false" id="acctTabBtn" hidden>Account</button>
     <button role="tab" data-tab="settings" data-g="app" aria-selected="false">Settings</button>
     <button role="tab" data-tab="desktop" data-g="app" aria-selected="false" id="deskTabBtn" hidden>Desktop tools</button>
@@ -512,6 +536,11 @@ header{transition:transform .2s ease}
   <!-- CRAFT LAB (mod pools and odds; data loads when opened) -->
   <section class="tab" id="tab-craftlab" role="tabpanel">
     <div id="craftLab" style="display:grid;gap:16px"></div>
+  </section>
+
+  <!-- LOOT FILTER EDITOR (loads when opened) -->
+  <section class="tab" id="tab-filter" role="tabpanel">
+    <div id="filterLab" style="display:grid;gap:16px"></div>
   </section>
 
   <!-- ACCOUNT (only in the desktop app) -->
@@ -1200,6 +1229,10 @@ function craftPlan(item,slot){
     ${stillNeed.length?`<p class="small" style="margin:0">Bench-craft last: ${stillNeed.map(m=>esc(m.text)).join("; ")}.</p>`:""}
     <p class="small muted" style="margin:0">Full Divine lock for this slot: ${esc(lock)}.</p>
     <p class="note" style="margin:0">Not sure it's worth crafting? Search the trade site for the same base with your 2–3 most important mods. If it's cheaper than ~2 Divine Orbs, buy it.</p>`;
+}
+function openFilterLab(){
+  const el=$("filterLab");if(el&&!el.firstChild)el.innerHTML='<div class="card hl"><h2>Loot filter</h2><p class="small muted" style="margin:0">Loading…</p></div>';
+  loadScriptOnce("filterlab.js","FilterLab").then(()=>FilterLab.render()).catch(e=>{if(el)el.innerHTML=`<div class="card"><h2>Loot filter</h2>${emptyBox("Couldn't load the filter editor: "+(e.message||e))}</div>`});
 }
 function openCraftLab(item){
   const el=$("craftLab");if(el&&!el.firstChild)el.innerHTML='<div class="card hl"><h2>Craft lab</h2><p class="small muted" style="margin:0">Loading…</p></div>';
@@ -3296,6 +3329,7 @@ function showTab(name){
   if(name==="home") setTimeout(renderHome,0);
   if(name==="settings") setTimeout(renderSettings,0);
   if(name==="craftlab") setTimeout(openCraftLab,0);
+  if(name==="filter") setTimeout(openFilterLab,0);
   if(name==="trees") setTimeout(renderTrees,0);
   if(name==="maps"&&!$("mapsCards").dataset.loaded){$("mapsCards").dataset.loaded="1";setTimeout(()=>renderCards(false),0)}
   if(location.hash!=="#"+name) history.replaceState(null,"","#"+name);
@@ -3393,7 +3427,7 @@ setInterval(()=>{if(CUR_TAB==="home"&&!document.hidden)renderHome()},10000);
 const cmdk=$("cmdk");let CMDK=[],CMDK_SEL=0,CMDK_ITEMS=[];
 function cmdkIndex(){
   const out=[], names={};document.querySelectorAll("#tabs [data-tab]").forEach(b=>names[b.dataset.tab]=b.textContent.trim());
-  const acts=[["Import goal build",()=>openImport("goal")],["Import current character",()=>openImport("current")],["Run setup wizard",()=>openWizard()],["Report a problem",()=>openReport()],[S.compact?"Turn compact mode off":"Turn compact mode on",()=>setCompact(!S.compact)]];
+  const acts=[["Import goal build",()=>openImport("goal")],["Import current character",()=>openImport("current")],["Run setup wizard",()=>openWizard()],["Report a problem",()=>openReport()],["Edit my loot filter",()=>showTab("filter")],[S.compact?"Turn compact mode off":"Turn compact mode on",()=>setCompact(!S.compact)]];
   if(DESK)acts.push(["Change hotkeys",()=>{showTab("settings");scrollToCard("setHotkeys")}]);
   if($("sessToggle"))acts.push([S.session.start?"Pause session timer":"Start session timer",()=>$("sessToggle").click()]);
   if(DESK){acts.push([LIVE.overlayVisible?"Hide overlay":"Show overlay",()=>DESK.toggleOverlay(!LIVE.overlayVisible)]);
@@ -3498,6 +3532,12 @@ const HELP={
   clOdds:"For the mods you ticked: the chance per try and the average cost of each method, simulated with the game's mod weights and current prices.",
   clEmu:"Click currency on the item to practice a craft with the game's real odds. Undo and New item are free; the spent counter uses current prices.",
   clSim:"Build a plan from steps (for example Alteration until 2 targets, then Regal, then Exalt) and run it thousands of times for the average, median and unlucky cost.",
+  flFile:"Open the NeverSink filter you use. Changes are saved as a separate ExileCompanion-… copy; your original file is never touched.",
+  flPrev:"A typical set of endgame drops run through your edited filter, top to bottom like the game does. Click a label to edit the rule that styles it.",
+  flTiers:"Every rule in the filter, grouped by section. Hidden rules are dimmed. Pick one to edit it.",
+  flEdit:"Show or hide the rule and change its text size, colours, drop sound, light beam and minimap icon. Changes appear in the preview straight away.",
+  flEcon:"Moves currency, divination cards and uniques between the filter's own tiers using today's poe.ninja prices. You see every move before it's applied.",
+  flTweaks:"Highlight your goal build's items, hide weapon types you don't use, and hide the lowest tiers of currency, cards, uniques or maps.",
   clPool:"Every prefix and suffix that can roll on this base at this item level, with how often each comes up. Tick the ones you want.",
   craftProfit:"Crafts that tend to sell for more than they cost.",
   craftCalc:"Estimate the cost of a craft from the chance per try and the price per try.",
@@ -3726,7 +3766,7 @@ const ICONS={
   wand:'<path d="M4 20L16 8"/><path d="M15 3v3M18 6h3M19 2l-1 2M13 5l2 1"/>',
 };
 const svgIcon=(n,cls)=>ICONS[n]?`<svg class="${cls||"ico-s"}" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">${ICONS[n]}</svg>`:"";
-const TAB_ICONS={craftlab:"wand",home:"home",build:"sword",progress:"chart",shop:"bag",trees:"tree",campaign:"flag",maps:"map",atlas:"compass",session:"hourglass",craft:"hammer",account:"coins",settings:"gear",desktop:"monitor"};
+const TAB_ICONS={filter:"filter",craftlab:"wand",home:"home",build:"sword",progress:"chart",shop:"bag",trees:"tree",campaign:"flag",maps:"map",atlas:"compass",session:"hourglass",craft:"hammer",account:"coins",settings:"gear",desktop:"monitor"};
 const GROUP_ICONS={home:"home",char:"user",play:"map",trade:"coins",app:"gear"};
 function decorateNav(){
   document.querySelectorAll("#tabs [data-tab]").forEach(b=>{if(!b.querySelector("svg"))b.insertAdjacentHTML("afterbegin",svgIcon(TAB_ICONS[b.dataset.tab]))});
@@ -3742,6 +3782,7 @@ const CARD_ICONS={homeChar:"user",homeNext:"route",homeSession:"hourglass",homeL
   mapsNext:"route",mapsDanger:"skull",mapsProgress:"list",mapsCompletion:"map",mapsBosses:"skull",mapsCards:"card",
   treesCard:"tree",atlasProfile:"compass",atlasPhases:"route",atlasTree:"tree",
   clItem:"sword",clOdds:"calc",clPool:"list",clEmu:"hammer",clSim:"refresh",
+  flFile:"filter",flPrev:"image",flTiers:"list",flEdit:"wand",flEcon:"coins",flTweaks:"user",
   craftGearList:"sword",craftPlan:"hammer",craftProfit:"coins",craftCalc:"calc",craftRef:"news",
   sessTimer:"hourglass",sessGameLog:"news",sessAdd:"list",sessProfit:"coins",sessRecap:"clock",sessLog:"list",
   acctChar:"user",acctNet:"chest",acctFinds:"search",acctCx:"chart",acctSales:"trade",

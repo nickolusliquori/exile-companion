@@ -119,6 +119,40 @@ try {
   ok(`craft lab engine works (${ctx.CRAFTDATA.v}, ${Object.keys(ctx.CRAFTDATA.mods).length} mods)`);
 } catch (e) { fail("craft lab: " + e.message); }
 
+// loot filter editor: parse, round trip, edits, evaluator and re-tiering on a small NeverSink-style filter
+try {
+  const ctx = { console, S: {}, save() {}, toast() {}, emptyBox: (m) => m, $: () => null, DESK: null };
+  ctx.window = ctx; vm.createContext(ctx);
+  vm.runInContext(fs.readFileSync(path.join(appDir, "filterlab.js"), "utf8"), ctx);
+  const T = ctx.FilterLab._test;
+  const text = [
+    "#===", "# [[3900]] Currency - Regular Currency Tiering", "#===",
+    'Show # %D5 $type->currency $tier->t1exalted', '\tClass == "Stackable Currency"', '\tBaseType == "Divine Orb" "Mirror of Kalandra"', "\tSetFontSize 45", "\tSetTextColor 255 0 0 255", "\tPlayAlertSound 6 300", "",
+    'Show # %D4 $type->currency $tier->t2divine', '\tClass == "Stackable Currency"', '\tBaseType == "Orb of Annulment" "Exalted Orb"', "\tSetFontSize 45", "",
+    'Show # $type->currency $tier->t4chaos', '\tClass == "Stackable Currency"', '\tBaseType == "Chaos Orb" "Orb of Alchemy" "Vaal Orb"', "\tSetFontSize 40", "",
+    'Hide # $type->currency $tier->t9armour', '\tClass == "Stackable Currency"', '\tBaseType == "Armourer\'s Scrap"', "\tSetFontSize 30", "",
+  ].join("\n");
+  const m = T.parse(text);
+  assert.strictEqual(m.blocks.length, 4, "should find 4 rules");
+  assert.strictEqual(T.serialize(m), text, "an unedited filter must be written back unchanged");
+  const ev = (mm, base) => T.evaluate(mm, { name: base, cls: "Stackable Currency", base });
+  assert.strictEqual(ev(m, "Divine Orb").block.tags.tier, "t1exalted");
+  assert.strictEqual(ev(m, "Armourer's Scrap").vis, "Hide");
+  const m2 = T.build(text, [{ k: "vis", b: 3, v: "Show" }, { k: "act", b: 2, key: "PlayEffect", args: ["Red"] }, { k: "act", b: 0, key: "PlayAlertSound", args: null }], "");
+  assert.strictEqual(ev(m2, "Armourer's Scrap").vis, "Show", "show/hide edit");
+  assert.deepStrictEqual([...ev(m2, "Chaos Orb").style.effect], ["Red"], "beam edit");
+  assert(!/PlayAlertSound 6/.test(T.serialize(m2)), "removed sound must be gone");
+  const P = { cur: { "Divine Orb": 200, "Mirror of Kalandra": 90000, "Orb of Annulment": 40, "Exalted Orb": 30, "Chaos Orb": 1, "Orb of Alchemy": 150, "Vaal Orb": 1.5, "Armourer's Scrap": 0.02 }, ex: {}, items: {} };
+  const plan = T.retierPlan(m, "currency", P);
+  assert(plan.moves.some((x) => x.item === "Orb of Alchemy" && x.to.tags.tier !== "t4chaos"), "an expensive item should move up");
+  assert(!plan.moves.some((x) => x.item === "Chaos Orb"), "Chaos Orb never moves");
+  const m3 = T.build(text, plan.moves.map((x) => ({ k: "move", b: x.from.idx, to: x.to.idx, item: x.item })), "");
+  assert.strictEqual(m3.failed, 0, "re-tier moves apply");
+  assert.notStrictEqual(ev(m3, "Orb of Alchemy").block.tags.tier, "t4chaos", "moved item is styled by its new tier");
+  assert(/^ExileCompanion-/.test(T.saveName("NeverSink's filter - 2-SEMI-STRICT.filter")), "saved name must start with ExileCompanion");
+  ok("loot filter editor works (parse, round trip, edits, preview, re-tiering)");
+} catch (e) { fail("loot filter: " + e.message); }
+
 Promise.all(pending).then(() => {
   if (failures) { console.error(`\n${failures} check(s) failed`); process.exit(1); }
   console.log("\nAll checks passed");

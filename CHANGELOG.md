@@ -2,6 +2,16 @@
 
 What changed in each release, newest first. Installed copies update themselves; see the [Releases page](https://github.com/nickolusliquori/exile-companion/releases) for the installers. Planned releases are on the [roadmap](README.md#roadmap).
 
+## [1.8.0] - 2026-11-21
+
+- **New: Loot filter editor** (Economy → Loot filter). Open the NeverSink filter you use (from your game's filter folder, or any .filter file in the web version) and:
+  - browse every rule by section, with a preview label for each and a search;
+  - show, hide or minimise a rule and change its text size, text, border and background colours, drop sound and volume, light beam and minimap icon;
+  - see a **loot preview** of 36 typical endgame drops run through the edited filter, including which ones it hides; click a label to edit the rule that styles it;
+  - **re-tier** currency, divination cards and uniques with today's poe.ninja prices, choosing which moves to apply (desktop);
+  - highlight your goal build's bases, uniques and gems, hide weapon types your build doesn't use, and hide the lowest tiers of currency, cards, uniques or maps.
+- Saves as `ExileCompanion-<name>.filter` next to the original, which is never changed. Edits are remembered per filter, with undo and reset.
+
 ## [1.7.1] - 2026-11-21
 
 - **Fixed:** the Craft lab simulator now notices target mods you tick after opening the page (it kept saying "tick target mods first").
@@ -72,6 +82,7 @@ First public release of the Windows app, installed from GitHub with automatic up
 - **Account:** live character sync, stash net worth, stash finds, currency trends, price alerts and a sales tracker.
 - **Also:** notifications, Discord status, session recaps, backups, phone sync and an OBS stream overlay.
 
+[1.8.0]: https://github.com/nickolusliquori/exile-companion/releases/tag/v1.8.0
 [1.7.1]: https://github.com/nickolusliquori/exile-companion/releases/tag/v1.7.1
 [1.7.0]: https://github.com/nickolusliquori/exile-companion/releases/tag/v1.7.0
 [1.6.1]: https://github.com/nickolusliquori/exile-companion/releases/tag/v1.6.1
