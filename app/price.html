@@ -32,7 +32,13 @@ main{flex:1;overflow:auto;padding:10px;display:grid;gap:10px;align-content:start
 table{border-collapse:collapse;width:100%;font-size:12px}
 td,th{padding:3px 6px;border-bottom:1px solid var(--line);text-align:left;font-variant-numeric:tabular-nums}
 th{color:var(--muted);font-weight:600;font-size:10px;text-transform:uppercase}
-.mod{display:flex;gap:6px;align-items:center;font-size:12px}
+.mod{display:grid;grid-template-columns:auto 1fr 56px 56px;gap:6px;align-items:center;font-size:12px}
+.mods-h{display:grid;grid-template-columns:auto 1fr 56px 56px;gap:6px;color:var(--muted);font-size:11px;padding-left:20px}
+.tier{display:inline-flex;align-items:center;gap:3px;font-size:10px;font-weight:700;border:1px solid var(--line);border-radius:3px;padding:0 4px;margin-right:5px;color:var(--muted);vertical-align:1px}
+.tier.t1{color:#1d1408;background:var(--gold);border-color:var(--gold)}.tier.t2{color:var(--good);border-color:#71c27a66}
+.tier i{display:inline-block;width:22px;height:4px;border-radius:2px;background:linear-gradient(90deg,currentColor var(--r),rgba(255,255,255,.15) var(--r))}
+.opts{gap:6px}.opts label{display:inline-flex;gap:4px;align-items:center}
+.b.sm{padding:1px 7px;font-size:11px}.b.sm.on{border-color:var(--gold);color:var(--gold)}
 .mod input[type=checkbox]{accent-color:var(--gold);flex:none}
 .mod input[type=number]{width:56px;background:#0b0a08;border:1px solid var(--line);color:var(--text);border-radius:3px;padding:2px 4px}
 .mod span{flex:1}
@@ -210,7 +216,23 @@ function statId(mod,kind){
   }
   return null;
 }
-function minFor(v){if(v==null)return null;if(v<5)return v;return Math.floor(v*0.85)}
+function minFor(v,pct){if(v==null)return null;if(Math.abs(v)<5)return v;return Math.floor(v*(pct||0.85))}
+// tier, prefix/suffix and roll quality from the advanced copy (Ctrl+Alt+C), matched by mod text
+function enrichMods(mods,craft){
+  const norm=t=>String(t).toLowerCase().replace(/\s+/g," ").trim();
+  return mods.map(x=>{const c=(craft||[]).find(c=>c.lines.some(l=>norm(l.text)===norm(x.text)));if(!c)return x;
+    const line=c.lines.find(l=>norm(l.text)===norm(x.text));const rs=(line.vals||[]).filter(v=>v.max!==v.min).map(v=>(v.v-v.min)/(v.max-v.min));
+    return {...x,tier:c.tier,affix:c.kind==="prefix"||c.kind==="suffix"?c.kind:null,roll:rs.length?rs.reduce((a,b)=>a+b,0)/rs.length:null,rangeMax:line.vals&&line.vals.length===1?line.vals[0].max:null}});
+}
+// life and resistances combined into the trade site's pseudo totals
+const PSEUDO=[["life","+# total maximum Life",t=>{let m;if(m=t.match(/^\+(\d+) to maximum Life$/))return +m[1];return 0}],
+  ["ele","+#% total Elemental Resistance",t=>{let m;if(m=t.match(/^\+(\d+)% to all Elemental Resistances$/))return 3*m[1];if(m=t.match(/^\+(\d+)% to (.+?) Resistances?$/)){const p=m[2].replace(/ and /g,",").split(",").map(x=>x.trim()).filter(x=>/^(Fire|Cold|Lightning)$/.test(x));return p.length*m[1]}return 0}],
+  ["chaos","+#% total to Chaos Resistance",t=>{const m=t.match(/^\+(\d+)% to (.+?) Resistances?$/);return m&&m[2].split(/ and |,/).map(x=>x.trim()).includes("Chaos")?+m[1]:0}]];
+function pseudoPlan(mods){
+  const totals={},covered=new Set();
+  mods.forEach((x,i)=>PSEUDO.forEach(([k,,f])=>{const v=f(x.text);if(v){totals[k]=(totals[k]||0)+v;covered.add(i)}}));
+  return {totals,covered};
+}
 
 
 /* ---------- "is this an upgrade?" (compares with your equipped item) ---------- */
@@ -321,6 +343,10 @@ async function loadWiki(it){
   WIKI=`<div class="up wiki"><h3>From the wiki</h3>${row.level?`<p class="status" style="margin:0">Requires level ${esc(row.level)}</p>`:""}${stats&&it.rarity==="divination card"?`<p style="margin:0">Reward: ${esc(stats)}</p>`:""}${drop?`<p style="margin:0">Drops: ${esc(drop)}</p>`:""}${areas.length?`<p class="status" style="margin:0">Drop areas: ${areas.slice(0,8).map(a=>esc(a.replace(/^MapWorlds/,"").replace(/([a-z])([A-Z])/g,"$1 $2"))).join(", ")}${areas.length>8?"…":""}</p>`:""}${row.flavour?`<p class="flavour">${esc(wikiText(row.flavour))}</p>`:""}</div>`;
   if(LAST_STATE) render(LAST_STATE);
 }
+let OPTS={pct:0.85,pseudo:false,ilvl:false,anyBase:false};
+const CATS={"Rings":"accessory.ring","Amulets":"accessory.amulet","Belts":"accessory.belt","Helmets":"armour.helmet","Body Armours":"armour.chest","Gloves":"armour.gloves","Boots":"armour.boots","Shields":"armour.shield","Quivers":"armour.quiver","Jewels":"jewel","Abyss Jewels":"jewel.abyss"};
+function tierBadge(x){if(x.tier==null&&x.roll==null)return "";const c=x.tier===1?"t1":x.tier&&x.tier<=3?"t2":"t9";
+  return `<span class="tier ${c}" title="${x.affix?x.affix[0].toUpperCase()+x.affix.slice(1)+", ":""}tier ${x.tier??"?"}${x.roll!=null?`, roll ${Math.round(x.roll*100)}% of its range`:""}">${x.tier!=null?"T"+x.tier:""}${x.affix?" "+x.affix[0].toUpperCase():""}${x.roll!=null?`<i style="--r:${Math.round(x.roll*100)}%"></i>`:""}</span>`}
 function render(state){
   LAST_STATE=state;
   const m=$("main");let h="";
@@ -332,7 +358,15 @@ function render(state){
   if(state.sum)h+=`<div class="est"><div class="stat"><div class="k">Cheapest listed</div><div class="v">${fmt(state.sum.min)}c</div></div><div class="stat"><div class="k">Typical (low 5)</div><div class="v">${fmt(state.sum.typical)}c</div></div></div><p class="status" style="margin:0">${state.total} listed${divTxt(state.sum.typical)}</p>`;
   if(state.listings&&state.listings.length)h+=`<table><thead><tr><th>Price</th><th>≈ chaos</th><th>Listed</th></tr></thead><tbody>${state.listings.map(l=>{const c=toChaos(l);return `<tr><td>${l.amount} ${esc(l.currency)}</td><td>${c!=null?fmt(c):"–"}</td><td>${ago(l.indexed)}</td></tr>`}).join("")}</tbody></table>`;
   if(WIKI)h+=WIKI;
-  if(state.mods)h+=`<h3>Search by these mods</h3><div style="display:grid;gap:4px">${state.mods.map((x,i)=>`<label class="mod${x.id?"":" nomatch"}"><input type="checkbox" data-m="${i}"${x.on?" checked":""}${x.id?"":" disabled"}><span>${esc(x.text)}${x.kind!=="explicit"?` <i style="color:var(--muted)">(${x.kind})</i>`:""}</span>${x.v!=null&&x.id?`<input type="number" data-min="${i}" value="${x.min}" aria-label="Minimum">`:""}</label>`).join("")}</div><div class="row"><button class="b p" id="again">Search again</button></div>`;
+  if(state.mods)h+=`<h3>Search by these mods</h3>
+    <div class="row opts"><span class="small">Range:</span>${[0.8,0.9,1].map(p=>`<button class="b sm${OPTS.pct===p?" on":""}" data-pct="${p}">${Math.round(p*100)}%</button>`).join("")}
+      <label class="small"><input type="checkbox" id="oPseudo"${OPTS.pseudo?" checked":""}> Totals for life &amp; res</label>
+      ${item.ilvl?`<label class="small"><input type="checkbox" id="oIlvl"${OPTS.ilvl?" checked":""}> ilvl ${item.ilvl}+</label>`:""}
+      ${CATS[item.cls]?`<label class="small"><input type="checkbox" id="oAny"${OPTS.anyBase?" checked":""}> Any base</label>`:""}</div>
+    <div class="mods-h small"><span></span><span>Mod</span><span>Min</span><span>Max</span></div>
+    <div style="display:grid;gap:4px">${state.mods.map((x,i)=>`<label class="mod${x.id?"":" nomatch"}"><input type="checkbox" data-m="${i}"${x.on?" checked":""}${x.id?"":" disabled"}><span>${tierBadge(x)}${esc(x.text)}${x.kind!=="explicit"?` <i style="color:var(--muted)">(${x.kind})</i>`:""}</span>${x.v!=null&&x.id?`<input type="number" data-min="${i}" value="${x.min??""}" aria-label="Minimum"><input type="number" data-max="${i}" value="${x.max??""}" placeholder="–" aria-label="Maximum">`:"<span></span><span></span>"}</label>`).join("")}</div>
+    ${item.advanced?"":'<p class="small" style="margin:0;color:var(--muted)">Tip: copy with <b>Ctrl+Alt+C</b> to see each mod\'s tier and roll.</p>'}
+    <div class="row"><button class="b p" id="again">Search again</button></div>`;
   h+=`<div class="row">${lastSearchId?`<button class="b" id="open">Open on trade site</button>`:""}${state.exchange?`<button class="b" id="openEx">Open bulk exchange</button>`:""}<button class="b" id="wiki">Wiki</button><button class="b" id="close2">Close</button></div>`;
   m.innerHTML=h;
   const o=$("open");if(o)o.onclick=()=>D.openExternal(`${TRADE}/trade/search/${encodeURIComponent(league)}/${lastSearchId}`);
@@ -341,15 +375,29 @@ function render(state){
   const ox=$("openEx");if(ox)ox.onclick=()=>D.openExternal(`${TRADE}/trade/exchange/${encodeURIComponent(league)}`);
   if(state.mods){
     m.querySelectorAll("[data-m]").forEach(c=>c.onchange=()=>{state.mods[+c.dataset.m].on=c.checked});
-    m.querySelectorAll("[data-min]").forEach(c=>c.onchange=()=>{state.mods[+c.dataset.min].min=+c.value});
+    m.querySelectorAll("[data-min]").forEach(c=>c.onchange=()=>{state.mods[+c.dataset.min].min=c.value===""?null:+c.value});
+    m.querySelectorAll("[data-max]").forEach(c=>c.onchange=()=>{state.mods[+c.dataset.max].max=c.value===""?null:+c.value});
+    m.querySelectorAll("[data-pct]").forEach(b=>b.onclick=e=>{e.preventDefault();OPTS.pct=+b.dataset.pct;state.mods.forEach(x=>{if(x.v!=null)x.min=minFor(x.v,OPTS.pct)});render(state)});
+    const op=$("oPseudo");if(op)op.onchange=()=>{OPTS.pseudo=op.checked};
+    const oi=$("oIlvl");if(oi)oi.onchange=()=>{OPTS.ilvl=oi.checked};
+    const oa=$("oAny");if(oa)oa.onchange=()=>{OPTS.anyBase=oa.checked};
     $("again").onclick=()=>searchRare(state.mods);
   }
 }
 
 async function searchRare(mods){
   const st={mods,status:"Searching the trade site…"};render(st);
-  const filters=mods.filter(x=>x.on&&x.id).map(x=>({id:x.id,value:x.min!=null?{min:x.min}:{},disabled:false}));
-  const q={type:item.base,stats:[{type:"and",filters}],filters:{type_filters:{filters:{rarity:{option:"nonunique"}}},misc_filters:{filters:item.corrupted?{}:{corrupted:{option:"false"}}}}};
+  const val=x=>{const v={};if(x.min!=null&&x.min!=="")v.min=+x.min;if(x.max!=null&&x.max!=="")v.max=+x.max;return v};
+  let use=mods.map((x,i)=>({x,i})).filter(o=>o.x.on&&o.x.id);
+  const filters=[];
+  if(OPTS.pseudo){const plan=pseudoPlan(mods.filter(x=>x.on));
+    const onIdx=mods.map((x,i)=>x.on?i:-1).filter(i=>i>=0);const coveredAll=new Set([...plan.covered].map(k=>onIdx[k]));
+    use=use.filter(o=>!coveredAll.has(o.i));
+    PSEUDO.forEach(([k,text])=>{const id=statIndex&&statIndex.get("pseudo|"+text.toLowerCase());if(id&&plan.totals[k])filters.push({id,value:{min:minFor(plan.totals[k],OPTS.pct)},disabled:false})})}
+  use.forEach(({x})=>filters.push({id:x.id,value:val(x),disabled:false}));
+  const misc=item.corrupted?{}:{corrupted:{option:"false"}};if(OPTS.ilvl&&item.ilvl)misc.ilvl={min:item.ilvl};
+  const q={type:OPTS.anyBase?undefined:item.base,stats:[{type:"and",filters}],filters:{type_filters:{filters:{rarity:{option:"nonunique"},...(OPTS.anyBase&&CATS[item.cls]?{category:{option:CATS[item.cls]}}:{})}},misc_filters:{filters:misc}}};
+  if(!q.type)delete q.type;
   try{const r=await tradeSearch(q);const sum=summarize(r.listings);
     render({mods,listings:r.listings,total:r.total,sum,status:r.total?"":"No matches. Untick a mod or lower a minimum, then search again.",statusCls:r.total?"":"warn"})}
   catch(e){render({mods,status:e.message,statusCls:"err"})}
@@ -401,7 +449,7 @@ async function check(text){
     }
     if(item.rarity==="rare"&&item.cls!=="Maps"){
       await loadStats();
-      const all=[...item.implicits,...item.mods].map(x=>{const id=statId(x.text,x.kind);const v=valOf(x.text);const p=(MOD_PRIO.find(([re])=>re.test(x.text))||[0,1])[1];return {...x,id,v,min:minFor(v),prio:p,on:false}});
+      const all=enrichMods([...item.implicits,...item.mods].map(x=>{const id=statId(x.text,x.kind);const v=valOf(x.text);const p=(MOD_PRIO.find(([re])=>re.test(x.text))||[0,1])[1];return {...x,id,v,min:minFor(v,OPTS.pct),max:null,prio:p,on:false}}),item.craft);
       all.filter(x=>x.id&&x.kind!=="implicit").sort((a,b)=>b.prio-a.prio).filter(x=>x.prio>=3).slice(0,5).forEach(x=>x.on=true);
       if(!all.some(x=>x.on))all.filter(x=>x.id&&x.kind!=="implicit").slice(0,3).forEach(x=>x.on=true);
       await searchRare(all);
@@ -426,6 +474,7 @@ $("close").onclick=()=>D&&D.closePrice();
 document.addEventListener("keydown",e=>{if(e.key==="Escape")D&&D.closePrice()});
 if(D){D.onPriceItem(({text,league:l})=>{if(l)league=l;check(text)})}
 window.__parseItem=parseItem; // for testing
+window.__priceTest={enrichMods,pseudoPlan,minFor};
 </script>
 </body>
 </html>

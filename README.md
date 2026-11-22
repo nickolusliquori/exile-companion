@@ -140,7 +140,6 @@ The loot filter editor shipped in 1.8, the in-app browser in 1.9, the trading to
 
 | Version | Feature |
 |---|---|
-| **1.16** | **Price check depth:** tick individual mods, adjust ranges and see roll tiers in the price popup.|
 | **1.17** | **Media:** a YouTube / YouTube Music / Twitch mini player over the game, plus a Now playing bar with controls for whatever plays in Windows (Spotify, Apple Music, Netflix in a browser…).|
 | **1.18** | **Data and history:** league data that updates without an app release, a net worth graph and saved trade searches.|
 

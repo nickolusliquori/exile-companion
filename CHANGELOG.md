@@ -2,6 +2,16 @@
 
 What changed in each release, newest first. Installed copies update themselves; see the [Releases page](https://github.com/nickolusliquori/exile-companion/releases) for the installers. Planned releases are on the [roadmap](README.md#roadmap).
 
+## [1.16.0] - 2026-11-22
+
+### Added
+- **Deeper price checks for rare items** in the price popup:
+  - A **maximum** next to each mod's minimum, so you can search a range.
+  - **Tier and roll badges** (for example "T1 S" with a bar showing where the roll sits in its range) when you copy the item with **Ctrl+Alt+C**. A tip appears when you use plain Ctrl+C.
+  - **Range presets** (80%, 90%, 100%) that reset every minimum at once.
+  - **Totals for life and resistances:** combines the ticked life and resistance mods into the trade site's total life, total elemental resistance and total chaos resistance, the way most people search for rings, amulets and armour.
+  - **Item level** (this level or higher) and **any base** (search the whole item class instead of this exact base) filters.
+
 ## [1.15.0] - 2026-11-22
 
 ### Added
