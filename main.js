@@ -281,6 +281,8 @@ function startStream() {
   if (!cfg.streamEnabled) { sendMain("stream:status", { ok: false, message: "Off" }); return; }
   streamServer = httpLib.createServer((req, res) => {
     if (req.url.startsWith("/data")) { res.writeHead(200, { "Content-Type": "application/json", "Cache-Control": "no-store" }); res.end(JSON.stringify({ overlay: lastOverlayData, stream: streamData })); return; }
+    const font = /^\/fonts\/(Cinzel\.woff|SourceSans3\.ttf)$/.exec(req.url);
+    if (font) { res.writeHead(200, { "Content-Type": font[1].endsWith(".ttf") ? "font/ttf" : "font/woff", "Cache-Control": "max-age=86400" }); res.end(fs.readFileSync(path.join(__dirname, "app", "fonts", font[1]))); return; }
     if (req.url === "/" || req.url.startsWith("/?")) { res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" }); res.end(fs.readFileSync(path.join(__dirname, "app", "stream.html"))); return; }
     res.writeHead(404); res.end();
   });

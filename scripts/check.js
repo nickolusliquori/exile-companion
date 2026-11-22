@@ -587,6 +587,16 @@ try {
   ok("characters: per-character data only, other characters' log events skipped, no prompt()");
 } catch (e) { fail("characters: " + e.message); }
 
+// fonts are bundled: no page loads anything from Google, and the license files ship with them
+try {
+  for (const f of fs.readdirSync(path.join(root, "app")).filter((x) => x.endsWith(".html"))) {
+    const h = fs.readFileSync(path.join(root, "app", f), "utf8");
+    assert(!/fonts\.(googleapis|gstatic)\.com/.test(h), f + " still loads Google Fonts");
+  }
+  for (const f of ["Cinzel.woff", "SourceSans3.ttf", "OFL-Cinzel.txt", "OFL-SourceSans3.txt"]) assert(fs.statSync(path.join(root, "app", "fonts", f)).size > 1000, f);
+  ok("fonts bundled (no Google Fonts requests), with their licenses");
+} catch (e) { fail("fonts: " + e.message); }
+
 Promise.all(pending).then(() => {
   if (failures) { console.error(`\n${failures} check(s) failed`); process.exit(1); }
   console.log("\nAll checks passed");

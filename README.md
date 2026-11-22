@@ -250,6 +250,7 @@ Exile Companion is free and open source under the [MIT License](LICENSE).
 - Gem, quest-reward and area data: [exile-leveling](https://github.com/HeartofPhos/exile-leveling) by HeartofPhos (MIT).
 - Crafting data: the [RePoE](https://github.com/repoe-fork/repoe) export of the game files (MIT).
 - Timeless and cluster jewel data: [Path of Building Community](https://github.com/PathOfBuildingCommunity/PathOfBuilding) (MIT).
+- Fonts: [Cinzel](https://github.com/NDISCOVER/Cinzel) by Natanael Gama and [Source Sans 3](https://github.com/adobe-fonts/source-sans) by Adobe, both under the SIL Open Font License 1.1, bundled from [google/fonts](https://github.com/google/fonts) (`app/fonts`; Cinzel is trimmed to the characters the app uses, Source Sans 3 is the unmodified original).
 - Prices: [poe.ninja](https://poe.ninja) and the [official trade site](https://www.pathofexile.com/trade). Item details and divination card drops: the [Path of Exile wiki](https://www.poewiki.net).
 
 Full licence texts are in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). This product isn't affiliated with or endorsed by Grinding Gear Games in any way. Path of Exile is a trademark of Grinding Gear Games.

@@ -75,3 +75,7 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+
+## Cinzel and Source Sans 3 (fonts)
+
+Bundled in `app/fonts/`: Cinzel as a subset (Latin, punctuation and arrows) and Source Sans 3 unmodified, from the files in [google/fonts](https://github.com/google/fonts) (`ofl/cinzel`, `ofl/sourcesans3`). Cinzel: Copyright 2020 The Cinzel Project Authors. Source Sans 3: Copyright 2010-2020 Adobe. Both are licensed under the SIL Open Font License, Version 1.1; the full license texts are `app/fonts/OFL-Cinzel.txt` and `app/fonts/OFL-SourceSans3.txt`.

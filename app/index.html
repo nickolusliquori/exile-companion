@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' file: 'unsafe-inline' https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' file: data: blob: https://web.poecdn.com; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-src 'none'; worker-src 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' file: 'unsafe-inline' https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline'; font-src 'self' file:; img-src 'self' file: data: blob: https://web.poecdn.com; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-src 'none'; worker-src 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Exile Companion 3.30</title>
 <script>
@@ -17,10 +17,10 @@ addEventListener("error",e=>{if(e.target&&e.target!==window&&e.target.tagName)re
 addEventListener("unhandledrejection",e=>push("promise",(e.reason&&(e.reason.stack||e.reason.message))||e.reason));
 const ce=console.error;console.error=function(){try{push("console",[].map.call(arguments,x=>x&&x.stack||x).join(" "))}catch(e){}return ce.apply(this,arguments)};})();
 </script>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&family=Source+Sans+3:wght@400;600;700&display=swap" rel="stylesheet">
 <style>
+/* bundled fonts (SIL Open Font License, see fonts/OFL-*.txt): Cinzel trimmed to the characters used, Source Sans 3 unmodified */
+@font-face{font-family:"Cinzel";src:url("fonts/Cinzel.woff") format("woff");font-weight:400 900;font-display:swap}
+@font-face{font-family:"Source Sans 3";src:url("fonts/SourceSans3.ttf") format("truetype");font-weight:200 900;font-display:swap}
 :root{
   /* Single-theme: a dark Wraeclast stash-tab world. Layout: sticky header + tab rail, card grid that collapses to one column on phones. */
   --bg:#0e0c0a; --panel:#18140f; --panel2:#211b14; --line:#3b3024; --text:#e8dfcf; --muted:#a39682;
