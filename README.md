@@ -225,7 +225,9 @@ npm run dist:local # build an installer on your own PC
 | `main.js` | Main process: windows, overlay, price window, pinned browser, media player, hotkeys, game log, GGG and poe.ninja requests (rate-limited), updater |
 | `preload.js` | The small, fixed set of actions pages may call |
 | `lib/` | Testable modules: log parsing (`logtail.js`), GGG API and OAuth (`ggg.js`), trade rate limiter (`ratelimit.js`), allowed sites (`webhosts.js`), Windows media controls (`media.js`), Discord (`discord.js`), clipboard helpers (`clip.js`), filter file names (`files.js`), problem-report redaction (`diag.js`), local log and safe mode (`crashlog.js`) |
-| `app/index.html` | The main app: every page, card and the Ctrl+K search |
+| `app/index.html` | The main window's page structure; it loads `app/css/app.css` and the scripts in `app/js/` |
+| `app/js/01-core.js` … `10-report.js` | The main app, split by area (core and game data, pages, game log, session, comparison, desktop features, wiring and search, settings and UI, report and browser). They're plain scripts that share one global scope and load in order |
+| `app/fonts/` | Bundled fonts (Cinzel, Source Sans 3) and their licenses |
 | `app/craftlab.js`, `app/craftdata.js` | The Craft lab engine and its game data (loaded when the page opens) |
 | `app/filterlab.js`, `tradetools.js`, `league.js`, `buildtools.js`, `upgrades.js` | Loot filter editor, trading tools, League page, build tools and upgrade finder (each loaded when its page opens) |
 | `app/timelessdata.js`, `clusterdata.js`, `mapmods.js`, `treedata.js`, `atlasdata.js` | Generated game data |

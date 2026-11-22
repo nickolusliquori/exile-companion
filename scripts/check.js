@@ -17,6 +17,10 @@ for (const f of ["main.js", "preload.js", "lib/logtail.js", "lib/ggg.js", "lib/d
 }
 
 const appDir = path.join(root, "app");
+// index.html with its split-out scripts and styles put back in place, for checks that read the main window's code
+const readIndex = () => fs.readFileSync(path.join(appDir, "index.html"), "utf8")
+  .replace(/<script src="(js\/[\w.-]+\.js)"><\/script>/g, (m, f) => "<script>\n" + fs.readFileSync(path.join(appDir, f), "utf8") + "\n</script>")
+  .replace(/<link rel="stylesheet" href="(css\/[\w.-]+\.css)">/g, (m, f) => "<style>\n" + fs.readFileSync(path.join(appDir, f), "utf8") + "\n</style>");
 for (const f of fs.readdirSync(appDir).filter((x) => x.endsWith(".html"))) {
   const html = fs.readFileSync(path.join(appDir, f), "utf8");
   if (!/http-equiv="Content-Security-Policy"/.test(html)) fail(`${f}: missing Content-Security-Policy`);
@@ -27,6 +31,16 @@ for (const f of fs.readdirSync(appDir).filter((x) => x.endsWith(".html"))) {
     i++;
   }
   ok(`${f}: ${i} inline script(s) parse, CSP present`);
+}
+for (const f of fs.readdirSync(path.join(appDir, "js")).filter((x) => x.endsWith(".js"))) {
+  try { const src = fs.readFileSync(path.join(appDir, "js", f), "utf8"); new vm.Script(src, { filename: "js/" + f }); assert(/^(\/\/.*\n)*"use strict";/.test(src), "starts with use strict"); ok(`app/js/${f} parses`); }
+  catch (e) { fail(`app/js/${f}: ${e.message}`); }
+}
+{ // index.html loads every split script, in order, and nothing else is left over
+  const h = fs.readFileSync(path.join(appDir, "index.html"), "utf8"), tags = [...h.matchAll(/<script src="js\/([\w.-]+)"><\/script>/g)].map((m) => m[1]);
+  const files = fs.readdirSync(path.join(appDir, "js")).filter((x) => x.endsWith(".js")).sort();
+  if (JSON.stringify(tags) !== JSON.stringify(files)) fail("index.html script tags don't match app/js: " + tags.join(",") + " vs " + files.join(","));
+  else ok(`index.html loads all ${files.length} main-window scripts in order`);
 }
 for (const f of fs.readdirSync(appDir).filter((x) => x.endsWith(".js"))) {
   try { new vm.Script(fs.readFileSync(path.join(appDir, f), "utf8"), { filename: f }); ok(`app/${f} parses`); }
@@ -306,7 +320,7 @@ try {
 
 // look and feel: three themes, early theme script, motion and sound settings
 try {
-  const css = fs.readFileSync(path.join(appDir, "theme.css"), "utf8"), html = fs.readFileSync(path.join(appDir, "index.html"), "utf8");
+  const css = fs.readFileSync(path.join(appDir, "theme.css"), "utf8"), html = readIndex();
   for (const t of ["minimal", "modern"]) assert(css.includes(`html[data-theme="${t}"]{`), "colour set for " + t);
   assert(/<link rel="stylesheet" href="theme.css">/.test(html), "theme stylesheet linked");
   assert(html.indexOf("document.documentElement.dataset.theme=t") < html.indexOf("<body"), "theme applied before the page paints");
@@ -388,7 +402,7 @@ try {
 
 // index.html: nothing at the top level uses DESK before it is declared (that stops the whole page)
 try {
-  const html = fs.readFileSync(path.join(appDir, "index.html"), "utf8");
+  const html = readIndex();
   const at = html.indexOf("const DESK=");
   const before = html.slice(0, at).split("\n").filter((l) => /^(if\s*\(\s*DESK|DESK\.|addEventListener\([^)]*DESK)/.test(l));
   assert(at > 0 && !before.length, "top-level DESK use before its declaration: " + before.map((l) => l.slice(0, 60)).join(" | "));
@@ -423,7 +437,7 @@ try {
 
 // trade companion hints and vendor recipe sets (functions pulled out of index.html into a sandbox)
 try {
-  const html = fs.readFileSync(path.join(appDir, "index.html"), "utf8");
+  const html = readIndex();
   const cut = (from, to) => { const a = html.indexOf(from), b = html.indexOf(to, a + 1); assert(a > 0 && b > a, "section " + from); return html.slice(a, b); };
   const fam = cut("const BASE_FAMILY=", "\nfunction stashFinds");
   const code = fam + "\n" + cut("/* ---------- trades (log whispers) ----------", "/* ---------- reminders (notifications) ---------- */");
@@ -456,7 +470,7 @@ try {
 
 // GGG developer guidelines: no background clipboard polling, required disclaimer shown, no credentials in code
 try {
-  const mainSrc = fs.readFileSync(path.join(root, "main.js"), "utf8"), html = fs.readFileSync(path.join(appDir, "index.html"), "utf8");
+  const mainSrc = fs.readFileSync(path.join(root, "main.js"), "utf8"), html = readIndex();
   assert(!/setInterval\([^)]*clip/i.test(mainSrc) && !/clipWatch\.poll\(/.test(mainSrc), "the clipboard is never read on a timer");
   assert(/bind\(cfg\.priceHotkey[\s\S]{0,80}clipRead\(\)/.test(mainSrc), "price checks read the clipboard from the hotkey");
   assert(html.includes("This product isn't affiliated with or endorsed by Grinding Gear Games in any way."), "GGG's disclaimer is shown in the app");
@@ -475,7 +489,7 @@ try {
   assert.strictEqual(pickLeague(L(["Ashes", "Standard"]), { current: "Umbra", lastChallenge: "Umbra", pinned: true }).league, "Umbra", "a pinned league is kept");
   assert.strictEqual(pickLeague(L(["SSF Ashes", "Ruthless Ashes", "Ashes"]), {}).league, "Ashes", "SSF and Ruthless are skipped");
   assert.strictEqual(pickLeague([], { current: "Umbra" }).league, "Umbra", "offline or empty list keeps the current league");
-  const html = fs.readFileSync(path.join(appDir, "index.html"), "utf8");
+  const html = readIndex();
   const grab = (from, to) => { const a = html.indexOf(from), b = html.indexOf(to, a + 1); assert(a > 0 && b > a, "section " + from); return html.slice(a, b); };
   const tables = ["MAPMODS", "STRATS", "PROGRESS"].map((n) => { const a = html.indexOf(`const ${n}=[`); return html.slice(a, html.indexOf("\n];", a) + 3); }).join("\n");
   const mod = grab("/* ---------- game data: patch label", "// announcements from data/game.json");
@@ -557,13 +571,13 @@ try {
 // accessibility options reach every app window; good/bad colors come from variables so colorblind mode applies
 try {
   for (const f of ["index.html", "price.html", "overlay.html"]) {
-    const h = fs.readFileSync(path.join(root, "app", f), "utf8");
+    const h = (f === "index.html" ? readIndex() : fs.readFileSync(path.join(root, "app", f), "utf8"));
     assert(h.includes('html[data-cb="1"][data-cb]') && h.includes("window.__applyA11y"), f + " has the accessibility options");
     assert(!/#71c27a(22|66)|#e0584b(22|66)|style="color:#(71c27a|e0584b)"/.test(h), f + " hardcodes good/bad colors");
   }
-  const h = fs.readFileSync(path.join(root, "app", "index.html"), "utf8");
+  const h = readIndex();
   assert(/class="skip" href="#main"/.test(h) && /<main id="main"/.test(h), "skip link");
-  for (const f of ["index.html", "price.html", "overlay.html"]) assert(/d\.setZoom\(1\);h\.style\.zoom=/.test(fs.readFileSync(path.join(root, "app", f), "utf8")), f + " uses CSS zoom and resets Electron zoom");
+  for (const f of ["index.html", "price.html", "overlay.html"]) assert(/d\.setZoom\(1\);h\.style\.zoom=/.test((f === "index.html" ? readIndex() : fs.readFileSync(path.join(root, "app", f), "utf8"))), f + " uses CSS zoom and resets Electron zoom");
   assert(fs.readFileSync(path.join(root, "app", "overlay.html"), "utf8").includes("u.overlayScale"), "overlay has its own text size");
   const rel = fs.readFileSync(path.join(root, ".github/workflows/release.yml"), "utf8");
   assert(rel.indexOf("smoke-windows.ps1") > 0 && rel.indexOf("smoke-windows.ps1") < rel.indexOf("gh release create"), "release runs the Windows test before publishing");
@@ -577,7 +591,7 @@ try {
 
 // characters: per-character keys never include shared (economy, settings) data; other characters' log events aren't recorded
 try {
-  const h = fs.readFileSync(path.join(root, "app", "index.html"), "utf8");
+  const h = readIndex();
   const m = h.match(/const CHAR_KEYS=\[([^\]]+)\]/); assert(m, "CHAR_KEYS found");
   const keys = m[1].replace(/["\s]/g, "").split(",");
   for (const shared of ["ui", "divine", "netWorth", "trade", "tradeSaved", "sales", "watch", "league", "hints", "tourDone", "unlocked"]) assert(!keys.includes(shared), shared + " must stay shared");
@@ -590,7 +604,7 @@ try {
 // fonts are bundled: no page loads anything from Google, and the license files ship with them
 try {
   for (const f of fs.readdirSync(path.join(root, "app")).filter((x) => x.endsWith(".html"))) {
-    const h = fs.readFileSync(path.join(root, "app", f), "utf8");
+    const h = (f === "index.html" ? readIndex() : fs.readFileSync(path.join(root, "app", f), "utf8"));
     assert(!/fonts\.(googleapis|gstatic)\.com/.test(h), f + " still loads Google Fonts");
   }
   for (const f of ["Cinzel.woff", "SourceSans3.ttf", "OFL-Cinzel.txt", "OFL-SourceSans3.txt"]) assert(fs.statSync(path.join(root, "app", "fonts", f)).size > 1000, f);
