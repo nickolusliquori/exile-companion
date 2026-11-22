@@ -57,6 +57,9 @@ const DEFAULTS = {
   wikiHotkey: "Ctrl+Alt+W",       // open the wiki page for the item you last copied
   pageHotkey: "Ctrl+Shift+P",     // next overlay page
   cheatHotkey: "Ctrl+Shift+H",    // show / cycle / hide cheat sheets
+  pinHotkey: "Ctrl+Shift+B",      // show / hide the browser pinned over the game
+  pinBounds: null,
+  pinOpacity: 1,
   streamEnabled: false,           // local page for OBS (Browser Source)
   streamPort: 47777,
   overlayVisible: true,
@@ -160,9 +163,26 @@ function createPrice() {
   priceWin.on("hide", () => globalShortcut.unregister("Escape"));
   priceWin.on("closed", () => { priceWin = null; });
 }
+/* recent price checks: kept in memory only, gone when the app closes */
+const clipHistory = [];
+function itemTitle(text) {
+  const l = String(text).replace(/\r/g, "").split("\n").map((x) => x.trim());
+  const ri = l.findIndex((x) => x.startsWith("Rarity:"));
+  if (ri < 0) return "Item";
+  const a = l[ri + 1] || "", b = l[ri + 2] && l[ri + 2] !== "--------" ? l[ri + 2] : "";
+  return b ? `${a} ${b}` : a;
+}
+function rememberItem(text) {
+  const i = clipHistory.findIndex((h) => h.text === text);
+  if (i >= 0) clipHistory.splice(i, 1);
+  clipHistory.unshift({ text, title: itemTitle(text), rarity: (String(text).match(/^Rarity: (.+)$/m) || [])[1] || "", at: Date.now() });
+  clipHistory.length = Math.min(clipHistory.length, 20);
+  sendMain("clip:history", clipHistory.map(({ title, rarity, at }) => ({ title, rarity, at })));
+}
 function showPrice(text) {
   if (!priceWin) createPrice();
   lastPriceText = text;
+  rememberItem(text);
   const pt = screen.getCursorScreenPoint();
   const wa = screen.getDisplayNearestPoint(pt).workArea;
   const [w, h] = priceWin.getSize();
@@ -199,6 +219,7 @@ function registerHotkeys() {
   }, "wiki lookup");
   bind(cfg.pageHotkey, () => { if (!overlayWin) return; if (!overlayWin.isVisible()) toggleOverlay(true); overlayWin.webContents.send("overlay:page", "next"); }, "overlay page");
   bind(cfg.cheatHotkey, () => cycleCheat(), "cheat sheets");
+  bind(cfg.pinHotkey, () => togglePin(), "pinned browser");
   bind(cfg.priceHotkey, async () => {
     const txt = await clipRead();
     if (isItemText(txt)) showPrice(txt); else if (lastPriceText) showPrice(lastPriceText);
@@ -439,7 +460,8 @@ ipcMain.handle("cfg:get", () => ({ ...cfg, version: VERSION }));
 ipcMain.handle("cfg:set", (e, patch) => {
   const before = { ...cfg };
   cfg = { ...cfg, ...patch }; saveCfg();
-  if (["priceHotkey", "overlayHotkey", "interactHotkey", "copyHotkey", "wikiHotkey", "pageHotkey", "cheatHotkey"].some((k) => before[k] !== cfg[k])) registerHotkeys();
+  if (["priceHotkey", "overlayHotkey", "interactHotkey", "copyHotkey", "wikiHotkey", "pageHotkey", "cheatHotkey", "pinHotkey"].some((k) => before[k] !== cfg[k])) registerHotkeys();
+  if (pinWin && before.pinOpacity !== cfg.pinOpacity) pinWin.setOpacity(Math.min(1, Math.max(0.4, +cfg.pinOpacity || 1)));
   if (before.streamEnabled !== cfg.streamEnabled || before.streamPort !== cfg.streamPort) startStream();
   if (before.logPath !== cfg.logPath) startLog();
   if (overlayWin && before.overlayOpacity !== cfg.overlayOpacity) overlayWin.setOpacity(cfg.overlayOpacity);
@@ -502,35 +524,46 @@ ipcMain.on("browser:external", (e, url) => { if (typeof url === "string" && /^ht
 let webView = null;
 let webShown = false;
 function webSession() { return session.fromPartition(WEB_PARTITION); }
-function ensureWebView() {
-  if (webView || !mainWin || mainWin.isDestroyed()) return webView;
+let sessionReady = false;
+function prepareWebSession() {
+  if (sessionReady) return;
+  sessionReady = true;
   const ses = webSession();
   // Keep Electron's own user agent: Cloudflare's human check (Turnstile) loops forever when the user agent
   // is rewritten to look like plain Chrome, because the other browser signals then don't match.
   ses.setPermissionRequestHandler((wc, perm, cb, details) => cb(perm === "clipboard-sanitized-write" && webHostAllowed(details && details.requestingUrl)));
   ses.setPermissionCheckHandler((wc, perm, origin) => perm === "clipboard-sanitized-write" && webHostAllowed(origin));
   ses.on("will-download", (e, item) => { e.preventDefault(); sendMain("browser:blocked", { url: item.getURL(), reason: "download" }); });
-  webView = new WebContentsView({ webPreferences: { partition: WEB_PARTITION, contextIsolation: true, sandbox: true, nodeIntegration: false, webSecurity: true, spellcheck: false } });
-  webView.setBackgroundColor("#0e0c0a");
-  const wc = webView.webContents;
+}
+// a sandboxed web view on the shared "persist:web" session; send(channel, data) reports its state
+function makeWebView(send) {
+  prepareWebSession();
+  const view = new WebContentsView({ webPreferences: { partition: WEB_PARTITION, contextIsolation: true, sandbox: true, nodeIntegration: false, webSecurity: true, spellcheck: false } });
+  view.setBackgroundColor("#0e0c0a");
+  const wc = view.webContents;
   // keep the page itself on allowlisted sites; frames inside it (e.g. Cloudflare's human check) are left alone
   const guard = (e, url, isMainFrame) => {
     const main = e && e.isMainFrame !== undefined ? e.isMainFrame : isMainFrame;
     const target = (e && e.url) || url;
-    if (blockNavigation(target, main)) { e.preventDefault(); if (/^https:\/\//i.test(target)) sendMain("browser:blocked", { url: target }); }
+    if (blockNavigation(target, main)) { e.preventDefault(); if (/^https:\/\//i.test(target)) send("browser:blocked", { url: target }); }
   };
   wc.on("will-navigate", (e, url) => guard(e, url, true));                                         // main frame only
   wc.on("will-redirect", (e, url, isInPlace, isMainFrame) => guard(e, url, isMainFrame));            // fires for frames too
   wc.on("will-frame-navigate", (e) => guard(e, e.url, e.isMainFrame));
-  wc.setWindowOpenHandler(({ url }) => { if (webHostAllowed(url)) wc.loadURL(url); else if (/^https:\/\//i.test(url)) sendMain("browser:blocked", { url }); return { action: "deny" }; });
+  wc.setWindowOpenHandler(({ url }) => { if (webHostAllowed(url)) wc.loadURL(url); else if (/^https:\/\//i.test(url)) send("browser:blocked", { url }); return { action: "deny" }; });
   const push = (extra) => {
     if (wc.isDestroyed()) return;
     const h = wc.navigationHistory;
-    sendMain("browser:state", { url: wc.getURL(), title: wc.getTitle(), canBack: h.canGoBack(), canForward: h.canGoForward(), loading: wc.isLoading(), ...(extra || {}) });
+    send("browser:state", { url: wc.getURL(), title: wc.getTitle(), canBack: h.canGoBack(), canForward: h.canGoForward(), loading: wc.isLoading(), ...(extra || {}) });
   };
   ["did-navigate", "did-navigate-in-page", "page-title-updated", "did-start-loading", "did-stop-loading"].forEach((ev) => wc.on(ev, () => push()));
   wc.on("did-fail-load", (e, code, desc, url, isMain) => { if (isMain && code !== -3) push({ error: `${desc} (${code})`, failedUrl: url }); });
   wc.on("render-process-gone", () => push({ error: "The page crashed. Press reload." }));
+  return view;
+}
+function ensureWebView() {
+  if (webView || !mainWin || mainWin.isDestroyed()) return webView;
+  webView = makeWebView(sendMain);
   mainWin.contentView.addChildView(webView);
   webView.setVisible(false);
   return webView;
@@ -578,6 +611,61 @@ ipcMain.handle("browser:clear", async () => {
   try { const ses = webSession(); await ses.clearStorageData(); await ses.clearCache(); if (webView) webView.webContents.loadURL("about:blank").catch(() => {}); return { ok: true }; }
   catch (err) { return { ok: false, error: err.message || String(err) }; }
 });
+
+/* ---------------- browser pinned over the game ----------------
+   An always-on-top window with its own sandboxed view on the same web session, so sign-ins carry over.
+   It only shows and hides: nothing is sent to the game. Esc (while the window has focus) hides it. */
+let pinWin = null, pinView = null;
+const PIN_BAR = 36;
+const sendPin = (ch, data) => { if (pinWin && !pinWin.isDestroyed()) pinWin.webContents.send(ch === "browser:state" ? "pin:state" : ch === "browser:blocked" ? "pin:blocked" : ch, data); };
+function layoutPin() { if (!pinWin || !pinView) return; const [w, h] = pinWin.getContentSize(); pinView.setBounds({ x: 0, y: PIN_BAR, width: w, height: Math.max(0, h - PIN_BAR) }); }
+function createPin() {
+  const b = cfg.pinBounds || (() => { const wa = screen.getPrimaryDisplay().workArea; return { width: 720, height: 640, x: wa.x + wa.width - 760, y: wa.y + 60 }; })();
+  pinWin = new BrowserWindow({ ...b, minWidth: 380, minHeight: 260, frame: false, alwaysOnTop: true, skipTaskbar: true, show: false, backgroundColor: "#0e0c0a", title: "Exile Companion browser", icon: APP_ICON, webPreferences: prefs() });
+  pinWin.setAlwaysOnTop(true, "screen-saver");
+  pinWin.setOpacity(Math.min(1, Math.max(0.4, +cfg.pinOpacity || 1)));
+  pinWin.loadFile(path.join(__dirname, "app", "pin.html"));
+  externalLinks(pinWin);
+  pinView = makeWebView(sendPin);
+  pinWin.contentView.addChildView(pinView);
+  pinView.webContents.on("before-input-event", (e, input) => { if (input.type === "keyDown" && input.key === "Escape") { e.preventDefault(); pinWin.hide(); } });
+  layoutPin();
+  pinWin.on("resize", layoutPin);
+  const saveBounds = () => { if (pinWin && !pinWin.isDestroyed()) { cfg.pinBounds = pinWin.getBounds(); saveCfg(); } };
+  pinWin.on("moved", saveBounds); pinWin.on("resized", saveBounds);
+  pinWin.on("closed", () => { pinWin = null; pinView = null; });
+}
+function pinStartUrl(url) {
+  if (url && webHostAllowed(url)) return url;
+  const cur = pinView && pinView.webContents.getURL();
+  if (cur && cur !== "about:blank") return null;
+  const main = webView && webView.webContents.getURL();
+  return main && webHostAllowed(main) ? main : "https://www.pathofexile.com/trade";
+}
+function togglePin(show, url) {
+  if (!pinWin) createPin();
+  const want = show === undefined ? !pinWin.isVisible() : !!show;
+  if (!want) { pinWin.hide(); return false; }
+  const u = pinStartUrl(url);
+  if (u) pinView.webContents.loadURL(u).catch(() => {});
+  pinWin.show(); pinWin.focus(); pinView.webContents.focus();
+  return true;
+}
+ipcMain.handle("pin:toggle", (e, a) => togglePin(a && a.show, a && a.url));
+ipcMain.on("pin:nav", (e, what) => {
+  if (!pinView) return;
+  const wc = pinView.webContents, h = wc.navigationHistory;
+  if (what === "back" && h.canGoBack()) h.goBack();
+  else if (what === "forward" && h.canGoForward()) h.goForward();
+  else if (what === "reload") wc.reload();
+  else if (what === "hide") pinWin.hide();
+  else if (what === "app") { const u = wc.getURL(); pinWin.hide(); if (u && webHostAllowed(u)) openLink(u); }
+});
+ipcMain.handle("pin:go", (e, url) => { if (!pinView || !webHostAllowed(String(url || ""))) return false; pinView.webContents.loadURL(String(url)).catch(() => {}); return true; });
+ipcMain.handle("pin:opacity", (e, v) => { cfg.pinOpacity = Math.min(1, Math.max(0.4, +v || 1)); saveCfg(); if (pinWin) pinWin.setOpacity(cfg.pinOpacity); return cfg.pinOpacity; });
+ipcMain.handle("clip:history", () => clipHistory.map(({ title, rarity, at }) => ({ title, rarity, at })));
+ipcMain.on("clip:recheck", (e, i) => { const h = clipHistory[+i]; if (h) showPrice(h.text); });
+ipcMain.on("clip:clear", () => { clipHistory.length = 0; sendMain("clip:history", []); });
 
 /* ---------------- IPC: account, filters, notifications, discord ---------------- */
 const wrap = (fn) => async (e, a) => { try { return { ok: true, data: await fn(a || {}) } } catch (err) { return { ok: false, error: err.message || String(err) }; } };

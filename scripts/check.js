@@ -136,6 +136,9 @@ try {
   assert(blockNavigation("https://example.com/", true), "the page itself leaving the allowlist is blocked");
   assert(blockNavigation("https://example.com/", undefined), "unknown frame type is treated as the page");
   assert(!blockNavigation("https://www.pathofexile.com/trade", true), "allowlisted page loads");
+  const mainSrc = fs.readFileSync(path.join(root, "main.js"), "utf8");
+  assert(/pinView = makeWebView\(sendPin\)/.test(mainSrc) && /webView = makeWebView\(sendMain\)/.test(mainSrc), "both web views use the same guarded factory");
+  assert(!/clipHistory[^\n]*(saveCfg|writeFile|store)/.test(mainSrc), "clipboard history stays in memory");
   assert(!/setUserAgent\(/.test(fs.readFileSync(path.join(root, "main.js"), "utf8")), "don't rewrite the browser's user agent: Cloudflare's human check loops when it's changed");
   ok("in-app browser opens only allowlisted https sites; frames such as Cloudflare's check are left alone; user agent untouched");
 } catch (e) { fail("web hosts: " + e.message); }

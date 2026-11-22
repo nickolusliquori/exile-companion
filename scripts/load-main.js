@@ -9,4 +9,4 @@ const electron=new Proxy({},{get:(t,k)=>{
 }});
 const orig=Module._load;Module._load=function(req,...a){if(req==="electron")return electron;if(req==="electron-updater")return {autoUpdater:proxy()};return orig.call(this,req,...a)};
 require(path.resolve(__dirname, "..", "main.js"));
-console.log("main.js loads; IPC channels:",Object.keys(handlers).length,["browser:go","browser:bounds","filter:choose","diag:get"].every(c=>handlers[c])?"(browser, filter and report channels present)":"MISSING");
+console.log("main.js loads; IPC channels:",Object.keys(handlers).length,["browser:go","browser:bounds","filter:choose","diag:get","pin:toggle","pin:nav","clip:history","clip:recheck"].every(c=>handlers[c])?"(browser, pinned browser, clipboard history, filter and report channels present)":"MISSING");

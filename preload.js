@@ -65,6 +65,18 @@ contextBridge.exposeInMainWorld("exileDesktop", {
   onBrowserBlocked: on("browser:blocked"),
   onBrowserShow: on("browser:show"),
   chooseFilter: () => ipcRenderer.invoke("filter:choose"),
+  // browser pinned over the game
+  pinToggle: (a) => ipcRenderer.invoke("pin:toggle", a || {}),
+  pinNav: (what) => ipcRenderer.send("pin:nav", what),
+  pinGo: (url) => ipcRenderer.invoke("pin:go", url),
+  pinOpacity: (v) => ipcRenderer.invoke("pin:opacity", v),
+  onPinState: on("pin:state"),
+  onPinBlocked: on("pin:blocked"),
+  // recent price checks (in memory only)
+  clipHistory: () => ipcRenderer.invoke("clip:history"),
+  clipRecheck: (i) => ipcRenderer.send("clip:recheck", i),
+  clipClear: () => ipcRenderer.send("clip:clear"),
+  onClipHistory: on("clip:history"),
   writeFilter: (name, text) => ipcRenderer.invoke("filter:write", { name, text }),
   // notifications, discord, gear snapshot
   notify: (n) => ipcRenderer.send("notify", n),

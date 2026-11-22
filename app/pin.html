@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<title>Exile Companion browser</title>
+<style>
+:root{--bg:#15110d;--panel:#211b14;--line:#3b3024;--text:#e8dfcf;--muted:#a39682;--gold:#c9a45c;--bad:#e0584b}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:#0e0c0a;color:var(--text);font:13px "Segoe UI",system-ui,sans-serif;overflow:hidden}
+.bar{height:36px;display:flex;align-items:center;gap:4px;padding:0 6px;background:var(--panel);border-bottom:1px solid var(--line);-webkit-app-region:drag;user-select:none}
+button,input{-webkit-app-region:no-drag;font:inherit}
+button{background:transparent;color:var(--text);border:1px solid transparent;border-radius:6px;height:26px;min-width:26px;padding:0 6px;cursor:pointer}
+button:hover:not(:disabled){border-color:var(--line);background:#2a2219}
+button:disabled{opacity:.35;cursor:default}
+.addr{flex:1;min-width:60px;height:26px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--text);padding:0 8px}
+.addr:focus{outline:1px solid var(--gold)}
+input[type=range]{width:70px;accent-color:var(--gold)}
+.msg{position:fixed;left:8px;right:8px;top:42px;padding:6px 10px;border-radius:6px;background:#3a1f1a;border:1px solid var(--bad);display:none;font-size:12px}
+.load{position:fixed;left:0;top:34px;height:2px;width:30%;background:var(--gold);display:none;animation:slide 1s linear infinite}
+@keyframes slide{from{transform:translateX(-100%)}to{transform:translateX(400%)}}
+@media (prefers-reduced-motion:reduce){.load{animation:none;width:100%;opacity:.6}}
+</style>
+</head>
+<body>
+<div class="bar">
+  <button id="back" title="Back" aria-label="Back" disabled>‹</button>
+  <button id="fwd" title="Forward" aria-label="Forward" disabled>›</button>
+  <button id="reload" title="Reload" aria-label="Reload">⟳</button>
+  <input class="addr" id="addr" spellcheck="false" aria-label="Address">
+  <input type="range" id="op" min="40" max="100" step="5" title="See-through" aria-label="Opacity">
+  <button id="app" title="Open in the app" aria-label="Open in the app">⤢</button>
+  <button id="hide" title="Hide (Esc)" aria-label="Hide">✕</button>
+</div>
+<div class="load" id="load"></div>
+<div class="msg" id="msg"></div>
+<script>
+const D=window.exileDesktop,$=id=>document.getElementById(id);
+let editing=false;
+$("back").onclick=()=>D.pinNav("back");$("fwd").onclick=()=>D.pinNav("forward");$("reload").onclick=()=>D.pinNav("reload");
+$("hide").onclick=()=>D.pinNav("hide");$("app").onclick=()=>D.pinNav("app");
+$("addr").onfocus=()=>{editing=true;$("addr").select()};$("addr").onblur=()=>{editing=false};
+$("addr").onkeydown=async e=>{if(e.key==="Escape"){D.pinNav("hide");return}if(e.key!=="Enter")return;let v=$("addr").value.trim();if(!v)return;
+  if(!/^https:\/\//i.test(v))v=/^[\w-]+(\.[\w-]+)+(\/|$)/.test(v)?"https://"+v:"https://www.poewiki.net/index.php?search="+encodeURIComponent(v);
+  const ok=await D.pinGo(v);if(!ok)show("That site isn't on the app's list. Open it in your own browser instead.");else $("addr").blur()};
+document.addEventListener("keydown",e=>{if(e.key==="Escape"&&document.activeElement!==$("addr"))D.pinNav("hide")});
+function show(t){const m=$("msg");m.textContent=t;m.style.display="block";clearTimeout(show.t);show.t=setTimeout(()=>m.style.display="none",4000)}
+D.onPinState(s=>{if(!s)return;$("back").disabled=!s.canBack;$("fwd").disabled=!s.canForward;if(!editing)$("addr").value=s.url&&s.url!=="about:blank"?s.url:"";$("load").style.display=s.loading?"block":"none";if(s.error)show(s.error);document.title=s.title||"Exile Companion browser"});
+D.onPinBlocked(b=>show(`Blocked: ${b&&b.url||"that page"} isn't on the app's list of sites.`));
+D.getConfig().then(c=>{$("op").value=Math.round((+c.pinOpacity||1)*100)});
+$("op").oninput=()=>D.pinOpacity(+$("op").value/100);
+</script>
+</body>
+</html>

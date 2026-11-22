@@ -92,6 +92,7 @@ Your character at a glance: progress toward the goal build, what to do next (cam
 | **Trading** | A map search builder that hides every tier of the mods you won't run (like poe.re), ready-made vendor searches, a dump-tab pricer that writes `~b/o` notes to copy onto items, a currency flip watcher, and divination card and unique collections. |
 | **League** | Built for 3.30's Threads: the cost of the Threads you put in each map (with free Shaped Region Threads and the 8-Thread cap), what each strategy returns for the Threads you spend (from your map log), a Betrayal board with the 3.30 rewards and the moves left to reach your plan, Expedition currency values, and Heist and Labyrinth notes. |
 | **Build tools** | Timeless jewel lookup and seed finder (Lethal Pride, Brutal Restraint, Militant Faith, Elegant Hubris, Heroic Tragedy) using Path of Building's tables, with a trade search for the seed. Also: cluster jewel notables and their odds for each enchant, gem levelling profit from poe.ninja, and a meta check against poe.ninja's builds page. |
+| **Quality of life** | Recent price checks: the last 20 items you copied, each re-checkable with one click (kept in memory only). Session goals (divines, chaos, maps or hours) with progress on Home and the overlay and a notification when reached. The in-app browser pinned over the game in an always-on-top window, with a hotkey and adjustable see-through. |
 | **Browser** (desktop) | The trade site, poe.ninja, the wiki, poedb, poelab, Craft of Exile, FilterBlade, poe.re and pobb.in inside the app, signed in, with quick links and a wiki search. Links from the price window and elsewhere open here. Pages are sandboxed away from the app and your saved secrets; other sites open in your own browser. |
 | **Account** (desktop) | Live character sync from your GGG profile, stash net worth over time, stash finds (upgrades and items worth selling), currency trends and a sales tracker. |
 
@@ -128,16 +129,17 @@ All of these can be changed in **Settings → Hotkeys**.
 | **Ctrl+Shift+F** | Copy the overlay's current search, then paste it in game with Ctrl+V |
 | **Ctrl+Alt+W** | Open the wiki page of the item you last copied |
 | **Ctrl+Shift+H** | Show the next cheat sheet |
+| **Ctrl+Shift+B** | Show or hide the browser pinned over the game (Esc hides it too) |
 | **Ctrl+K** or **/** (in the app) | Search everything |
 | **Esc** | Close the price window or a dialog |
 
 ## Roadmap
 
-The loot filter editor shipped in 1.8, the in-app browser in 1.9, the trading tools in 1.10, the League page in 1.11 and the build tools in 1.12. Planned releases, in order. Each ships as a regular release through auto-update, gets tested in game afterwards, and any problems found are fixed in a follow-up patch (for example 1.8.1).
+The loot filter editor shipped in 1.8, the in-app browser in 1.9, the trading tools in 1.10, the League page in 1.11, the build tools in 1.12 and the quality-of-life tools in 1.13. Planned releases, in order. Each ships as a regular release through auto-update, gets tested in game afterwards, and any problems found are fixed in a follow-up patch (for example 1.8.1).
 
 | Version | Feature |
 |---|---|
-| **1.13** | **Quality of life:** clipboard history, session goals, and the in-app browser pinned over the game with a hotkey.|
+| **1.14** | **Look and feel:** a cleaner, more minimal layout with three switchable themes (dark minimal, neutral modern, PoE in-game style), light animations on menus, loading and buttons, and optional minimal sounds.|
 
 Not planned: anything that sends input to the game (auto-setting stash notes, chat macros) or uploads to your GGG account, because GGG isn't approving new third-party sign-ins.
 

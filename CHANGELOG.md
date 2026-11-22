@@ -2,6 +2,14 @@
 
 What changed in each release, newest first. Installed copies update themselves; see the [Releases page](https://github.com/nickolusliquori/exile-companion/releases) for the installers. Planned releases are on the [roadmap](README.md#roadmap).
 
+## [1.13.0] - 2026-11-21
+
+### Added
+- **Browser over the game:** press **Ctrl+Shift+B**, or click **Pin over game** on the Browser page, to show the in-app browser in an always-on-top window over Path of Exile (Windowed Fullscreen). It has back, forward, reload, an address bar, a see-through slider and a button to move the page back into the app. **Esc** or the hotkey hides it. It shares the in-app browser's sign-ins, uses the same site allowlist and sandbox, and only shows and hides: nothing is sent to the game. The hotkey can be changed in Settings.
+- **Recent price checks** on Home: the last 20 items you copied in game. Click one to open its price check again without hovering it. Kept in memory only and cleared when the app closes.
+- **Session goals** (Session page): set a target in divines, chaos, maps or hours. Progress counts maps you log and stash sales from when you set it, and shows on Home, the Session page and the overlay. You get a notification once it's reached (or when your planned time is up).
+- Search (Ctrl+K) entries: "Set a session goal", "Recent price checks", "Pin the browser over the game".
+
 ## [1.12.0] - 2026-11-21
 
 ### Added

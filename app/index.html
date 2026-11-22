@@ -242,6 +242,10 @@ section.tab .card{scroll-margin-top:140px}
 .ttout{background:#0b0806;border:1px solid var(--gold-dim);border-radius:3px;padding:10px 12px;font-size:.92rem;overflow-wrap:anywhere;min-height:2.4em}
 .ttout code{color:var(--gold)}
 .tt-mods{max-height:300px;overflow:auto;display:grid;gap:2px;padding-right:4px}
+.goal{display:grid;gap:4px}.gbar{height:6px;border-radius:3px;background:var(--line);overflow:hidden}.gbar i{display:block;height:100%;background:var(--gold);transition:width .4s ease}.goal-top{display:flex;justify-content:space-between;gap:8px}
+.clip-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:6px}
+.clip-it{display:flex;justify-content:space-between;gap:8px;align-items:center;text-align:left;background:var(--panel2,rgba(255,255,255,.03));border:1px solid var(--line);border-radius:8px;padding:6px 10px;color:var(--text);cursor:pointer;font:inherit}
+.clip-it:hover{border-color:var(--gold)}
 .bt-fit td{background:color-mix(in srgb,var(--good, #6c6) 10%,transparent)}
 .bt-want{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:4px 12px;max-height:240px;overflow:auto;padding-right:4px}
 .lg-syn td{vertical-align:top;min-width:120px}.lg-syn td select{min-width:110px}
@@ -464,6 +468,7 @@ header{transition:transform .2s ease}
       <div class="card" id="homeSession"></div>
       <div class="card" id="homeLive"></div>
     </div>
+    <div class="card" id="homeClip" hidden></div>
     <div class="card" id="homeQuick"></div>
   </section>
 
@@ -648,6 +653,7 @@ header{transition:transform .2s ease}
       <div class="card" id="sessGameLog"></div>
       <div class="card" id="sessAdd"></div>
     </div>
+    <div class="card" id="sessGoal"></div>
     <div class="card" id="sessProfit"></div>
     <div class="card" id="sessRecap"></div>
     <div class="card" id="sessLog"></div>
@@ -1921,7 +1927,58 @@ function renderProfit(){
 let tick=null;
 function elapsed(){const s=S.session;return s.elapsed+(s.start?Date.now()-s.start:0)}
 function hms(ms){const t=Math.floor(ms/1000);return [Math.floor(t/3600),Math.floor(t/60)%60,t%60].map((n,i)=>i?String(n).padStart(2,"0"):n).join(":")}
+/* ---------- session goals ---------- */
+const GOAL_KINDS=[["div","divines"],["chaos","chaos"],["maps","maps"],["time","hours"]];
+function goalState(g){
+  g=g||S.goal;if(!g||!g.target)return null;
+  const maps=(S.session.maps||[]).filter(m=>(m.at||0)>=g.start);
+  const sales=(S.sales||[]).filter(x=>x.t>=g.start).reduce((a,x)=>a+(x.chaos||0),0);
+  const chaos=maps.reduce((a,m)=>a+(+m.profit||0),0)+sales;
+  const cur=g.kind==="div"?(S.divine?chaos/S.divine:0):g.kind==="chaos"?chaos:g.kind==="maps"?maps.length:(Date.now()-g.start)/3.6e6;
+  const unit=(GOAL_KINDS.find(k=>k[0]===g.kind)||[,""])[1];
+  const show=v=>g.kind==="maps"?String(Math.floor(v)):g.kind==="time"?hms(v*3.6e6):g.kind==="div"?v.toFixed(1):fmt(v);
+  return {cur,target:g.target,pct:Math.max(0,Math.min(1,cur/g.target)),done:cur>=g.target,label:`${g.kind==="time"?g.target+" hour"+(g.target==1?"":"s"):g.target+" "+unit}`,now:g.kind==="time"?`${show(cur)} of ${g.target}h`:`${show(cur)} / ${g.target} ${unit}`};
+}
+function goalBar(st){return `<div class="goal"><div class="goal-top"><span class="small"><b>Goal:</b> ${esc(st.label)}</span><span class="small num">${esc(st.now)}${st.done?" ✓":""}</span></div><div class="gbar"><i style="width:${Math.round(st.pct*100)}%"></i></div></div>`}
+function checkGoal(){
+  const st=goalState();if(!st||!st.done||S.goal.hit)return;
+  S.goal.hit=Date.now();save();
+  const time=S.goal.kind==="time";
+  const msg=time?`You've played the ${st.label} you planned.`:`You reached ${st.label} this session.`;
+  toast((time?"Time's up: ":"Goal reached: ")+msg);
+  if(DESK&&DESK.notify)DESK.notify({kind:"milestones",title:time?"Session time is up":"Session goal reached",body:msg});
+  publishOverlay();
+}
+function renderGoal(){
+  const el=$("sessGoal");if(!el)return;const g=S.goal;const st=goalState();
+  el.innerHTML=`<h2>Session goal</h2>
+    ${st?goalBar(st)+`<p class="small muted" style="margin:0">Counts maps you log and sales since ${new Date(g.start).toLocaleTimeString([], {hour:"numeric",minute:"2-digit"})}. Shows on Home and the overlay; you get a notification when it's reached.</p><div class="row"><button class="btn ghost small" id="goalNew">New goal</button><button class="btn ghost small" id="goalClear">Clear goal</button></div>`
+    :`<form id="goalForm" class="fgrid"><label class="f" for="goalN">Target<input type="number" id="goalN" min="0.1" step="any" placeholder="10" required></label>
+      <label class="f" for="goalK">Of<select id="goalK">${GOAL_KINDS.map(([k,l])=>`<option value="${k}">${l}</option>`).join("")}</select></label>
+      <div style="display:flex;align-items:end"><button class="btn primary" type="submit">Set goal</button></div></form>
+      <p class="small muted" style="margin:0">For example 10 divines, 20 maps or 2 hours. Progress counts from now.</p>`}`;
+  const f=$("goalForm");if(f)f.onsubmit=e=>{e.preventDefault();const n=+$("goalN").value;if(!(n>0))return;S.goal={kind:$("goalK").value,target:n,start:Date.now()};save();renderGoal();renderHome();publishOverlay()};
+  const c=$("goalClear");if(c)c.onclick=()=>{const prev=S.goal;S.goal=null;save();renderGoal();renderHome();publishOverlay();toast("Goal cleared.",()=>{S.goal=prev;save();renderGoal();renderHome();publishOverlay()})};
+  const nw=$("goalNew");if(nw)nw.onclick=()=>{S.goal=null;save();renderGoal();const i=$("goalN");if(i)i.focus()};
+}
+setInterval(()=>{if(S.goal&&!S.goal.hit){checkGoal();if(CUR_TAB==="session")renderGoal();if(CUR_TAB==="home")renderHome()}},60000);
+
+/* ---------- recent price checks (desktop; kept in memory by the main process) ---------- */
+let CLIP=[];
+function renderClip(){
+  const el=$("homeClip");if(!el)return;
+  if(!DESK||!DESK.clipHistory||!CLIP.length){el.hidden=true;return}
+  el.hidden=false;
+  const col=r=>({Unique:"var(--unique)",Rare:"var(--rare)",Magic:"var(--magic)",Gem:"#1ba29b",Currency:"var(--muted)","Divination Card":"#cfe7ff"}[r]||"var(--text)");
+  el.innerHTML=`<h2>Recent price checks</h2>
+    <div class="clip-list">${CLIP.map((h,i)=>`<button class="clip-it" data-clip="${i}" title="Check the price again"><span style="color:${col(h.rarity)}">${esc(h.title)}</span><span class="small muted">${new Date(h.at).toLocaleTimeString([], {hour:"numeric",minute:"2-digit"})}</span></button>`).join("")}</div>
+    <div class="row"><span class="small muted">The last ${CLIP.length===1?"item":CLIP.length+" items"} you copied in game. Click one to check it again. Cleared when the app closes.</span><button class="btn ghost small" id="clipClear">Clear</button></div>`;
+  el.querySelectorAll("[data-clip]").forEach(b=>b.onclick=()=>DESK.clipRecheck(+b.dataset.clip));
+  $("clipClear").onclick=()=>DESK.clipClear();
+}
+
 function renderSession(){
+  renderGoal();
   const s=S.session, ms=elapsed();
   const total=s.maps.reduce((a,m)=>a+(+m.profit||0),0);
   const mapMs=s.maps.reduce((a,m)=>a+(m.dur||0),0), basis=Math.max(ms,mapMs);
@@ -2155,7 +2212,7 @@ function buildOverlayPayload(){
     const strat=withBuild(liveB(),()=>STRATS.find(x=>x.id===S.strat)||primaryStrat());
     const next=PROGRESS.find(x=>!S.progress[x.id]);
     p.maps={current:z&&LIVE.map&&!isTownOrHideout(z.id)?LIVE.map:null,
-      session:{count:maps.length,avgMs:timed.length?mapMs/timed.length:0,div:mapMs>60000&&profit?profit/(mapMs/3.6e6)/S.divine:null},
+      session:{count:maps.length,avgMs:timed.length?mapMs/timed.length:0,div:mapMs>60000&&profit?profit/(mapMs/3.6e6)/S.divine:null,goal:goalState()},
       avoid:avoid.map(m=>m.label),strat:{name:strat.name,threads:Object.entries(strat.threads)},next:next?next.t:null,
       cards:z&&isMapId(z.id)&&S.cardIndex?cardsForArea(z.id,CARD_P).slice(0,4).map(c=>c.name+(c.v?` (${fmt(c.v)}c)`:"")):[]};
     p.regex=avoid.length?`"!${avoid.map(m=>m.frag).join("|")}"`:"";p.regexLabel="Map stash search: hide bad mods";
@@ -3201,7 +3258,7 @@ function overlayPages(){
     pages.atlas={done:MAP_POOL.length?MAP_POOL.filter(m=>done[m.key]).length:Object.keys(done).length,total:MAP_POOL.length||0,strat:strat.name,threads:Object.entries(strat.threads),next:mech?atlasNodesFor(mech).filter(n=>!have.has(String(n.id))).slice(0,4).map(n=>n.name):[],bosses:BOSSES.filter(b=>!S.bosses||!S.bosses[b.id]).slice(0,3).map(b=>b.name)};
     const maps=S.session.maps,timed=maps.filter(m=>m.dur),ms=timed.reduce((a,m)=>a+m.dur,0),profit=maps.reduce((a,m)=>a+(+m.profit||0),0);
     const live=makeRecap();
-    pages.session={maps:maps.length,mapMs:ms,div:ms>60000&&profit?profit/(ms/3.6e6)/S.divine:null,profit,net:S.netLatest&&S.netLatest.div?S.netLatest.total/S.netLatest.div:null,sales:(S.sales||[]).filter(x=>Date.now()-x.t<86400e3).reduce((a,x)=>a+(x.chaos||0),0),recap:live?recapLine(live):null};
+    pages.session={goal:goalState(),maps:maps.length,mapMs:ms,div:ms>60000&&profit?profit/(ms/3.6e6)/S.divine:null,profit,net:S.netLatest&&S.netLatest.div?S.netLatest.total/S.netLatest.div:null,sales:(S.sales||[]).filter(x=>Date.now()-x.t<86400e3).reduce((a,x)=>a+(x.chaos||0),0),recap:live?recapLine(live):null};
     pages.trades={alerts:Object.values(S.watch||{}).filter(w=>w.last!=null&&w.last<=w.target).map(w=>`${w.name}: ${fmt(w.last)}c (≤ ${fmt(w.target)}c)`),sold:(S.sales||[]).slice(-3).reverse().map(x=>`${x.name}: ${x.amount} ${x.cur}`)};
   }catch(e){console.error(e)}
   return pages;
@@ -3456,8 +3513,11 @@ function renderHome(){
       <div class="stat"><div class="k">Maps</div><div class="v num">${maps.length}</div></div>
       <div class="stat"><div class="k">Avg map</div><div class="v num">${timed.length?hms(mapMs/timed.length):"–"}</div></div>
       <div class="stat"><div class="k">Per hour</div><div class="v num">${perHr?(S.divine?(perHr/S.divine).toFixed(1)+" div":fmt(perHr)+"c"):"–"}</div></div></div>
-    <div class="row"><button class="btn" id="hSess">${s.start?"Pause timer":"Start timer"}</button><button class="btn ghost" data-hgo="session">Open session</button></div>`;
+    ${goalState()?goalBar(goalState()):""}
+    <div class="row"><button class="btn" id="hSess">${s.start?"Pause timer":"Start timer"}</button>${goalState()?"":'<button class="btn ghost" id="hGoal">Set a goal</button>'}<button class="btn ghost" data-hgo="session">Open session</button></div>`;
   $("hSess").onclick=()=>{const t=$("sessToggle");if(t){t.click();renderHome()}};
+  if($("hGoal"))$("hGoal").onclick=()=>{showTab("session");scrollToCard("sessGoal");setTimeout(()=>{const i=$("goalN");if(i)i.focus()},400)};
+  checkGoal();renderClip();
   homeBtns($("homeSession"));
 
   // live status
@@ -3493,7 +3553,7 @@ setInterval(()=>{if(CUR_TAB==="home"&&!document.hidden)renderHome()},10000);
 const cmdk=$("cmdk");let CMDK=[],CMDK_SEL=0,CMDK_ITEMS=[];
 function cmdkIndex(){
   const out=[], names={};document.querySelectorAll("#tabs [data-tab]").forEach(b=>names[b.dataset.tab]=b.textContent.trim());
-  const acts=[["Import goal build",()=>openImport("goal")],["Import current character",()=>openImport("current")],["Run setup wizard",()=>openWizard()],["Report a problem",()=>openReport()],["Edit my loot filter",()=>showTab("filter")],["Build a map search",()=>showTab("trading")],["Plan Threads per map",()=>showTab("league")],["Timeless jewel lookup",()=>showTab("buildtools")],["Cluster jewel notables",()=>{showTab("buildtools");scrollToCard("btCluster")}],["Gem levelling profit",()=>{showTab("buildtools");scrollToCard("btGems")}],["Betrayal board",()=>{showTab("league");scrollToCard("lgBetrayal")}],["Price a dump tab",()=>{showTab("trading");scrollToCard("ttDump")}],["Open the trade site",()=>{showTab("browser");brGo("https://www.pathofexile.com/trade")}],["Open poe.ninja",()=>{showTab("browser");brGo("https://poe.ninja/economy")}],["Open the wiki",()=>{showTab("browser");brGo("https://www.poewiki.net/wiki/Path_of_Exile_Wiki")}],[S.compact?"Turn compact mode off":"Turn compact mode on",()=>setCompact(!S.compact)]];
+  const acts=[["Import goal build",()=>openImport("goal")],["Import current character",()=>openImport("current")],["Run setup wizard",()=>openWizard()],["Report a problem",()=>openReport()],["Edit my loot filter",()=>showTab("filter")],["Build a map search",()=>showTab("trading")],["Plan Threads per map",()=>showTab("league")],["Set a session goal",()=>{showTab("session");scrollToCard("sessGoal")}],["Recent price checks",()=>{showTab("home");scrollToCard("homeClip")}],["Pin the browser over the game",()=>{if(DESK&&DESK.pinToggle)DESK.pinToggle({show:true})}],["Timeless jewel lookup",()=>showTab("buildtools")],["Cluster jewel notables",()=>{showTab("buildtools");scrollToCard("btCluster")}],["Gem levelling profit",()=>{showTab("buildtools");scrollToCard("btGems")}],["Betrayal board",()=>{showTab("league");scrollToCard("lgBetrayal")}],["Price a dump tab",()=>{showTab("trading");scrollToCard("ttDump")}],["Open the trade site",()=>{showTab("browser");brGo("https://www.pathofexile.com/trade")}],["Open poe.ninja",()=>{showTab("browser");brGo("https://poe.ninja/economy")}],["Open the wiki",()=>{showTab("browser");brGo("https://www.poewiki.net/wiki/Path_of_Exile_Wiki")}],[S.compact?"Turn compact mode off":"Turn compact mode on",()=>setCompact(!S.compact)]];
   if(DESK)acts.push(["Change hotkeys",()=>{showTab("settings");scrollToCard("setHotkeys")}]);
   if($("sessToggle"))acts.push([S.session.start?"Pause session timer":"Start session timer",()=>$("sessToggle").click()]);
   if(DESK){acts.push([LIVE.overlayVisible?"Hide overlay":"Show overlay",()=>DESK.toggleOverlay(!LIVE.overlayVisible)]);
@@ -3565,6 +3625,7 @@ const FIX={
 document.addEventListener("click",e=>{const b=e.target.closest("[data-fix]");if(b&&FIX[b.dataset.fix]){e.preventDefault();if(b.closest("#setup"))$("setup").close();FIX[b.dataset.fix]()}});
 
 const HELP={
+  sessGoal:"Set a target for this session: divines or chaos earned (maps you log plus sales), maps run, or hours played. Progress shows on Home and the overlay, and you get a notification when you reach it.",
   btTimeless:"Pick a timeless jewel, seed, conqueror and socket to see what each notable in its radius becomes. Find seeds ranks every seed by how many notables get the results you tick. Data from Path of Building.",
   btGems:"Uncorrupted gem prices from poe.ninja: what a gem costs at low level and what it sells for levelled (and with 20% quality). Listings filter out thin markets.",
   lgThreads:"Set how many of each Thread you put in the map device. Prices come from poe.ninja; free Threads from a Shaped Region of the same type are taken off the cost.",
@@ -3670,7 +3731,7 @@ async function importBuild(input,slot){
 }
 
 /* settings page */
-const HOTKEYS=[["overlayHotkey","Show / hide overlay","Ctrl+Shift+O"],["interactHotkey","Overlay click mode","Ctrl+Shift+I"],["pageHotkey","Next overlay page","Ctrl+Shift+P"],["copyHotkey","Copy overlay search","Ctrl+Shift+F"],["priceHotkey","Re-open price check","Ctrl+D"],["wikiHotkey","Wiki lookup","Ctrl+Alt+W"],["cheatHotkey","Cheat sheets","Ctrl+Shift+H"]];
+const HOTKEYS=[["overlayHotkey","Show / hide overlay","Ctrl+Shift+O"],["interactHotkey","Overlay click mode","Ctrl+Shift+I"],["pageHotkey","Next overlay page","Ctrl+Shift+P"],["copyHotkey","Copy overlay search","Ctrl+Shift+F"],["priceHotkey","Re-open price check","Ctrl+D"],["wikiHotkey","Wiki lookup","Ctrl+Alt+W"],["cheatHotkey","Cheat sheets","Ctrl+Shift+H"],["pinHotkey","Browser over the game","Ctrl+Shift+B"]];
 const RESERVED_KEYS=["Ctrl+C","Ctrl+V","Ctrl+X","Ctrl+A","Ctrl+Z","Ctrl+F","Alt+F4","Ctrl+Enter"];
 function accelFrom(e){
   if(["Control","Shift","Alt","Meta"].includes(e.key)) return null;
@@ -3856,7 +3917,7 @@ function decorateNav(){
   const sb=$("openSearch");if(sb&&!sb.querySelector("svg")){const g=sb.querySelector('span[aria-hidden]');if(g)g.remove();sb.insertAdjacentHTML("afterbegin",svgIcon("search"))}
 }
 decorateNav();
-const CARD_ICONS={btTimeless:"gem",btCluster:"gem",btMeta:"chart",btGems:"coins",lgThreads:"coins",lgReturn:"chart",lgBetrayal:"skull",lgExped:"compass",lgHeist:"key",lgLab:"route",lgDrops:"map",homeChar:"user",homeNext:"route",homeSession:"hourglass",homeLive:"bolt",homeQuick:"wand",
+const CARD_ICONS={sessGoal:"flag",homeClip:"refresh",btTimeless:"gem",btCluster:"gem",btMeta:"chart",btGems:"coins",lgThreads:"coins",lgReturn:"chart",lgBetrayal:"skull",lgExped:"compass",lgHeist:"key",lgLab:"route",lgDrops:"map",homeChar:"user",homeNext:"route",homeSession:"hourglass",homeLive:"bolt",homeQuick:"wand",
   buildSummary:"user",buildDefence:"shield",buildSkills:"gem",buildGear:"sword",buildNotes:"news",
   progSummary:"chart",progNext:"list",progCost:"coins",progStats:"chart",progTree:"tree",progGems:"gem",progItems:"sword",
   shopSummary:"bag",shopGems:"gem",shopItems:"sword",shopFilter:"filter",
@@ -4002,6 +4063,7 @@ function renderBrowserBar(){
       <button class="btn ghost small" id="brFwd" aria-label="Forward"${st.canForward?"":" disabled"}>▶</button>
       <button class="btn ghost small" id="brReload" aria-label="${st.loading?"Stop":"Reload"}">${st.loading?"✕":"⟳"}</button>
       <form id="brForm" class="br-addr"><input id="brAddr" type="text" spellcheck="false" autocomplete="off" aria-label="Address or wiki search" placeholder="Address, or search the wiki" value="${esc(editing?$("brAddr").value:(st.url&&st.url!=="about:blank"?st.url:""))}"></form>
+      <button class="btn ghost small" id="brPin" title="Show this page in a window over the game (${esc(keyName((LIVE.cfg&&LIVE.cfg.pinHotkey)||"Ctrl+Shift+B"))})"${DESK.pinToggle?"":" hidden"}>Pin over game</button>
       <button class="btn ghost small" id="brExt" title="Open this page in your own web browser"${st.url&&/^https:/.test(st.url)?"":" disabled"}>Open in my browser</button>
     </div>
     <div class="br-row br-links">${BR_LINKS.map(([l,u])=>`<button class="btn ghost small" data-brgo="${esc(u)}">${esc(l)}</button>`).join("")}</div>
@@ -4013,6 +4075,7 @@ function renderBrowserBar(){
   $("brReload").onclick=()=>DESK.browserNav(st.loading?"stop":"reload");
   $("brForm").onsubmit=e=>{e.preventDefault();brGo($("brAddr").value);$("brAddr").blur()};
   $("brExt").onclick=()=>{if(st.url)DESK.browserExternal(st.url)};
+  $("brPin").onclick=()=>{if(DESK.pinToggle)DESK.pinToggle({show:true,url:st.url&&/^https:/.test(st.url)?st.url:null})};
   bar.querySelectorAll("[data-brgo]").forEach(b=>b.onclick=()=>brGo(b.dataset.brgo));
   const bo=$("brBlockedOpen");if(bo)bo.onclick=()=>{DESK.browserExternal(BR.blocked.url);BR.blocked=null;renderBrowserBar()};
   const bx=$("brBlockedX");if(bx)bx.onclick=()=>{BR.blocked=null;renderBrowserBar()};
@@ -4032,6 +4095,7 @@ function brSync(){
 if(DESK&&DESK.onBrowserState){
   DESK.onBrowserState(st=>{BR.state=st;if(st&&st.url&&/^https:/.test(st.url)&&!st.error){S.browserLast=st.url;save()}if(CUR_TAB==="browser")renderBrowserBar()});
   DESK.onBrowserBlocked(x=>{BR.blocked=x;if(CUR_TAB!=="browser")showTab("browser");renderBrowserBar()});
+  if(DESK.clipHistory){DESK.clipHistory().then(h=>{CLIP=h||[];renderClip()}).catch(()=>{});DESK.onClipHistory(h=>{CLIP=h||[];renderClip()})}
   DESK.onBrowserShow(x=>{BR.started=true;BR.blocked=null;if(CUR_TAB!=="browser")showTab("browser");BR.state={...(BR.state||{}),url:x.url,loading:true};renderBrowserBar()});
   setInterval(brSync,150);addEventListener("resize",brSync);
 }
