@@ -18,6 +18,9 @@ if not okLoad then io.stderr:write(tostring(errLoad), "\n"); print('{"ok":false,
 local function read(p) local f = assert(io.open(p, "rb")); local s = f:read("*a"); f:close(); return s end
 local okB, errB = xpcall(function() loadBuildFromXML(read(xmlPath)) end, debug.traceback)
 if not okB then io.stderr:write(tostring(errB), "\n"); print('{"ok":false,"error":"loading the build failed"}'); os.exit(3) end
+-- the build finishes loading and calculating over the next frames of Path of Building's main loop
+for _ = 1, 4 do runCallback("OnFrame") end
+build = mainObject.main.modes["BUILD"] or build
 local out = build.calcsTab.mainOutput
 local function pick(o)
   return { dps = o.FullDPS or o.CombinedDPS or o.TotalDPS or 0, life = o.Life or 0, es = o.EnergyShield or 0, ehp = o.TotalEHP or 0,
@@ -26,9 +29,13 @@ end
 local function json(t) local p = {} for k, v in pairs(t) do p[#p + 1] = string.format('"%s":%.4f', k, tonumber(v) or 0) end return "{" .. table.concat(p, ",") .. "}" end
 local base = pick(out)
 if itemPath then
-  local item = new("Item", read(itemPath))
-  local calcFunc = build.calcsTab:GetMiscCalculator()
-  local with = pick(calcFunc({ repSlotName = slotName, repItem = item }))
+  local with
+  local okI, errI = xpcall(function()
+    local item = new("Item", read(itemPath))
+    local calcFunc = build.calcsTab:GetMiscCalculator()
+    with = pick(calcFunc({ repSlotName = slotName, repItem = item }))
+  end, debug.traceback)
+  if not okI then print("ITEM ERROR: " .. tostring(errI)); print('{"ok":false,"error":"item compare failed"}'); os.exit(4) end
   print('{"ok":true,"skill":"' .. tostring(build.calcsTab.mainEnv and build.calcsTab.mainEnv.player and build.calcsTab.mainEnv.player.mainSkill and build.calcsTab.mainEnv.player.mainSkill.activeEffect.grantedEffect.name or "") .. '","now":' .. json(base) .. ',"with":' .. json(with) .. '}')
 else
   print('{"ok":true,"now":' .. json(base) .. '}')
