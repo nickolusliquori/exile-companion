@@ -341,7 +341,7 @@ function listFilters() {
   try { return fs.readdirSync(filterDir()).filter((f) => f.toLowerCase().endsWith(".filter")).map((f) => { const st = fs.statSync(path.join(filterDir(), f)); return { name: f, size: st.size, modified: st.mtimeMs }; }).sort((a, b) => b.modified - a.modified); }
   catch (e) { return []; }
 }
-const safeFilterName = (n) => path.basename(String(n || "")).replace(/[^\w .()-]/g, "");
+const { safeFilterName } = require("./lib/files");
 
 /* ---------------- currency exchange history cache ---------------- */
 const cxDir = () => path.join(app.getPath("userData"), "cx-cache");
@@ -501,7 +501,23 @@ ipcMain.handle("acct:filters", wrap(() => ggg.filters()));
 ipcMain.handle("acct:saveFilter", wrap((a) => ggg.saveFilter(a)));
 ipcMain.handle("cx:hour", wrap((a) => cxHour(a.id)));
 ipcMain.handle("filter:list", () => ({ dir: filterDir(), files: listFilters() }));
-ipcMain.handle("filter:read", wrap((a) => fs.readFileSync(path.join(filterDir(), safeFilterName(a.name)), "utf8")));
+ipcMain.handle("filter:read", wrap((a) => {
+  const name = safeFilterName(a.name);
+  if (!name) throw new Error("That isn't a .filter file.");
+  const p = path.join(filterDir(), name);
+  if (!fs.existsSync(p)) throw new Error(`Couldn't find ${name} in ${filterDir()}. Use Refresh, or Choose file… if it's somewhere else.`);
+  return fs.readFileSync(p, "utf8");
+}));
+ipcMain.handle("filter:openFolder", wrap(async () => { fs.mkdirSync(filterDir(), { recursive: true }); const err = await shell.openPath(filterDir()); if (err) throw new Error(err); return filterDir(); }));
+// open a filter that isn't in the game's folder (read-only; saving still goes to the game's folder)
+ipcMain.handle("filter:choose", wrap(async () => {
+  const r = await dialog.showOpenDialog(mainWin, { title: "Open a loot filter", defaultPath: filterDir(), properties: ["openFile"], filters: [{ name: "Loot filters", extensions: ["filter"] }] });
+  if (r.canceled || !r.filePaths[0]) return null;
+  const p = r.filePaths[0];
+  if (!/\.filter$/i.test(p)) throw new Error("Pick a .filter file.");
+  if (fs.statSync(p).size > 20 * 1024 * 1024) throw new Error("That file is too big to be a loot filter.");
+  return { name: path.basename(p), text: fs.readFileSync(p, "utf8"), dir: path.dirname(p) };
+}));
 ipcMain.handle("filter:write", wrap((a) => {
   const name = safeFilterName(a.name);
   if (!/^ExileCompanion/i.test(name) || !name.endsWith(".filter")) throw new Error("The app only writes filters named ExileCompanion….filter, so your own filters are never overwritten.");

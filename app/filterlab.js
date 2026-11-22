@@ -227,7 +227,7 @@ async function render(){
   root.innerHTML=`<div class="grid"><div class="card hl" id="flFile"></div><div class="card" id="flPrev"></div></div>
     <div class="grid"><div class="card" id="flTiers"></div><div class="card" id="flEdit"></div></div>
     <div class="grid"><div class="card" id="flEcon"></div><div class="card" id="flTweaks"></div></div>`;
-  if(!BASE&&s.file&&DESK){const r=await DESK.readFilter(s.file);if(r&&r.ok)BASE={name:s.file,text:r.data};rebuild()}
+  if(!BASE&&s.file&&DESK&&!s.outside){const r=await DESK.readFilter(s.file);if(r&&r.ok)BASE={name:s.file,text:r.data};rebuild()}
   renderAll2();
 }
 function renderAll2(){renderFile();renderPreview();renderTiers();renderEdit();renderEcon();renderTweaks()}
@@ -235,15 +235,25 @@ function renderFile(){
   const el=$("flFile");if(!el)return;const s=st();
   const changes=opsFor().length+(s.build?1:0)+(s.hideClasses?1:0)+Object.values(s.strict).filter(Boolean).length;
   el.innerHTML=`<h2>Filter</h2>
-    ${DESK?`<label class="f" for="flPick">Your filter<select id="flPick"><option value="">Choose a filter from your game folder…</option></select></label>`:`<label class="f" for="flUp">Open a .filter file<input type="file" id="flUp" accept=".filter"></label>`}
+    ${DESK?`<label class="f" for="flPick">Your filter<select id="flPick"><option value="">Looking in your filter folder…</option></select></label>
+      <div class="row"><button class="btn ghost small" id="flRefresh">Refresh list</button><button class="btn ghost small" id="flOpenDir">Open filter folder</button><button class="btn ghost small" id="flChoose">Choose file…</button></div>
+      <p class="small muted" id="flDir" style="margin:0;overflow-wrap:anywhere"></p>`:`<label class="f" for="flUp">Open a .filter file<input type="file" id="flUp" accept=".filter"></label><p class="small muted" style="margin:0">Your game's filters are in <b>Documents\\My Games\\Path of Exile</b> (or OneDrive\\Documents\\My Games\\Path of Exile if OneDrive syncs your Documents).</p>`}
     ${BASE?`<p class="small" style="margin:0"><b>${esc2(BASE.name)}</b> · ${MODEL.blocks.length.toLocaleString()} rules · ${changes} change${changes===1?"":"s"}${MODEL.failed?` · <span style="color:var(--warn)">${MODEL.failed} change${MODEL.failed>1?"s":""} no longer match this file</span>`:""}</p>
       <div class="row"><label class="f" for="flName" style="flex:1">Save as<input id="flName" type="text" value="${esc2(saveName())}"></label></div>
       <div class="row"><button class="btn primary" id="flSave">${DESK?"Save to my filter folder":"Download filter"}</button><button class="btn ghost" id="flUndo"${opsFor().length?"":" disabled"}>Undo</button><button class="btn ghost" id="flReset"${changes?"":" disabled"}>Reset all changes</button></div>
       <p class="small muted" style="margin:0">Your original file is never changed. In game: Options → Game → Item Filter, pick the saved filter, then press reload.</p>`
-    :emptyBox(DESK?"Pick the NeverSink filter you use. Download one from FilterBlade first if your folder is empty: it's the most up-to-date source.":"Open the .filter file you use. In the desktop app the editor reads and saves your game's filter folder directly.")}
+    :emptyBox(DESK?"Pick the NeverSink filter you use. No filter yet? Download one from FilterBlade or NeverSink's GitHub, put it in the folder above and press Refresh list.":"Open the .filter file you use. In the desktop app the editor reads and saves your game's filter folder directly.")}
     <p class="small" id="flMsg" style="margin:0"></p>`;
-  if(DESK){DESK.listFilters().then(r=>{const sel=$("flPick");if(!sel)return;const files=(r.files||[]).filter(f=>!/^ExileCompanion/i.test(f.name));sel.innerHTML=`<option value="">Choose a filter from your game folder…</option>`+files.map(f=>`<option${BASE&&BASE.name===f.name?" selected":""}>${esc2(f.name)}</option>`).join("");
-    sel.onchange=async()=>{if(!sel.value)return;const rr=await DESK.readFilter(sel.value);if(!rr.ok){$("flMsg").textContent=rr.error;return}loadFile(sel.value,rr.data)}})}
+  if(DESK){
+    const fill=()=>DESK.listFilters().then(r=>{const sel=$("flPick");if(!sel)return;const files=(r.files||[]).filter(f=>!/^ExileCompanion/i.test(f.name));
+      sel.innerHTML=(files.length?`<option value="">Choose one of your ${files.length} filter${files.length>1?"s":""}…</option>`:`<option value="">No filters found in this folder</option>`)+files.map(f=>`<option value="${esc2(f.name)}"${BASE&&BASE.name===f.name?" selected":""}>${esc2(f.name)}</option>`).join("");
+      const d=$("flDir");if(d)d.innerHTML=`The app looks in <b>${esc2(r.dir||"Documents\\My Games\\Path of Exile")}</b>. That's the folder the game reads filters from: put your downloaded .filter there, then press Refresh list.${files.length?"":" If your Documents folder is synced by OneDrive, the game's folder may be under OneDrive\\Documents instead; use Choose file… to open it from there."}`;
+      sel.onchange=async()=>{if(!sel.value)return;const rr=await DESK.readFilter(sel.value);if(!rr.ok){$("flMsg").innerHTML=`<span style="color:var(--warn)">${esc2(rr.error)}</span>`;return}st().outside=false;loadFile(sel.value,rr.data)}}).catch(e=>{const d=$("flDir");if(d)d.textContent="Couldn't read your filter folder: "+(e.message||e)});
+    fill();
+    $("flRefresh").onclick=()=>{fill();if(typeof toast==="function")toast("Filter list refreshed.")};
+    $("flOpenDir").onclick=async()=>{const r=await DESK.openFilterFolder();if(r&&!r.ok)$("flMsg").textContent=r.error};
+    $("flChoose").onclick=async()=>{const r=await DESK.chooseFilter();if(!r||!r.ok){if(r&&r.error)$("flMsg").textContent=r.error;return}if(!r.data)return;st().outside=true;loadFile(r.data.name,r.data.text);toast&&toast(`Opened ${r.data.name}. Saving still goes to the game's filter folder.`)};
+  }
   else{const up=$("flUp");if(up)up.onchange=()=>{const f=up.files[0];if(!f)return;const rd=new FileReader();rd.onload=()=>loadFile(f.name,String(rd.result));rd.readAsText(f)}}
   if(!BASE)return;
   $("flSave").onclick=async()=>{const name=saveName($("flName").value);const text=serialize(MODEL);

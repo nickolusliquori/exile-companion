@@ -11,7 +11,7 @@ const pending = [];
 const fail = (msg) => { console.error("✗ " + msg); failures++; };
 const ok = (msg) => console.log("✓ " + msg);
 
-for (const f of ["main.js", "preload.js", "lib/logtail.js", "lib/ggg.js", "lib/discord.js", "lib/clip.js", "lib/diag.js"]) {
+for (const f of ["main.js", "preload.js", "lib/logtail.js", "lib/ggg.js", "lib/discord.js", "lib/clip.js", "lib/diag.js", "lib/files.js"]) {
   try { new vm.Script(fs.readFileSync(path.join(root, f), "utf8"), { filename: f }); ok(`${f} parses`); }
   catch (e) { fail(`${f}: ${e.message}`); }
 }
@@ -118,6 +118,16 @@ try {
   assert(sim.ok && sim.cost > 0, "simulator should finish a chaos-spam plan");
   ok(`craft lab engine works (${ctx.CRAFTDATA.v}, ${Object.keys(ctx.CRAFTDATA.mods).length} mods)`);
 } catch (e) { fail("craft lab: " + e.message); }
+
+// filter file names: keep NeverSink's apostrophe, never allow folders or non-filter files
+try {
+  const { safeFilterName } = require(path.join(root, "lib", "files.js"));
+  assert.strictEqual(safeFilterName("NeverSink's filter - 2-SEMI-STRICT.filter"), "NeverSink's filter - 2-SEMI-STRICT.filter");
+  assert.strictEqual(safeFilterName("..\\..\\Windows\\evil.filter"), "evil.filter");
+  assert.strictEqual(safeFilterName("../../etc/passwd"), "");
+  assert.strictEqual(safeFilterName('bad<>:"|?*name.filter'), "badname.filter");
+  ok("filter file names keep apostrophes and stay inside the filter folder");
+} catch (e) { fail("filter names: " + e.message); }
 
 // loot filter editor: parse, round trip, edits, evaluator and re-tiering on a small NeverSink-style filter
 try {

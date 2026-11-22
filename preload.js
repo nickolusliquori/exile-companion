@@ -54,6 +54,8 @@ contextBridge.exposeInMainWorld("exileDesktop", {
   // local loot filters
   listFilters: () => ipcRenderer.invoke("filter:list"),
   readFilter: (name) => ipcRenderer.invoke("filter:read", { name }),
+  openFilterFolder: () => ipcRenderer.invoke("filter:openFolder"),
+  chooseFilter: () => ipcRenderer.invoke("filter:choose"),
   writeFilter: (name, text) => ipcRenderer.invoke("filter:write", { name, text }),
   // notifications, discord, gear snapshot
   notify: (n) => ipcRenderer.send("notify", n),

@@ -2,6 +2,11 @@
 
 What changed in each release, newest first. Installed copies update themselves; see the [Releases page](https://github.com/nickolusliquori/exile-companion/releases) for the installers. Planned releases are on the [roadmap](README.md#roadmap).
 
+## [1.8.1] - 2026-11-21
+
+- **Fixed:** picking a filter in the loot filter editor did nothing for files with an apostrophe in the name, which includes every NeverSink filter ("NeverSink's filter - …"). The same fix applies to the Shopping list's filter add-on.
+- **New:** the editor shows the exact folder it reads filters from, with **Refresh list**, **Open filter folder** and **Choose file…** (for a filter stored somewhere else, such as a OneDrive Documents folder). If a filter can't be read, it says why.
+
 ## [1.8.0] - 2026-11-21
 
 - **New: Loot filter editor** (Economy → Loot filter). Open the NeverSink filter you use (from your game's filter folder, or any .filter file in the web version) and:
@@ -82,6 +87,7 @@ First public release of the Windows app, installed from GitHub with automatic up
 - **Account:** live character sync, stash net worth, stash finds, currency trends, price alerts and a sales tracker.
 - **Also:** notifications, Discord status, session recaps, backups, phone sync and an OBS stream overlay.
 
+[1.8.1]: https://github.com/nickolusliquori/exile-companion/releases/tag/v1.8.1
 [1.8.0]: https://github.com/nickolusliquori/exile-companion/releases/tag/v1.8.0
 [1.7.1]: https://github.com/nickolusliquori/exile-companion/releases/tag/v1.7.1
 [1.7.0]: https://github.com/nickolusliquori/exile-companion/releases/tag/v1.7.0
