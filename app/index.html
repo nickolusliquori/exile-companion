@@ -482,6 +482,7 @@ header{transition:transform .2s ease}
   <!-- HOME -->
   <section class="tab on" id="tab-home" role="tabpanel">
     <div class="card hl" id="homeNewLeague" hidden></div>
+    <div id="homeSafe" hidden></div>
     <div id="homeNotices"></div>
     <div class="grid">
       <div class="card hl" id="homeChar"></div>
@@ -2447,6 +2448,7 @@ async function initDesktop(){
   LIVE.overlayVisible=LIVE.cfg.overlayVisible!==false;
   if(LIVE.cfg.league){S.league=LIVE.cfg.league;save()}
   DESK.onLogEvents(onLiveEvents);
+  if(DESK.safeState)DESK.safeState().then(st=>{SAFE_STATE=st||{};renderSafe()}).catch(()=>{});
   DESK.onLogStatus(s=>{LIVE.status=s;renderDesktop();renderGameLog();if(s.ok)scheduleRefresh(100)});
   DESK.onLeague(l=>{if(l){LIVE.cfg.league=l;S.league=l;save();showGameLabel();renderDesktop();renderShop()}});
   if(DESK.onLeagueNew)DESK.onLeagueNew(x=>{if(!x||!x.to)return;S.league=x.to;LIVE.cfg.league=x.to;S.newLeague={from:x.from,to:x.to,at:Date.now(),steps:{}};save();showGameLabel();renderNewLeague();refreshGameData(true)});
@@ -4046,6 +4048,7 @@ function renderSettings(){
   const bname=(b,ex)=>b?`${esc(b.ascend||b.className)} · level ${b.level}${ex?' <span class="pill">example</span>':""}`:'<span class="muted">none</span>';
   g.innerHTML=`<h2>General</h2>
     <div class="row"><button class="btn primary" data-fix="wizard">Run setup wizard</button><button class="btn ghost" id="stSearch">Search everything <kbd>Ctrl K</kbd></button><button class="btn ghost" data-fix="report">Report a problem</button></div>
+    ${DESK&&DESK.openLogFolder?`<div class="row"><button class="btn ghost small" id="stLog" type="button">Open log folder</button>${SAFE_STATE.safe?'<button class="btn small" id="stNormal" type="button">Restart normally</button>':'<button class="btn ghost small" id="stSafe" type="button">Restart in safe mode</button>'}<span class="small muted">The log keeps errors, crashes and startup times on this PC only. Safe mode starts without the overlay, hotkeys, media and graphics acceleration.</span></div>`:""}
     <h3>Builds</h3>
     <ul class="clean small" style="display:grid;gap:6px">
       <li class="row" style="justify-content:space-between"><span><b>Goal:</b> ${bname(G,exG)}</span><button class="btn ghost small" id="stImpG">${exG?"Import":"Replace"}</button></li>
@@ -4070,6 +4073,9 @@ function renderSettings(){
     <label class="row small"><input type="checkbox" id="stCompact"${S.compact?" checked":""}> Compact mode: smaller text and tighter spacing for small screens or a side monitor</label>
     <label class="row small"><input type="checkbox" id="stHelp"${S.helpOff?"":" checked"}> Show the ? explainer button on cards</label>`;
   $("stSearch").onclick=()=>openSearch();
+  const lg=$("stLog");if(lg)lg.onclick=()=>DESK.openLogFolder();
+  const sf=$("stSafe");if(sf)sf.onclick=()=>{if(confirm("Restart in safe mode? The overlay, price window, hotkeys, media and Discord stay off until you restart normally."))DESK.restartApp("safe")};
+  const nm=$("stNormal");if(nm)nm.onclick=()=>DESK.restartApp("normal");
   $("stImpG").onclick=()=>openImport("goal");$("stImpC").onclick=()=>openImport("current");
   const dc=$("stDelC");if(dc)dc.onclick=()=>{const xml=store.get("xml.current",null);clearSlot("current");renderSettings();if(xml)toast("Removed your current character.",async()=>{await loadSlot("current",xml,false);renderSettings()})};
   $("stHelp").onchange=e=>{S.helpOff=!e.target.checked;save();ensureHelp()};
@@ -4313,6 +4319,13 @@ document.addEventListener("invalid",e=>{const el=e.target;SND.warn();el.classLis
 let BUSY=0;const busy=d=>{BUSY=Math.max(0,BUSY+d);document.body.classList.toggle("busy",BUSY>0)};
 addEventListener("ec-busy",e=>busy(+e.detail||0));
 {const ls=loadScriptOnce;loadScriptOnce=(src,g)=>window[g]?ls(src,g):(busy(1),ls(src,g).finally(()=>busy(-1)))}
+// safe mode banner (main process decides; see Settings → Restart in safe mode)
+let SAFE_STATE={};
+function renderSafe(){const el=$("homeSafe");if(!el)return;el.hidden=!SAFE_STATE.safe;if(!SAFE_STATE.safe)return;
+  el.innerHTML=`<div class="banner warn" role="status"><div><b>Safe mode.</b> ${SAFE_STATE.safe==="crashed"?"The app didn't finish starting the last two times, so it started with":"Started at your request with"} the overlay, price window, hotkeys, media, Discord and graphics acceleration off. If this works, the problem is likely one of those (often the graphics driver). Report a problem includes the log.</div>
+    <div class="row"><button class="btn primary small" id="safeNormal">Restart normally</button><button class="btn ghost small" data-fix="report">Report a problem</button><button class="btn ghost small" id="safeLog">Open log folder</button></div></div>`;
+  $("safeNormal").onclick=()=>DESK.restartApp("normal");$("safeLog").onclick=()=>DESK.openLogFolder();
+  el.querySelectorAll("[data-fix]").forEach(b=>b.onclick=()=>FIX[b.dataset.fix]&&FIX[b.dataset.fix]())}
 function applyCompact(){document.body.classList.toggle("compact",!!S.compact)}
 /* ---------- first-time experience: starter mode, guided tour, in-game hints ----------
    Starter mode shows only the main pages so a new player isn't faced with twenty at once. Any page opened
@@ -4435,7 +4448,8 @@ function buildReport(){
     const rErr=(window.__ERRS||[]).slice(-20);
     L.push("## Recent errors in the app window",rErr.length?rErr.map(e=>`- ${ts(e.t)} [${e.k}] ${e.m}`).join("\n"):"- none","");
     if(DESK){L.push("## Recent background errors",(d.errors||[]).length?d.errors.map(e=>`- ${ts(e.t)} ${e.m}`).join("\n"):"- none","");
-      L.push("## Recent warnings",(d.warnings||[]).length?d.warnings.map(e=>`- ${ts(e.t)} ${e.m}`).join("\n"):"- none","");}
+      L.push("## Recent warnings",(d.warnings||[]).length?d.warnings.map(e=>`- ${ts(e.t)} ${e.m}`).join("\n"):"- none","");
+      L.push("## Log (last lines)","```",(d.logTail||[]).length?d.logTail.join("\n"):"(empty)","```","");}
   }
   L.push(`_Report created ${new Date().toISOString()}. Account secrets (POESESSID, sign-in tokens) are never included; your Windows user name and e-mail addresses are removed._`);
   return redactText(L.join("\n"),ctx);

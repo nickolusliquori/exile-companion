@@ -11,10 +11,16 @@ const { DiscordRPC } = require("./lib/discord");
 const { createClipWatcher } = require("./lib/clip");
 const { redact, sanitizeCfg } = require("./lib/diag");
 const os = require("os");
+const T0 = Date.now();
+// local error/crash log (logs/app.log in the app's folder), redacted as it's written
+const { createLog, startupGuard } = require("./lib/crashlog");
+const REDACT_CTX = { home: os.homedir(), user: (() => { try { return os.userInfo().username; } catch (e) { return ""; } })() };
+const LOG = createLog(path.join(app.getPath("userData"), "logs"), { redact: (s) => redact(s, REDACT_CTX) });
+let SAFE = "", GUARD = null, T_READY = 0;
 
 // recent background errors and warnings, for "Report a problem" (kept in memory only)
 const DIAG = { errors: [], warnings: [] };
-const diagPush = (list, msg) => { list.push({ t: Date.now(), m: String(msg).slice(0, 800) }); if (list.length > 30) list.shift(); };
+const diagPush = (list, msg) => { list.push({ t: Date.now(), m: String(msg).slice(0, 800) }); if (list.length > 30) list.shift(); LOG.write(list === DIAG.errors ? "error" : "warn", "main", msg); };
 process.on("uncaughtException", (err) => { diagPush(DIAG.errors, (err && err.stack) || err); console.error(err); });
 process.on("unhandledRejection", (err) => { diagPush(DIAG.errors, "Unhandled promise: " + ((err && err.stack) || err)); console.error(err); });
 
@@ -551,7 +557,7 @@ ipcMain.handle("diag:get", () => {
     memoryMB: Math.round(process.memoryUsage().rss / 1048576), uptimeMin: Math.round(process.uptime() / 60),
     cfg: sanitizeCfg(cfg, ctx), update: updateState && { state: updateState.state, version: updateState.version, message: updateState.message && redact(updateState.message, ctx) },
     log: { set: !!cfg.logPath, exists: !!(cfg.logPath && fs.existsSync(cfg.logPath)) },
-    errors: clean(DIAG.errors), warnings: clean(DIAG.warnings),
+    errors: clean(DIAG.errors), warnings: clean(DIAG.warnings), logTail: LOG.tail(60), safe: SAFE,
     redactCtx: { home: ctx.home, user: ctx.user },
   };
 });
@@ -950,12 +956,57 @@ ipcMain.handle("update:status", () => ({ ...updateState, current: VERSION }));
 ipcMain.handle("update:check", async () => { if (updater) { try { await updater.checkForUpdates(); } catch (e) { /* reported via events */ } } return { ...updateState, current: VERSION }; });
 ipcMain.on("update:install", () => { if (updater && updateState.state === "ready") updater.quitAndInstall(false, true); });
 
+/* ---------------- stability: log page errors and crashes, reload crashed windows ---------------- */
+const RECOVER = new Map(); // page -> crash times
+function pageName(wc) { try { const u = wc.getURL(); return u.toLowerCase().startsWith(APP_URL) ? path.basename(new URL(u).pathname) : new URL(u).hostname || "page"; } catch (e) { return "page"; } }
+app.on("web-contents-created", (e, wc) => {
+  const ours = () => { try { return wc.getURL().toLowerCase().startsWith(APP_URL); } catch (err) { return false; } };
+  wc.on("console-message", (ev, ...a) => {
+    const level = ev && ev.level !== undefined ? ev.level : a[0], msg = String(ev && ev.message !== undefined ? ev.message : a[1]);
+    if ((level === "error" || level === 3) && ours() && !/net::ERR_|Failed to load resource/.test(msg)) {
+      const src = ev && ev.sourceId ? ` (${path.basename(String(ev.sourceId))}:${ev.lineNumber})` : "";
+      LOG.error(pageName(wc), msg + src);
+    }
+  });
+  wc.on("preload-error", (ev, p, err) => LOG.error(pageName(wc), "preload: " + ((err && err.stack) || err)));
+  wc.on("unresponsive", () => LOG.warn(pageName(wc), "stopped responding"));
+  wc.on("responsive", () => LOG.info(pageName(wc), "responding again"));
+  wc.on("render-process-gone", (ev, d) => {
+    const name = pageName(wc);
+    LOG.error(name, `crashed (${d.reason}, exit code ${d.exitCode})`);
+    if (d.reason === "clean-exit" || app.isQuitting) return;
+    const now = Date.now(), times = (RECOVER.get(name) || []).filter((t) => now - t < 5 * 60e3);
+    times.push(now); RECOVER.set(name, times);
+    if (times.length > 3) { LOG.error(name, "crashed 3 times in 5 minutes: not reloading again"); sendMain("app:warning", `The ${name} page keeps crashing. Try Settings → Restart in safe mode; details are in the log.`); return; }
+    setTimeout(() => { if (!wc.isDestroyed()) { wc.reload(); LOG.info(name, "reloaded after crash"); } }, 1000);
+    setTimeout(() => sendMain("app:warning", `The ${name.replace(/\.html$/, "")} window crashed and was reloaded. Details are in Settings → Open log folder.`), 2500);
+  });
+});
+app.on("child-process-gone", (e, d) => { if (d.reason !== "clean-exit") LOG.error("app", `${d.type} process stopped (${d.reason}${d.name ? ", " + d.name : ""}, exit code ${d.exitCode})`); });
+app.on("before-quit", () => { app.isQuitting = true; });
+
+ipcMain.handle("app:safe", () => ({ safe: SAFE, fails: GUARD ? GUARD.fails : 0 }));
+ipcMain.on("app:restart", (e, mode) => {
+  if (GUARD) GUARD.reset();
+  LOG.info("app", `restarting${mode === "safe" ? " in safe mode" : ""} at the user's request`);
+  app.relaunch({ args: process.argv.slice(1).filter((a) => a !== "--safe-mode").concat(mode === "safe" ? ["--safe-mode"] : []) });
+  app.exit(0);
+});
+ipcMain.on("log:open", () => { shell.openPath(LOG.dir); });
+
 /* ---------------- app lifecycle ---------------- */
 if (!app.requestSingleInstanceLock()) { app.quit(); }
 else {
   app.on("second-instance", () => { if (mainWin) { if (mainWin.isMinimized()) mainWin.restore(); mainWin.focus(); } });
   if (process.platform === "win32") app.setAppUserModelId("app.exilecompanion.desktop");
+  // safe mode: asked for (--safe-mode), or the last two starts never finished (crash or freeze while starting).
+  // It turns off the overlay, price window, hotkeys, media, Discord, streaming and graphics acceleration.
+  GUARD = startupGuard(path.join(app.getPath("userData"), "starting.json"));
+  SAFE = process.argv.includes("--safe-mode") ? "asked" : GUARD.unsafe ? "crashed" : "";
+  if (SAFE) app.disableHardwareAcceleration();
+  LOG.info("app", `Exile Companion ${VERSION} starting · Electron ${process.versions.electron} · ${os.type()} ${os.release()}${SAFE ? ` · SAFE MODE (${SAFE === "asked" ? "asked for" : `last ${GUARD.fails} starts didn't finish`})` : ""}`);
   app.whenReady().then(async () => {
+    T_READY = Date.now();
     loadCfg();
     await loadSecrets();
     const { session } = require("electron");
@@ -974,13 +1025,24 @@ else {
     try { fs.rmSync(path.join(app.getPath("userData"), "cheatsheets", ".trash"), { recursive: true, force: true }); } catch (e) { /* ignore */ }
     createSplash();
     createMain();
-    createOverlay();
-    createPrice();
-    registerHotkeys();
-    startClipboardWatch();
-    setTimeout(pollNow, 5000);
-    mainWin.webContents.once("did-finish-load", () => { startLog(); detectLeague().then((l) => sendMain("league", l)); setInterval(() => { detectLeague().then((l) => l && sendMain("league", l)).catch(() => {}); }, 6 * 3600e3); startDiscord(); startStream(); setupUpdater(); });
+    if (!SAFE) {
+      createOverlay();
+      createPrice();
+      registerHotkeys();
+      startClipboardWatch();
+      setTimeout(pollNow, 5000);
+    }
+    mainWin.webContents.once("did-finish-load", () => {
+      LOG.info("startup", `ready in ${T_READY - T0} ms, main page loaded in ${Date.now() - T0} ms`);
+      setTimeout(() => GUARD.started(), 10000);
+      startLog();
+      setupUpdater();   // kept in safe mode so a fix can still arrive
+      if (SAFE) return;
+      detectLeague().then((l) => sendMain("league", l));
+      setInterval(() => { detectLeague().then((l) => l && sendMain("league", l)).catch(() => {}); }, 6 * 3600e3);
+      startDiscord(); startStream();
+    });
   });
-  app.on("will-quit", () => { globalShortcut.unregisterAll(); clearInterval(clipTimer); if (tail) tail.stop(); if (discord) discord.close(); if (streamServer) streamServer.close(); });
+  app.on("will-quit", () => { LOG.info("app", "quit"); globalShortcut.unregisterAll(); clearInterval(clipTimer); if (tail) tail.stop(); if (discord) discord.close(); if (streamServer) streamServer.close(); });
   app.on("window-all-closed", () => app.quit());
 }

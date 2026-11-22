@@ -11,7 +11,7 @@ const pending = [];
 const fail = (msg) => { console.error("✗ " + msg); failures++; };
 const ok = (msg) => console.log("✓ " + msg);
 
-for (const f of ["main.js", "preload.js", "lib/logtail.js", "lib/ggg.js", "lib/discord.js", "lib/clip.js", "lib/diag.js", "lib/files.js", "lib/webhosts.js"]) {
+for (const f of ["main.js", "preload.js", "lib/logtail.js", "lib/ggg.js", "lib/discord.js", "lib/clip.js", "lib/diag.js", "lib/files.js", "lib/webhosts.js", "lib/crashlog.js"]) {
   try { new vm.Script(fs.readFileSync(path.join(root, f), "utf8"), { filename: f }); ok(`${f} parses`); }
   catch (e) { fail(`${f}: ${e.message}`); }
 }
@@ -125,6 +125,21 @@ try {
   if (r.status !== 0 || !/present\)/.test(r.stdout)) throw new Error((r.stderr || r.stdout || "no output").split("\n").slice(0, 6).join(" | "));
   ok("main.js starts (" + r.stdout.trim().split(":").pop().trim() + ")");
 } catch (e) { fail("main.js startup: " + e.message); }
+
+// main.js "app is ready" code, in normal and safe mode (stand-in Electron, temporary folder)
+try {
+  const os = require("os"), cp = require("child_process");
+  const run = (dir, args = []) => { const r = cp.spawnSync(process.execPath, [path.join(__dirname, "load-main.js"), ...args], { encoding: "utf8", timeout: 20000, env: { ...process.env, EC_TEST_DIR: dir } });
+    const line = (r.stdout || "").trim().split("\n").pop(); try { return JSON.parse(line); } catch (e) { throw new Error((r.stderr || r.stdout || "no output").slice(0, 300)); } };
+  const d1 = fs.mkdtempSync(path.join(os.tmpdir(), "ec-ready-"));
+  const n = run(d1); assert(n.ready && !n.safe && !n.noGpu, "normal start"); assert(!n.errors.length, "errors while starting: " + n.errors.join(" | "));
+  const d2 = fs.mkdtempSync(path.join(os.tmpdir(), "ec-ready-"));
+  const sm = run(d2, ["--safe-mode"]); assert(sm.safe && sm.noGpu && !sm.errors.length, "--safe-mode starts safe without errors: " + sm.errors.join(" | "));
+  const d3 = fs.mkdtempSync(path.join(os.tmpdir(), "ec-ready-"));
+  run(d3); run(d3); const third = run(d3); assert(third.safe, "two unfinished starts lead to safe mode");
+  for (const d of [d1, d2, d3]) fs.rmSync(d, { recursive: true, force: true });
+  ok("main.js ready code runs clean in normal and safe mode; safe mode follows two unfinished starts");
+} catch (e) { fail("main.js ready/safe mode: " + e.message); }
 
 // in-app browser: only allowlisted https sites open inside the app
 try {
@@ -515,6 +530,29 @@ try {
   } catch (e) { if (e.code === "ENOENT") console.log("  (python3 not found: keep-if-same not exercised)"); else throw e; }
   ok("data pipeline: data/sources.json matches the shipped data; weekly workflow pinned and checked; label-only changes are ignored");
 } catch (e) { fail("data pipeline: " + e.message); }
+
+// crash log and safe-mode guard
+try {
+  const os = require("os");
+  const { createLog, startupGuard } = require(path.join(root, "lib/crashlog"));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "ec-log-"));
+  const L = createLog(dir, { maxBytes: 300, redact: (s) => s.replace(/secret/g, "[x]") });
+  L.error("index.html", "boom secret"); L.error("index.html", "boom secret"); L.error("index.html", "boom secret"); L.info("app", "next");
+  const lines = L.tail(10);
+  assert(lines.some((l) => /ERROR index.html: boom \[x\]/.test(l)), "log line written and redacted");
+  assert(lines.some((l) => /repeated 2 more times/.test(l)), "repeats collapsed");
+  for (let i = 0; i < 20; i++) L.warn("t", "line " + i);
+  assert(fs.existsSync(path.join(dir, "app.old.log")) && fs.statSync(path.join(dir, "app.log")).size < 400, "log rotates");
+  assert(L.tail(5).length === 5 && /line 19/.test(L.tail(1)[0]), "tail returns newest last");
+  const gf = path.join(dir, "starting.json");
+  let g = startupGuard(gf); assert(!g.unsafe && g.fails === 0, "first start is normal");
+  g = startupGuard(gf); assert(g.fails === 1 && !g.unsafe, "one unfinished start");
+  g = startupGuard(gf); assert(g.unsafe, "two unfinished starts -> safe mode");
+  g.started(); g = startupGuard(gf); assert(!g.unsafe && g.fails === 0, "a finished start resets");
+  const bad = createLog(path.join(gf, "nope"), {}); bad.error("x", "y"); assert(Array.isArray(bad.tail()), "an unusable log folder never throws");
+  fs.rmSync(dir, { recursive: true, force: true });
+  ok("crash log: redaction, repeats, rotation; safe mode after two unfinished starts");
+} catch (e) { fail("crash log: " + e.message); }
 
 Promise.all(pending).then(() => {
   if (failures) { console.error(`\n${failures} check(s) failed`); process.exit(1); }

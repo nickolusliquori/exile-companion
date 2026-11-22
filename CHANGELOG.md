@@ -2,6 +2,16 @@
 
 What changed in each release, newest first. Installed copies update themselves; see the [Releases page](https://github.com/nickolusliquori/exile-companion/releases) for the installers. Planned releases are on the [roadmap](README.md#roadmap).
 
+## [1.26.0] - 2026-11-22
+
+### Added
+- **Local log:** errors from every app window, page crashes, stalls and startup times go to `logs\app.log` in the app's folder (redacted as written, two 512 KB files at most). Settings → Open log folder; Report a problem now includes the last lines.
+- **Crash recovery:** a window that crashes reloads by itself and you get a notice. If it keeps crashing (3 times in 5 minutes), it stops and suggests safe mode.
+- **Safe mode:** if the app doesn't finish starting twice in a row, it starts without the overlay, price window, hotkeys, media, Discord, streaming and graphics acceleration, and Home explains what happened. Settings has Restart in safe mode / Restart normally. Updates still install in safe mode, so a fix can arrive.
+
+### Changed
+- The startup check now also runs the app's "ready" code in normal and safe mode.
+
 ## [1.25.0] - 2026-11-22
 
 ### Added
