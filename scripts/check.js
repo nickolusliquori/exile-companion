@@ -444,6 +444,45 @@ try {
   ok("GGG guidelines: clipboard read once per key press, disclaimer shown, no credentials in code");
 } catch (e) { fail("GGG guidelines: " + e.message); }
 
+// new leagues: league picker, and data/game.json (patch label, strategies, tips, map-mod wording) validated and applied safely
+try {
+  const { pickLeague } = require(path.join(root, "lib", "league.js"));
+  const L = (ids) => ids.map((id) => ({ id, realm: "pc" }));
+  assert.strictEqual(pickLeague(L(["Umbra", "Hardcore Umbra", "Standard", "Hardcore"]), {}).league, "Umbra", "first run picks the softcore challenge league");
+  assert.strictEqual(pickLeague(L(["Ashes", "Hardcore Ashes", "Standard"]), { current: "Umbra", lastChallenge: "Umbra" }).league, "Ashes", "an ended league moves to the new one");
+  assert.strictEqual(pickLeague(L(["Ashes", "Umbra", "Standard"]), { current: "Umbra", lastChallenge: "Umbra" }).reason, "launched", "a new launch is followed");
+  assert.strictEqual(pickLeague(L(["Ashes", "Standard"]), { current: "Standard", lastChallenge: "Umbra" }).league, "Standard", "a deliberate Standard choice is kept");
+  assert.strictEqual(pickLeague(L(["Ashes", "Standard"]), { current: "Umbra", lastChallenge: "Umbra", pinned: true }).league, "Umbra", "a pinned league is kept");
+  assert.strictEqual(pickLeague(L(["SSF Ashes", "Ruthless Ashes", "Ashes"]), {}).league, "Ashes", "SSF and Ruthless are skipped");
+  assert.strictEqual(pickLeague([], { current: "Umbra" }).league, "Umbra", "offline or empty list keeps the current league");
+  const html = fs.readFileSync(path.join(appDir, "index.html"), "utf8");
+  const grab = (from, to) => { const a = html.indexOf(from), b = html.indexOf(to, a + 1); assert(a > 0 && b > a, "section " + from); return html.slice(a, b); };
+  const tables = ["MAPMODS", "STRATS", "PROGRESS"].map((n) => { const a = html.indexOf(`const ${n}=[`); return html.slice(a, html.indexOf("\n];", a) + 3); }).join("\n");
+  const mod = grab("/* ---------- game data: patch label", "// announcements from data/game.json");
+  const ctx = { console, S: {}, LIVE: { cfg: {} }, $: () => null, document: { title: "" }, DESK: null, store: { get: () => null, set() {} }, renderAll() {} };
+  vm.createContext(ctx);
+  vm.runInContext(tables + "\n" + mod + "\n;this.__g={GAME,validGame,applyGame,STRATS,PROGRESS,MAPMODS};", ctx);
+  const G = ctx.__g;
+  const pub = JSON.parse(fs.readFileSync(path.join(root, "data", "game.json"), "utf8"));
+  assert(G.validGame(pub), "data/game.json has the expected shape");
+  assert(pub.v >= G.GAME.v, "data/game.json is not older than the built-in data");
+  assert.strictEqual(pub.strats.length, G.STRATS.length, "data/game.json has every built-in strategy");
+  const c = () => JSON.parse(JSON.stringify(pub));
+  let bad = c(); bad.patch = "next"; assert(!G.validGame(bad), "patch must look like 3.31");
+  bad = c(); bad.strats[0].threads = { Legion: "<img>" }; assert(!G.validGame(bad), "thread counts must be numbers");
+  bad = c(); bad.notices = [{ id: "x", title: "Hi", body: "B", level: "script" }]; assert(!G.validGame(bad), "notice levels are limited");
+  bad = c(); bad.mapmods.physref = { label: { a: 1 } }; assert(!G.validGame(bad), "map-mod text must be text");
+  const next = c(); next.v = "2099-01-01"; next.patch = "3.31"; next.name = "Next League"; next.strats[0].name = "Legion (3.31)"; next.progressTips.p6 = "New tip"; next.mapmods.physref.frag = "reflect phys";
+  next.notices = [{ id: "331", title: "3.31 is live", body: "Data is being updated.", level: "info" }];
+  assert(G.applyGame(next, "test"), "newer valid data applies");
+  assert.strictEqual(G.GAME.patch, "3.31"); assert.strictEqual(G.STRATS[0].name, "Legion (3.31)");
+  assert.strictEqual(G.PROGRESS.find((p) => p.id === "p6").tip, "New tip"); assert.strictEqual(G.MAPMODS.find((m) => m.id === "physref").frag, "reflect phys");
+  assert.strictEqual(typeof G.MAPMODS.find((m) => m.id === "physref").when, "function", "map-mod rules keep their build checks");
+  const old = c(); old.v = "2000-01-01"; assert(!G.applyGame(old), "older data is ignored");
+  assert(!/<title>Exile Companion 3\.30<\/title>/.test(html) || /document\.title=`Exile Companion \$\{GAME\.patch\}`/.test(html), "window title follows the game data");
+  ok("new leagues: league picker follows launches (unless pinned); data/game.json valid, newer data applies, bad or older data is ignored");
+} catch (e) { fail("new leagues: " + e.message); }
+
 Promise.all(pending).then(() => {
   if (failures) { console.error(`\n${failures} check(s) failed`); process.exit(1); }
   console.log("\nAll checks passed");

@@ -487,16 +487,23 @@ async function http({ url, method = "GET", body = null, cacheMs = 0, text = fals
   if (cacheMs && res.ok) cache.set(key, { t: Date.now(), res: out });
   return out;
 }
+// League: the newest softcore trade league, re-checked at start and every 6 hours. When a new challenge league
+// appears (or the saved one has ended) the app switches to it and tells the main window, unless the user pinned one.
+const { pickLeague } = require("./lib/league");
 async function detectLeague() {
-  if (cfg.league) return cfg.league;
   try {
     const r = await http({ url: "https://www.pathofexile.com/api/trade/data/leagues", cacheMs: 3600e3 });
-    const list = (r.data && r.data.result) || [];
-    const pick = list.find((l) => (l.realm || "pc") === "pc" && !/standard|hardcore|\bhc\b|ssf|solo|ruthless/i.test(l.id));
-    if (pick) { cfg.league = pick.id; saveCfg(); }
-  } catch (e) { /* offline: keep null */ }
+    const list = ((r.data && r.data.result) || []).map((l) => ({ id: l.id, realm: l.realm }));
+    const d = pickLeague(list, { current: cfg.league, lastChallenge: cfg.lastChallenge, pinned: !!cfg.leaguePinned });
+    if (d.challenge && d.challenge !== cfg.lastChallenge) { cfg.lastChallenge = d.challenge; saveCfg(); }
+    if (d.league && d.league !== cfg.league) {
+      const from = cfg.league; cfg.league = d.league; saveCfg();
+      if (from) { sendMain("league:new", { from, to: d.league, reason: d.reason }); notify({ kind: "milestones", title: "New league: " + d.league, body: "Price checks and prices now use " + d.league + ". Open the app for a quick new-league checklist." }); }
+    }
+  } catch (e) { /* offline: keep what we have */ }
   return cfg.league;
 }
+
 
 /* ---------------- IPC ---------------- */
 ipcMain.handle("cfg:get", () => ({ ...cfg, version: VERSION }));
@@ -970,7 +977,7 @@ else {
     registerHotkeys();
     startClipboardWatch();
     setTimeout(pollNow, 5000);
-    mainWin.webContents.once("did-finish-load", () => { startLog(); detectLeague().then((l) => sendMain("league", l)); startDiscord(); startStream(); setupUpdater(); });
+    mainWin.webContents.once("did-finish-load", () => { startLog(); detectLeague().then((l) => sendMain("league", l)); setInterval(() => { detectLeague().then((l) => l && sendMain("league", l)).catch(() => {}); }, 6 * 3600e3); startDiscord(); startStream(); setupUpdater(); });
   });
   app.on("will-quit", () => { globalShortcut.unregisterAll(); clearInterval(clipTimer); if (tail) tail.stop(); if (discord) discord.close(); if (streamServer) streamServer.close(); });
   app.on("window-all-closed", () => app.quit());

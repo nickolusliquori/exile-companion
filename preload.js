@@ -15,6 +15,7 @@ contextBridge.exposeInMainWorld("exileDesktop", {
   setConfig: (patch) => ipcRenderer.invoke("cfg:set", patch),
   detectLeague: () => ipcRenderer.invoke("league:detect"),
   onLeague: on("league"),
+  onLeagueNew: on("league:new"),
   onWarning: on("app:warning"),
   // live log
   detectLogs: () => ipcRenderer.invoke("log:detect"),

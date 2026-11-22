@@ -2,6 +2,15 @@
 
 What changed in each release, newest first. Installed copies update themselves; see the [Releases page](https://github.com/nickolusliquori/exile-companion/releases) for the installers. Planned releases are on the [roadmap](README.md#roadmap).
 
+## [1.23.0] - 2026-11-22
+
+### Added
+- **Follows new leagues automatically:** the app checks GGG's league list at startup and every 6 hours. When a new challenge league launches, or the one you use has ended, price checks and prices switch to it and you get a notification. Tick **Keep this league** in Settings to stay on one (for example Standard or Hardcore). Before this, the league saved on first run was kept forever.
+- **New-league checklist on Home:** confirm the new league (or stay on the old one), check for game data updates, start a fresh session (the old league's map count and net worth are archived), import this league's build and reset campaign progress, each with undo.
+- **Game data that updates between releases** (`data/game.json`): the patch label, atlas farming strategies, progression tips, map-mod wording and short announcements on Home. As with league data, only checked text and numbers are used, and older or malformed files are ignored.
+- **Settings → Game data:** every data set the app uses, where it comes from and its version, with anything built for an older patch flagged, plus a "Check for data updates" button.
+- The title bar shows the current patch and your league.
+
 ## [1.22.0] - 2026-11-22
 
 ### Changed

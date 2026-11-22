@@ -168,10 +168,11 @@ If GGG asks for any change, it will be made. Contact: open an issue on this repo
 
 ## Roadmap
 
-Shipped so far: the loot filter editor (1.8), in-app browser (1.9), trading tools (1.10), League page (1.11), build tools (1.12), quality of life (1.13), themes and motion (1.14), upgrade finder (1.15), deeper price checks (1.16), media (1.17), league data updates and saved searches (1.18), map marks and item links (1.19), trade companion and recipe tracker (1.20), overlay tools (1.21) and the clipboard-rule update (1.22). Every release ships through auto-update and gets tested in game afterwards; problems found are fixed in a follow-up patch. See the [changelog](CHANGELOG.md) for details.
+Shipped so far: the loot filter editor (1.8), in-app browser (1.9), trading tools (1.10), League page (1.11), build tools (1.12), quality of life (1.13), themes and motion (1.14), upgrade finder (1.15), deeper price checks (1.16), media (1.17), league data updates and saved searches (1.18), map marks and item links (1.19), trade companion and recipe tracker (1.20), overlay tools (1.21) the clipboard-rule update (1.22) and new-league handling (1.23). Every release ships through auto-update and gets tested in game afterwards; problems found are fixed in a follow-up patch. See the [changelog](CHANGELOG.md) for details.
 
 | Version | Feature |
 |---|---|
+| Next | **Data pipeline:** a weekly GitHub job that checks GGG's tree exports, RePoE and Path of Building for new data and opens an update for review. Then a **first-time experience** pass: starter mode, a "no build yet?" path, a short tour and in-game hints. |
 | Pending GGG | **Sign in with your GGG account (OAuth)** to replace the POESESSID, and upload edited loot filters straight to your account, once GGG issues a client ID. |
 | Next | Ideas welcome: open a feature request on GitHub or use Settings → Report a problem.|
 
@@ -181,6 +182,7 @@ Not planned: anything that sends input to the game (auto-typed whispers, chat ma
 
 - **Stays on your PC:** builds, progress, map log, settings and backups. Settings live in `%APPDATA%\exile-companion\config.json`; everything else in the app's own storage.
 - **Encrypted:** your POESESSID and any GGG sign-in tokens are encrypted with Windows' data protection, and never included in backups, sync codes or problem reports.
+- **New leagues:** the app checks GGG's trade league list to follow league launches, and this repository's `data/` folder for game and league data updates.
 - **Network:** the app itself only talks to `pathofexile.com`, `poe.ninja`, `poewiki.net`, `pobb.in`, `pastebin.com`, item pictures from `web.poecdn.com`, this repository's releases, and this repository's `data/` folder for league data. The in-app browser and the media player load the sites you open in them, each in its own sandboxed session.
 - **Windows media controls:** "Now playing" asks Windows what's playing and can play, pause or skip. You can turn it off on the Media page.
 - **Problem reports** are built on your PC, shown to you in full, and only sent if you copy them or open a GitHub issue yourself.

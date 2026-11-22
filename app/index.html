@@ -427,7 +427,7 @@ header{transition:transform .2s ease}
 <div id="busy" aria-hidden="true"><i></i></div>
 <header>
   <div class="bar">
-    <div class="brand">Exile Companion<small>3.30 Covens of Umbra</small></div>
+    <div class="brand">Exile Companion<small id="brandSub">3.30 Covens of Umbra</small></div>
     <div class="buildchip chips" id="buildchip">No build loaded</div>
     <button class="btn primary" id="openImport">Import PoB</button>
   </div>
@@ -472,6 +472,8 @@ header{transition:transform .2s ease}
 
   <!-- HOME -->
   <section class="tab on" id="tab-home" role="tabpanel">
+    <div class="card hl" id="homeNewLeague" hidden></div>
+    <div id="homeNotices"></div>
     <div class="grid">
       <div class="card hl" id="homeChar"></div>
       <div class="card" id="homeNext"></div>
@@ -650,6 +652,7 @@ header{transition:transform .2s ease}
       <div class="card hl" id="setGeneral"></div>
       <div class="card" id="setHotkeys"></div>
     </div>
+    <div class="card" id="setData"></div>
     <div class="grid">
       <div class="card" id="acctConn"></div>
       <div class="card" id="deskDiscord"></div>
@@ -2043,6 +2046,101 @@ function renderMedia(){
   const cl=$("mpClick");if(cl)cl.onchange=async()=>{MPL=await DESK.mediaPlayer("click");renderMedia()};
 }
 
+/* ---------- game data: patch label, updatable strategies/tips, notices, new-league checklist, data health ----------
+   data/game.json in this app's GitHub repo can update patch-specific text between releases. Only checked plain
+   text, numbers and lists are taken from it, and it's shown escaped. The built-in values are the fallback. */
+const GAME={patch:"3.30",name:"Covens of Umbra",v:"2026-11-22",src:"built in",notices:[]};
+const RAW_GAME="https://raw.githubusercontent.com/nickolusliquori/exile-companion/main/data/game.json";
+function validGame(d){
+  const str=(x,n)=>typeof x==="string"&&x.length>0&&x.length<=(n||400);const num=x=>typeof x==="number"&&isFinite(x)&&x>=0&&x<=100;
+  try{
+    if(!d||!/^\d{4}-\d{2}-\d{2}$/.test(d.v||"")||!/^\d+\.\d+$/.test(d.patch||"")||!str(d.name,60))return false;
+    if(d.notices!=null&&(!Array.isArray(d.notices)||d.notices.length>10||!d.notices.every(n=>n&&str(n.id,40)&&str(n.title,120)&&str(n.body,600)&&(!n.level||/^(info|warn)$/.test(n.level)))))return false;
+    if(d.strats!=null){if(!Array.isArray(d.strats)||d.strats.length<1||d.strats.length>40)return false;
+      for(const x of d.strats){if(!x||!str(x.id,30)||!str(x.name,60)||!str(x.sum,500)||!Array.isArray(x.tips)||!x.tips.every(t=>str(t,300))||!x.threads||typeof x.threads!=="object"||!Object.entries(x.threads).every(([k,v])=>str(k,30)&&num(v))||!x.need||!["clear","boss","tank"].every(k=>num(x.need[k]))||![x.pay,x.budget].every(num))return false}}
+    if(d.progressTips!=null&&(typeof d.progressTips!=="object"||!Object.entries(d.progressTips).every(([k,v])=>str(k,10)&&str(v,300))))return false;
+    if(d.mapmods!=null&&(typeof d.mapmods!=="object"||!Object.entries(d.mapmods).every(([k,v])=>str(k,20)&&v&&typeof v==="object"&&["label","frag","why"].every(f=>v[f]==null||str(v[f],200)))))return false;
+    return true;
+  }catch(e){return false}
+}
+function applyGame(d,src){
+  if(!validGame(d)||d.v<GAME.v)return false;
+  Object.assign(GAME,{patch:d.patch,name:d.name,v:d.v,src,notices:d.notices||[]});
+  if(d.strats)STRATS.splice(0,STRATS.length,...d.strats.map(x=>({id:x.id,name:x.name,sum:x.sum,tips:x.tips.slice(),threads:{...x.threads},need:{clear:x.need.clear,boss:x.need.boss,tank:x.need.tank},pay:x.pay,budget:x.budget,layer:!!x.layer})));
+  if(d.progressTips)PROGRESS.forEach(p=>{if(d.progressTips[p.id])p.tip=d.progressTips[p.id]});
+  if(d.mapmods)MAPMODS.forEach(m=>{const o=d.mapmods[m.id];if(o){if(o.label)m.label=o.label;if(o.frag)m.frag=o.frag;if(o.why)m.why=o.why}});
+  return true;
+}
+function showGameLabel(){
+  const lg=S.league||(LIVE.cfg&&LIVE.cfg.league)||"";const el=$("brandSub");
+  if(el)el.textContent=lg?`${GAME.patch} · ${lg}`:`${GAME.patch} ${GAME.name}`;
+  document.title=`Exile Companion ${GAME.patch}`;
+}
+async function refreshGameData(force){
+  if(!DESK||!DESK.http)return false;
+  try{const r=await DESK.http({url:RAW_GAME,cacheMs:force?0:6*3600e3});if(r&&r.status===200&&applyGame(r.data,"GitHub")){store.set("gameData",r.data);showGameLabel();renderAll();return true}}catch(e){}
+  return false;
+}
+// a newer copy saved on an earlier run applies straight away, before the network check
+try{const cached=store.get("gameData",null);if(cached)applyGame(cached,"GitHub (saved)")}catch(e){}
+
+// announcements from data/game.json (e.g. "3.31 launched: data is being updated"), each dismissable once
+function renderNotices(){
+  const host=$("homeNotices");if(!host)return;const seen=S.noticesSeen||{};
+  const list=(GAME.notices||[]).filter(n=>!seen[n.id]);
+  host.innerHTML=list.map(n=>`<div class="banner ${n.level==="warn"?"warn":""}" style="margin-bottom:12px"><div class="row" style="justify-content:space-between;flex-wrap:nowrap"><b>${esc(n.title)}</b><button class="btn ghost small" data-notice="${esc(n.id)}" aria-label="Dismiss">✕</button></div><p class="small" style="margin:4px 0 0">${esc(n.body)}</p></div>`).join("");
+  host.querySelectorAll("[data-notice]").forEach(b=>b.onclick=()=>{S.noticesSeen={...(S.noticesSeen||{}),[b.dataset.notice]:Date.now()};save();renderNotices()});
+}
+
+// what the app ships with, for the health panel: [name, source, version, built for patch]
+function dataSets(){
+  return [
+    ["Passive tree","GGG skilltree-export","3.30.0","3.30"],["Atlas tree","GGG atlastree-export","3.30.0c","3.30"],
+    ["Crafting mods","RePoE export",(window.CRAFTDATA&&CRAFTDATA.v)||"3.30.0.4","3.30"],["Map mods","RePoE export",(window.MAPMOD_DATA&&MAPMOD_DATA.v)||"3.30.0.4","3.30"],
+    ["Timeless and cluster jewels","Path of Building",(window.TIMELESS&&TIMELESS.v)||"PoB 343b054","3.30"],["Campaign route and gems","exile-leveling","3.30","3.30"],
+    ["Atlas strategies, tips, map-mod wording","data/game.json",`${GAME.v} (${GAME.src})`,GAME.patch],
+    ["League page (Betrayal, Threads, Expedition)","data/league.json","checked when the page opens","3.30"],
+    ["Prices","poe.ninja","live","live"],["Trade league","GGG trade site",(LIVE.cfg&&LIVE.cfg.league)||S.league||"not detected yet","live"]];
+}
+function renderDataHealth(){
+  const el=$("setData");if(!el)return;
+  el.innerHTML=`<h2>Game data</h2>
+    <p class="small muted" style="margin:0">What the app knows about the game and where it comes from. Current patch: <b>${esc(GAME.patch)}</b> (${esc(GAME.name)}). Data built for an older patch is flagged. Patch-specific text can update from GitHub without a new release; the rest arrives through auto-update.</p>
+    <div class="tw"><table><thead><tr><th>Data</th><th>Source</th><th>Version</th><th></th></tr></thead><tbody>
+    ${dataSets().map(([n,src,v,p])=>{const old=p!=="live"&&p!==GAME.patch;return `<tr><td>${esc(n)}</td><td class="small">${esc(src)}</td><td class="small">${esc(v)}</td><td>${old?`<span class="pill warn" title="Built for ${esc(p)}">May be out of date</span>`:'<span class="pill good">Current</span>'}</td></tr>`}).join("")}
+    </tbody></table></div>
+    <div class="row"><button class="btn ghost small" id="gdCheck"${DESK?"":" disabled"}>Check for data updates</button><span class="small muted" id="gdMsg">${DESK?"Checked automatically every 6 hours.":"Updates are checked in the desktop app."}</span></div>`;
+  const b=$("gdCheck");if(b)b.onclick=async()=>{b.disabled=true;$("gdMsg").textContent="Checking…";const ok=await refreshGameData(true);renderDataHealth();$("gdMsg").textContent=ok?`Updated to ${GAME.v}.`:`You have the latest data (${GAME.v}).`};
+}
+
+// new league: a short checklist on Home
+function renderNewLeague(){
+  const host=$("homeNewLeague");const n=S.newLeague;
+  if(!host)return;if(!n||n.done){host.hidden=true;host.innerHTML="";return}
+  host.hidden=false;const st=n.steps||(n.steps={});
+  const step=(k,label,btn)=>`<li class="row" style="justify-content:space-between;gap:8px;flex-wrap:nowrap"><label class="small" style="display:flex;gap:6px;align-items:center"><input type="checkbox" data-nl="${k}"${st[k]?" checked":""}> ${label}</label>${btn||""}</li>`;
+  host.innerHTML=`<div class="row" style="justify-content:space-between"><h2>New league: ${esc(n.to)}</h2><button class="btn ghost small" id="nlDone">Done</button></div>
+    <p class="small muted" style="margin:0">${n.from?`The app switched from ${esc(n.from)} to ${esc(n.to)}. `:""}A few things for the fresh start:</p>
+    <ul class="clean" style="display:grid;gap:6px">
+      ${step("league",`Price checks and prices use <b>${esc(n.to)}</b>`,n.from?`<button class="btn ghost small" id="nlBack">Stay on ${esc(n.from)}</button>`:"")}
+      ${step("data","Check for game data updates",`<button class="btn ghost small" id="nlData">Check now</button>`)}
+      ${step("session","Start a fresh session (the old league's summary is archived)",`<button class="btn ghost small" id="nlFresh">Start fresh</button>`)}
+      ${step("build","Import the build you'll play this league",`<button class="btn ghost small" id="nlBuild">Import build</button>`)}
+      ${step("camp","Reset campaign progress for a new character",`<button class="btn ghost small" id="nlCamp">Reset</button>`)}
+    </ul>`;
+  const done=k=>{st[k]=true;save();renderNewLeague()};
+  host.querySelectorAll("[data-nl]").forEach(c=>c.onchange=()=>{st[c.dataset.nl]=c.checked;save()});
+  $("nlDone").onclick=()=>{n.done=true;save();renderNewLeague()};
+  const back=$("nlBack");if(back)back.onclick=async()=>{if(DESK)LIVE.cfg=await DESK.setConfig({league:n.from,leaguePinned:true});S.league=n.from;n.done=true;save();showGameLabel();renderNewLeague();toast(`Staying on ${n.from}. Untick "Keep this league" in Settings to follow new leagues again.`)};
+  $("nlData").onclick=async()=>{const ok=await refreshGameData(true);toast(ok?`Game data updated (${GAME.v}).`:`Game data is up to date (${GAME.v}). Bigger updates arrive through auto-update.`);done("data")};
+  $("nlFresh").onclick=()=>{const prev={session:JSON.parse(JSON.stringify(S.session)),net:S.netWorth,latest:S.netLatest,goal:S.goal,archive:S.archive};
+    S.archive=(S.archive||[]).concat([{league:n.from,at:Date.now(),maps:S.session.maps.length,net:S.netLatest?S.netLatest.total:null}]).slice(-10);
+    S.session={start:null,elapsed:0,maps:[]};S.netWorth=[];S.netLatest=null;S.goal=null;st.session=true;save();renderAll();
+    toast("Fresh session started. The old league's summary is archived.",()=>{Object.assign(S,{session:prev.session,netWorth:prev.net,netLatest:prev.latest,goal:prev.goal,archive:prev.archive});st.session=false;save();renderAll()})};
+  $("nlBuild").onclick=()=>{done("build");if(typeof openWizard==="function")openWizard()};
+  $("nlCamp").onclick=()=>{const prev={camp:S.camp,act:S.campAct};S.camp={};S.campAct=1;st.camp=true;save();renderAll();toast("Campaign progress reset.",()=>{S.camp=prev.camp;S.campAct=prev.act;st.camp=false;save();renderAll()})};
+}
+
 function renderSession(){
   renderGoal();
   const s=S.session, ms=elapsed();
@@ -2336,7 +2434,8 @@ async function initDesktop(){
   if(LIVE.cfg.league){S.league=LIVE.cfg.league;save()}
   DESK.onLogEvents(onLiveEvents);
   DESK.onLogStatus(s=>{LIVE.status=s;renderDesktop();renderGameLog();if(s.ok)scheduleRefresh(100)});
-  DESK.onLeague(l=>{if(l){LIVE.cfg.league=l;S.league=l;save();renderDesktop();renderShop()}});
+  DESK.onLeague(l=>{if(l){LIVE.cfg.league=l;S.league=l;save();showGameLabel();renderDesktop();renderShop()}});
+  if(DESK.onLeagueNew)DESK.onLeagueNew(x=>{if(!x||!x.to)return;S.league=x.to;LIVE.cfg.league=x.to;S.newLeague={from:x.from,to:x.to,at:Date.now(),steps:{}};save();showGameLabel();renderNewLeague();refreshGameData(true)});
   DESK.onWarning(w=>{LIVE.warn=w;renderDesktop()});
   DESK.onOverlayInteractive(v=>{LIVE.interactive=v;renderDesktop()});
   DESK.onOverlayVisible(v=>{LIVE.overlayVisible=v;renderDesktop()});
@@ -3593,7 +3692,7 @@ function renderUpdates(){
 }
 
 /* ---------------- wiring ---------------- */
-function renderAll(){if(window.exileDesktop){publishOverlay();setTimeout(()=>{renderDesktop();renderAccount();publishGear();publishDiscord()},0)}renderHeader();renderBuild();renderProgress();renderShop();renderCampaign();renderMaps();renderAtlas();renderCraft();renderSession();bindItems();try{renderHome();renderSettings()}catch(e){console.error(e)}}
+function renderAll(){if(window.exileDesktop){publishOverlay();setTimeout(()=>{renderDesktop();renderAccount();publishGear();publishDiscord()},0)}renderHeader();renderBuild();renderProgress();renderShop();renderCampaign();renderMaps();renderAtlas();renderCraft();renderSession();bindItems();try{renderHome();renderSettings();renderNotices();renderNewLeague();renderDataHealth();showGameLabel()}catch(e){console.error(e)}}
 {const wrap=(f,pick)=>function(){return withBuild(pick(),()=>f.apply(this,arguments))};
  renderBuild=wrap(renderBuild,viewB);renderShop=wrap(renderShop,()=>G);renderCraft=wrap(renderCraft,()=>G);renderCampaign=wrap(renderCampaign,()=>G);
  renderMaps=wrap(renderMaps,liveB);renderAtlas=wrap(renderAtlas,liveB);renderSession=wrap(renderSession,liveB);
@@ -3939,6 +4038,7 @@ function renderSettings(){
     ${DESK?`<h3>Price check</h3>
     <p class="small muted" style="margin:0">Price checks run when you press the price hotkey after Ctrl+C. The app doesn't watch the clipboard in the background: GGG allows one clipboard read per key press.</p>
     <div class="fgrid"><label class="f" for="stLeague">Trade league<input type="text" id="stLeague" value="${esc(c.league||"")}" data-cfg="league" placeholder="detected automatically"></label>
+      <label class="row small" style="align-self:end"><input type="checkbox" id="stPin"${c.leaguePinned?" checked":""}> Keep this league (don't switch when a new league launches)</label>
       <label class="f" for="stContact">Contact for API requests (optional)<input type="text" id="stContact" value="${esc(c.contact||"")}" data-cfg="contact" placeholder="email or forum name"></label></div>`:""}
     ${DESK?`<h3>Web links</h3>
     <label class="row small"><input type="checkbox" id="stInApp"${c.inAppBrowser!==false?" checked":""}> Open trade, wiki and poe.ninja links in the app's browser (other sites always open in your own browser)</label>
@@ -3965,6 +4065,7 @@ function renderSettings(){
     const bc=$("stBrClear");if(bc)bc.onclick=async()=>{const r=await DESK.browserClear();toast(r&&r.ok?"Browser data cleared. You're signed out of pathofexile.com in the app.":"Couldn't clear browser data.")}}
   if(DESK){
 
+    const pin=$("stPin");if(pin)pin.onchange=async()=>{LIVE.cfg=await DESK.setConfig({leaguePinned:pin.checked});toast(pin.checked?"League kept: the app won't switch when a new league launches.":"The app will follow new leagues automatically.")};
     g.querySelectorAll("[data-cfg]").forEach(inp=>inp.onchange=async()=>{const patch={};patch[inp.dataset.cfg]=inp.value.trim()||null;LIVE.cfg=await DESK.setConfig(patch);if(inp.dataset.cfg==="league"&&LIVE.cfg.league){S.league=LIVE.cfg.league;save();renderShop()}publishOverlay();renderDesktop()});
   }
   const hkEl=$("setHotkeys");

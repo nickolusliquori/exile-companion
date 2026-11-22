@@ -1,0 +1,319 @@
+{
+  "v": "2026-11-22",
+  "patch": "3.30",
+  "name": "Covens of Umbra",
+  "notices": [],
+  "strats": [
+    {
+      "id": "legion",
+      "name": "Legion",
+      "sum": "Big burst-damage check: break frozen generals and sergeants fast for splinters, Incubators and Timeless Emblems. GGG said Legion and Abyss currently lead raw currency per hour.",
+      "tips": [
+        "Spec the rebuilt Legion cluster before buying more Threads.",
+        "Corrupt maps for extra mods (3.30 adds 2 mods, up to 9) only if your build clears reflect-free.",
+        "Need fast single-target burst; slow ramp-up builds lose most of the value."
+      ],
+      "threads": {
+        "Legion": 4,
+        "Breach": 1,
+        "Abyss": 1
+      },
+      "need": {
+        "clear": 2,
+        "boss": 3,
+        "tank": 2
+      },
+      "pay": 3,
+      "budget": 1,
+      "layer": false
+    },
+    {
+      "id": "abyss",
+      "name": "Abyss",
+      "sum": "Follow the cracks and pop Abyssal Depths. Rewards raw currency and Abyss jewels; one of the two top raw-currency mechanics per GGG.",
+      "tips": [
+        "Clear speed matters more than bossing.",
+        "Note Alluring Abyss left the Atlas in 3.30, so value comes from the pits and Depths themselves."
+      ],
+      "threads": {
+        "Abyss": 4,
+        "Legion": 1,
+        "Breach": 1
+      },
+      "need": {
+        "clear": 3,
+        "boss": 2,
+        "tank": 2
+      },
+      "pay": 3,
+      "budget": 1,
+      "layer": false
+    },
+    {
+      "id": "expedition",
+      "name": "Expedition",
+      "sum": "Plan explosive chains for logbooks and artifacts. Weaker raw currency than Legion/Abyss, but feeds Gwennen's new coin-flip crafting (Astragali + Broken Circle Artifacts).",
+      "tips": [
+        "Good for slower builds: you set the pace.",
+        "Stockpile Broken Circle Artifacts for Gwennen's paired crafting options."
+      ],
+      "threads": {
+        "Expedition": 6
+      },
+      "need": {
+        "clear": 1,
+        "boss": 2,
+        "tank": 2
+      },
+      "pay": 2,
+      "budget": 1,
+      "layer": false
+    },
+    {
+      "id": "ritual",
+      "name": "Ritual",
+      "sum": "Fight in altars, save tribute for deferred rewards. The King in the Mists always drops an ilvl 85–86 Ritual base, great for crafting.",
+      "tips": [
+        "Blood-Filled Vessels now need Ritual Threads.",
+        "Tanky builds shine: monsters are revived on top of you."
+      ],
+      "threads": {
+        "Ritual": 6
+      },
+      "need": {
+        "clear": 1,
+        "boss": 2,
+        "tank": 3
+      },
+      "pay": 2,
+      "budget": 1,
+      "layer": false
+    },
+    {
+      "id": "breach",
+      "name": "Breach",
+      "sum": "Dense packs and splinters. Easy and fun with fast AoE, but behind Legion/Abyss in GGG's raw-currency comparison.",
+      "tips": [
+        "Pure clear: walk the circle, don't stop.",
+        "Pair with an Abyss Thread for extra mob density."
+      ],
+      "threads": {
+        "Breach": 6
+      },
+      "need": {
+        "clear": 3,
+        "boss": 1,
+        "tank": 2
+      },
+      "pay": 2,
+      "budget": 1,
+      "layer": false
+    },
+    {
+      "id": "harvest",
+      "name": "Harvest (in-map flora)",
+      "sum": "No more grove: Sacred Flora spawns directly in maps. Activate it for Sacred Fauna and Lifeforce; high tiers can roll a Sacred Specimen boss.",
+      "tips": [
+        "Lifeforce funds the cheaper 3.30 resist swaps (300 of two types).",
+        "Great side-income for any build; layer it under a Thread strategy."
+      ],
+      "threads": {},
+      "need": {
+        "clear": 1,
+        "boss": 1,
+        "tank": 1
+      },
+      "pay": 1,
+      "budget": 1,
+      "layer": true
+    },
+    {
+      "id": "essence",
+      "name": "Essence",
+      "sum": "Secondary Essence cluster. Low requirement, and feeds essence-spam crafting. Essences sell steadily.",
+      "tips": [
+        "Weeping/Wailing essences no longer spawn in yellow/red maps.",
+        "New: Essence of Trickery."
+      ],
+      "threads": {},
+      "need": {
+        "clear": 1,
+        "boss": 1,
+        "tank": 1
+      },
+      "pay": 1,
+      "budget": 1,
+      "layer": true
+    },
+    {
+      "id": "strongbox",
+      "name": "Strongbox",
+      "sum": "Strongboxes now drop Threads, so this cluster sustains your Thread supply for other strategies.",
+      "tips": [
+        "Use it to self-fund Threads early.",
+        "Arcanist/Cartographer-style boxes still need a build that survives waves."
+      ],
+      "threads": {},
+      "need": {
+        "clear": 1,
+        "boss": 1,
+        "tank": 2
+      },
+      "pay": 1,
+      "budget": 1,
+      "layer": true
+    },
+    {
+      "id": "covens",
+      "name": "Covens & Fates (league)",
+      "sum": "Interrupt a coven's ritual, then pick a Fate for the area boss. Empowered bosses drop Viscera for your Wickerman, granting a piece of the boss's power.",
+      "tips": [
+        "Only stack Fates you can kill fast; each adds difficulty.",
+        "Strong bossers can farm this alongside any Thread strategy."
+      ],
+      "threads": {},
+      "need": {
+        "clear": 1,
+        "boss": 3,
+        "tank": 3
+      },
+      "pay": 2,
+      "budget": 1,
+      "layer": true
+    },
+    {
+      "id": "ultimatum",
+      "name": "Ultimatum",
+      "sum": "Rewards keep improving after round 10 in 3.30 instead of capping. High risk, high reward for very tanky builds.",
+      "tips": [
+        "Avoid if you die to ruin or stone circles.",
+        "Push past 10 only when the offered reward justifies it."
+      ],
+      "threads": {
+        "Ultimatum": 6
+      },
+      "need": {
+        "clear": 1,
+        "boss": 2,
+        "tank": 3
+      },
+      "pay": 3,
+      "budget": 2,
+      "layer": false
+    },
+    {
+      "id": "blight",
+      "name": "Blight",
+      "sum": "Tower defence: towers do the work, so it suits weak or slow characters. Oils sell and anoint.",
+      "tips": [
+        "Any build can run it.",
+        "Great early when gear is thin."
+      ],
+      "threads": {
+        "Blight": 6
+      },
+      "need": {
+        "clear": 1,
+        "boss": 1,
+        "tank": 1
+      },
+      "pay": 1,
+      "budget": 1,
+      "layer": false
+    },
+    {
+      "id": "unwavering",
+      "name": "Unwavering Vision (late game)",
+      "sum": "Keystone that limits you to one Thread type but grants two bonus Threads past the 8 cap. The endgame scaler for your best mechanic.",
+      "tips": [
+        "Take it once your main strategy is fully specced.",
+        "Higher Thread counts raise the chance of transformative effects."
+      ],
+      "threads": {
+        "one type": 10
+      },
+      "need": {
+        "clear": 3,
+        "boss": 3,
+        "tank": 3
+      },
+      "pay": 3,
+      "budget": 3,
+      "layer": false
+    }
+  ],
+  "progressTips": {
+    "p1": "Your Atlas opens after the Epilogue.",
+    "p2": "Use bench crafts and Harvest resist swaps to fix gaps.",
+    "p3": "Run the 10 Shaped Regions for free Threads; finishing a region objective adds 1 free Thread to its other maps.",
+    "p4": "Rule of thumb: 3.5k+ life/ES pool and ~300k DPS.",
+    "p5": "Rule of thumb: 4.5k+ pool, 1M+ DPS, chaos res above 0.",
+    "p6": "3.30 doubles the point reward for this quest.",
+    "p7": "Eater altars can now drop Breach, Legion, Blight, Ritual or Incursion Threads.",
+    "p8": "Each Invitation is now worth 2 Skill and 2 Respec points.",
+    "p9": "Memory game: practise it in a safe league or watch a guide first.",
+    "p10": "Worth 4 Skill and 2 Respec points in 3.30.",
+    "p11": "Atziri moved into the Temple of Atzoatl and was redesigned."
+  },
+  "mapmods": {
+    "physref": {
+      "label": "Monsters reflect Physical Damage",
+      "frag": "f phys",
+      "why": "Your hits are physical and you deal them yourself."
+    },
+    "eleref": {
+      "label": "Monsters reflect Elemental Damage",
+      "frag": "f elem",
+      "why": "Your hits are elemental and you deal them yourself."
+    },
+    "noregen": {
+      "label": "Players cannot Regenerate",
+      "frag": "not reg"
+    },
+    "noleech": {
+      "label": "Cannot Leech from Monsters",
+      "frag": "t leech",
+      "why": "Your gear or gems use leech for recovery."
+    },
+    "maxres": {
+      "label": "Players have − to all maximum Resistances",
+      "frag": "um res",
+      "why": "Hurts every build; brutal in red maps."
+    },
+    "lessrec": {
+      "label": "Players have less Recovery Rate",
+      "frag": "less recovery",
+      "why": "Cuts your life/ES recovery when you are already squishy."
+    },
+    "hexproof": {
+      "label": "Monsters are Hexproof",
+      "frag": "hexproof",
+      "why": "Your build relies on curses or marks."
+    },
+    "tc": {
+      "label": "Players are Cursed with Temporal Chains",
+      "frag": "temporal",
+      "why": "Slows everything, including flasks and recovery."
+    },
+    "steal": {
+      "label": "Monsters steal charges on Hit",
+      "frag": "steal",
+      "why": "You use Power/Frenzy/Endurance charges."
+    },
+    "crit": {
+      "label": "Monsters have increased Critical Strike Chance",
+      "frag": "crit",
+      "why": "Spiky damage against a small life pool."
+    },
+    "flask": {
+      "label": "Players gain reduced Flask Charges",
+      "frag": "flask charges",
+      "why": "Your gear scales with flasks."
+    },
+    "buffs": {
+      "label": "Buffs on Players expire faster",
+      "frag": "expire",
+      "why": "Shortens charges and buffs you rely on."
+    }
+  }
+}
