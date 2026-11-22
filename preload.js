@@ -77,6 +77,18 @@ contextBridge.exposeInMainWorld("exileDesktop", {
   pinOpacity: (v) => ipcRenderer.invoke("pin:opacity", v),
   onPinState: on("pin:state"),
   onPinBlocked: on("pin:blocked"),
+  // media: mini player over the game and "now playing" from Windows
+  mediaToggle: (a) => ipcRenderer.invoke("media:toggle", a || {}),
+  mediaGo: (url) => ipcRenderer.invoke("media:go", url),
+  mediaPlayer: (cmd, arg) => ipcRenderer.invoke("media:player", { cmd, arg }),
+  mediaPlayerState: () => ipcRenderer.invoke("media:playerState"),
+  mediaNow: () => ipcRenderer.invoke("media:now"),
+  mediaCmd: (c) => ipcRenderer.invoke("media:cmd", c),
+  onMediaPlayer: on("media:player"),
+  onMediaNow: on("media:now"),
+  onMediaView: on("media:view"),
+  onMediaBlocked: on("media:blocked"),
+  onMediaClick: on("media:click"),
   // recent price checks (in memory only)
   clipHistory: () => ipcRenderer.invoke("clip:history"),
   clipRecheck: (i) => ipcRenderer.send("clip:recheck", i),

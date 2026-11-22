@@ -42,6 +42,10 @@ button{font:inherit;color:var(--gold);background:var(--panel);border:1px solid v
 body.interactive button{pointer-events:auto;opacity:1}
 .threads{display:flex;gap:4px;flex-wrap:wrap}
 .thread{font-size:11px;padding:1px 6px;border-radius:3px;background:#2a2219;border:1px solid var(--gold-dim);color:var(--gold)}
+.np{display:flex;justify-content:space-between;align-items:center;gap:6px;padding:4px 10px;border-top:1px solid var(--line);font-size:11px;color:var(--muted)}
+.np span:first-child{overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.np-c{display:none;gap:2px}body.interactive .np-c{display:flex}
+.np-c button{background:none;border:1px solid var(--line);color:var(--text);border-radius:4px;padding:0 5px;cursor:pointer;font-size:11px}
 footer{padding:5px 10px;border-top:1px solid var(--line);color:var(--muted);font-size:11px;display:flex;justify-content:space-between;gap:6px}
 .toast{position:fixed;left:10px;right:10px;bottom:34px;background:var(--gold);color:#1a140c;border-radius:4px;padding:5px 8px;font-weight:700;font-size:12px;opacity:0;transition:opacity .2s}
 .toast.on{opacity:1}
@@ -78,6 +82,7 @@ button{background:linear-gradient(#3c2d1a,#211810);border-color:#6e5430;color:#e
     <nav class="tabs" id="tabs"></nav>
   </header>
   <main id="main"><p class="empty">Start Path of Exile. This panel follows your Client.txt and updates as you change zones.</p></main>
+  <div class="np" id="np" hidden><span id="npT"></span><span class="np-c"><button data-np="prev" aria-label="Previous">⏮</button><button data-np="toggle" aria-label="Play or pause" id="npP">⏯</button><button data-np="next" aria-label="Next">⏭</button></span></div>
   <footer><span id="hint">Ctrl+Shift+I: click mode · Ctrl+Shift+O: hide</span><button id="done" hidden>Done</button></footer>
 </div>
 <div class="toast" id="toast" role="status"></div>
@@ -172,6 +177,9 @@ if(D){
   D.onOverlayToast(toast);
   if(D.onOverlayPage)D.onOverlayPage(()=>{const i=PAGES.findIndex(p=>p[0]===page);page=PAGES[(i+1)%PAGES.length][0];render();toast(PAGES.find(p=>p[0]===page)[1]+" page")});
   $("done").onclick=()=>D.overlayAction({type:"interactive",value:false});
+  // now playing (Windows media controls); buttons work in click mode
+  if(D.onMediaNow){D.onMediaNow(n=>{const show=n&&n.title&&!n.error&&!n.off;$("np").hidden=!show;if(show){$("npT").textContent=`${n.status==="Playing"?"♪":"❚❚"} ${n.title}${n.artist?" · "+n.artist:""}`;$("npP").textContent=n.status==="Playing"?"⏸":"▶"}});
+    document.querySelectorAll("[data-np]").forEach(b=>b.onclick=()=>D.mediaCmd(b.dataset.np))}
 }
 </script>
 </body>

@@ -2,6 +2,15 @@
 
 What changed in each release, newest first. Installed copies update themselves; see the [Releases page](https://github.com/nickolusliquori/exile-companion/releases) for the installers. Planned releases are on the [roadmap](README.md#roadmap).
 
+## [1.17.0] - 2026-11-22
+
+### Added
+- **Media page** (Settings → Media, desktop app):
+  - **Now playing:** shows what's playing anywhere in Windows (Spotify, Apple Music, Netflix or YouTube in your browser, Stremio…) with previous, play/pause and next, using Windows' own media controls. The overlay shows it too; its buttons work in click mode. It can be turned off.
+  - **Mini player over the game:** an always-on-top player for YouTube, YouTube Music, Twitch, Kick and SoundCloud, opened with **Ctrl+Shift+M** or from the Media page. Paste a link, play/pause, skip, mute, set the volume and how see-through it is. **Click-through** lets clicks pass to the game. It opens without taking focus from the game and remembers its size and position. It signs in separately from your Path of Exile sites.
+  - New optional hotkeys in Settings: play/pause music, and mini player click-through.
+- Netflix, Hulu, Paramount+, Disney+, Apple Music and similar can't play in the mini player (they need copy protection the app doesn't have). Play them in your browser or their app and control them under Now playing.
+
 ## [1.16.0] - 2026-11-22
 
 ### Added

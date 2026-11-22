@@ -94,6 +94,7 @@ Your character at a glance: progress toward the goal build, what to do next (cam
 | **Build tools** | Upgrade finder: scores your gear by the stats your build values and finds trade items that beat each slot, ranked by score gained per divine. Timeless jewel lookup and seed finder (Lethal Pride, Brutal Restraint, Militant Faith, Elegant Hubris, Heroic Tragedy) using Path of Building's tables, with a trade search for the seed. Also: cluster jewel notables and their odds for each enchant, gem levelling profit from poe.ninja, and a meta check against poe.ninja's builds page. |
 | **Quality of life** | Recent price checks: the last 20 items you copied, each re-checkable with one click (kept in memory only). Session goals (divines, chaos, maps or hours) with progress on Home and the overlay and a notification when reached. The in-app browser pinned over the game in an always-on-top window, with a hotkey and adjustable see-through. |
 | **Look and feel** | Three themes (Dark minimal, Modern, Path of Exile), light animations that respect Windows "reduce motion", a loading bar, and minimal synthesized sounds (button clicks, a cue for empty required fields) with volume control. |
+| **Media** | A YouTube / YouTube Music / Twitch mini player that stays on top of the game (with click-through), and a Now playing panel for whatever plays in Windows (Spotify, Apple Music, Netflix in a browser…) with play/pause and skip, also on the overlay. |
 | **Browser** (desktop) | The trade site, poe.ninja, the wiki, poedb, poelab, Craft of Exile, FilterBlade, poe.re and pobb.in inside the app, signed in, with quick links and a wiki search. Links from the price window and elsewhere open here. Pages are sandboxed away from the app and your saved secrets; other sites open in your own browser. |
 | **Account** (desktop) | Live character sync from your GGG profile, stash net worth over time, stash finds (upgrades and items worth selling), currency trends and a sales tracker. |
 
@@ -130,6 +131,7 @@ All of these can be changed in **Settings → Hotkeys**.
 | **Ctrl+Shift+F** | Copy the overlay's current search, then paste it in game with Ctrl+V |
 | **Ctrl+Alt+W** | Open the wiki page of the item you last copied |
 | **Ctrl+Shift+H** | Show the next cheat sheet |
+| **Ctrl+Shift+M** | Show or hide the media mini player |
 | **Ctrl+Shift+B** | Show or hide the browser pinned over the game (Esc hides it too) |
 | **Ctrl+K** or **/** (in the app) | Search everything |
 | **Esc** | Close the price window or a dialog |
@@ -140,7 +142,6 @@ The loot filter editor shipped in 1.8, the in-app browser in 1.9, the trading to
 
 | Version | Feature |
 |---|---|
-| **1.17** | **Media:** a YouTube / YouTube Music / Twitch mini player over the game, plus a Now playing bar with controls for whatever plays in Windows (Spotify, Apple Music, Netflix in a browser…).|
 | **1.18** | **Data and history:** league data that updates without an app release, a net worth graph and saved trade searches.|
 
 Not planned: anything that sends input to the game (auto-setting stash notes, chat macros) or uploads to your GGG account, because GGG isn't approving new third-party sign-ins.

@@ -137,6 +137,7 @@ try {
   assert(blockNavigation("https://example.com/", undefined), "unknown frame type is treated as the page");
   assert(!blockNavigation("https://www.pathofexile.com/trade", true), "allowlisted page loads");
   const mainSrc = fs.readFileSync(path.join(root, "main.js"), "utf8");
+  assert(/mediaView = makeWebView\(sendMedia, PROFILES\.media\)/.test(mainSrc), "the media player uses the guarded factory with its own site list");
   assert(/pinView = makeWebView\(sendPin\)/.test(mainSrc) && /webView = makeWebView\(sendMain\)/.test(mainSrc), "both web views use the same guarded factory");
   assert(!/clipHistory[^\n]*(saveCfg|writeFile|store)/.test(mainSrc), "clipboard history stays in memory");
   assert(!/setUserAgent\(/.test(fs.readFileSync(path.join(root, "main.js"), "utf8")), "don't rewrite the browser's user agent: Cloudflare's human check loops when it's changed");
@@ -342,6 +343,42 @@ try {
   assert.strictEqual(U.toChaos({ amount: 3, currency: "exalted" }, P), 30);
   ok("trade requests are paced by GGG's rules; upgrade finder scores, searches and ranks correctly");
 } catch (e) { fail("upgrade finder: " + e.message); }
+
+// media: mini player sites and the Windows "now playing" bridge (with a stand-in for PowerShell)
+try {
+  const { mediaHostAllowed, webHostAllowed } = require(path.join(root, "lib", "webhosts.js"));
+  for (const u of ["https://www.youtube.com/watch?v=x", "https://music.youtube.com/", "https://www.twitch.tv/x", "https://accounts.google.com/signin"]) assert(mediaHostAllowed(u), "player allows " + u);
+  for (const u of ["https://www.netflix.com/", "https://www.hulu.com/", "https://music.apple.com/", "https://web.stremio.com/", "https://www.pathofexile.com/trade", "http://www.youtube.com/"]) assert(!mediaHostAllowed(u), "player blocks " + u);
+  assert(!webHostAllowed("https://www.youtube.com/"), "the Path of Exile browser doesn't open media sites");
+  const { createMedia, appName } = require(path.join(root, "lib", "media.js"));
+  assert.strictEqual(createMedia({ platform: "linux" }).now instanceof Function, true);
+  const { EventEmitter } = require("events");
+  let fake, written = [], args = null;
+  const spawnFn = (cmd, a) => { args = a; fake = new EventEmitter(); fake.stdout = new EventEmitter(); fake.stdout.setEncoding = () => {}; fake.stderr = new EventEmitter();
+    fake.stdin = { write: (x) => { written.push(x.trim()); const c = x.trim();
+      setTimeout(() => fake.stdout.emit("data", c === "quit" ? "" : JSON.stringify({ app: "Spotify.exe", title: "Song", artist: "Band", status: c === "toggle" ? "Paused" : "Playing", canNext: true, canPrev: true }) + "\r\n"), 5); } };
+    fake.kill = () => {}; setTimeout(() => fake.stdout.emit("data", '{"ready":true}\r\n'), 1); return fake; };
+  const M = createMedia({ platform: "win32", spawnFn });
+  pending.push((async () => {
+    const a = await M.now(); assert.strictEqual(a.title, "Song"); assert.strictEqual(a.appName, "Spotify"); assert.strictEqual(a.status, "Playing");
+    const b = await M.command("toggle"); assert.strictEqual(b.status, "Paused");
+    const c = await M.command("rm -rf"); assert(c.error, "unknown commands are refused");
+    assert(args.includes("-EncodedCommand") && !written.some((w) => w.length > 20), "script goes in encoded; stdin only carries short commands");
+    assert(!written.includes("rm -rf"));
+    M.stop();
+    ok("media: player limited to non-DRM sites; Windows now-playing bridge answers, controls and refuses unknown commands");
+  })().catch((e) => fail("media bridge: " + e.message)));
+  assert.strictEqual(createMedia({ platform: "darwin" }) && appName("AppleInc.AppleMusicWin_x!App"), "Apple Music");
+} catch (e) { fail("media: " + e.message); }
+
+// index.html: nothing at the top level uses DESK before it is declared (that stops the whole page)
+try {
+  const html = fs.readFileSync(path.join(appDir, "index.html"), "utf8");
+  const at = html.indexOf("const DESK=");
+  const before = html.slice(0, at).split("\n").filter((l) => /^(if\s*\(\s*DESK|DESK\.|addEventListener\([^)]*DESK)/.test(l));
+  assert(at > 0 && !before.length, "top-level DESK use before its declaration: " + before.map((l) => l.slice(0, 60)).join(" | "));
+  ok("index.html declares DESK before any top-level use");
+} catch (e) { fail("index.html load order: " + e.message); }
 
 Promise.all(pending).then(() => {
   if (failures) { console.error(`\n${failures} check(s) failed`); process.exit(1); }

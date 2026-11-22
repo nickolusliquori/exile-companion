@@ -2,7 +2,7 @@
 // Windows: companion (main), overlay (click-through, always on top), price check popup.
 "use strict";
 const { app, BrowserWindow, WebContentsView, session, globalShortcut, ipcMain, clipboard, screen, shell, dialog, Menu, Notification, safeStorage } = require("electron");
-const { webHostAllowed, blockNavigation } = require("./lib/webhosts");
+const { webHostAllowed, blockNavigation, mediaHostAllowed } = require("./lib/webhosts");
 const fs = require("fs");
 const path = require("path");
 const { parseEvents, detectLogPaths, readTail, Tail } = require("./lib/logtail");
@@ -33,9 +33,10 @@ const trusted = (e) => {
   ipcMain.on = (ch, fn) => _on(ch, (e, ...a) => { if (!trusted(e)) return; return fn(e, ...a); });
 }
 const WEB_PARTITION = "persist:web";
+const MEDIA_PARTITION = "persist:media";
 app.on("web-contents-created", (_e, contents) => {
   // the in-app browser's pages live in their own session and get their own rules (see "in-app browser" below)
-  if (contents.session === session.fromPartition(WEB_PARTITION)) { contents.on("will-attach-webview", (e) => e.preventDefault()); return; }
+  if (contents.session === session.fromPartition(WEB_PARTITION) || contents.session === session.fromPartition(MEDIA_PARTITION)) { contents.on("will-attach-webview", (e) => e.preventDefault()); return; }
   // no new windows, no navigation away from the app, no embedded webviews
   contents.setWindowOpenHandler(({ url }) => { if (/^https:\/\//i.test(url)) openLink(url); return { action: "deny" }; });
   contents.on("will-navigate", (e, url) => { if (!url.toLowerCase().startsWith(APP_URL)) { e.preventDefault(); if (/^https:\/\//i.test(url)) openLink(url); } });
@@ -58,6 +59,13 @@ const DEFAULTS = {
   pageHotkey: "Ctrl+Shift+P",     // next overlay page
   cheatHotkey: "Ctrl+Shift+H",    // show / cycle / hide cheat sheets
   pinHotkey: "Ctrl+Shift+B",      // show / hide the browser pinned over the game
+  mediaHotkey: "Ctrl+Shift+M",    // show / hide the media mini player
+  mediaPlayHotkey: "",            // play / pause (mini player, or whatever plays in Windows)
+  mediaClickHotkey: "",           // mini player click-through on / off
+  mediaBounds: null,
+  mediaOpacity: 1,
+  mediaUrl: "https://www.youtube.com/",
+  nowPlaying: true,               // show what plays in Windows (Windows media controls)
   pinBounds: null,
   pinOpacity: 1,
   streamEnabled: false,           // local page for OBS (Browser Source)
@@ -220,6 +228,9 @@ function registerHotkeys() {
   bind(cfg.pageHotkey, () => { if (!overlayWin) return; if (!overlayWin.isVisible()) toggleOverlay(true); overlayWin.webContents.send("overlay:page", "next"); }, "overlay page");
   bind(cfg.cheatHotkey, () => cycleCheat(), "cheat sheets");
   bind(cfg.pinHotkey, () => togglePin(), "pinned browser");
+  bind(cfg.mediaHotkey, () => toggleMedia(), "media player");
+  bind(cfg.mediaPlayHotkey, () => mediaPlayPause(), "play / pause");
+  bind(cfg.mediaClickHotkey, () => setMediaClickThrough(!mediaClickThrough), "media click-through");
   bind(cfg.priceHotkey, async () => {
     const txt = await clipRead();
     if (isItemText(txt)) showPrice(txt); else if (lastPriceText) showPrice(lastPriceText);
@@ -479,7 +490,9 @@ ipcMain.handle("cfg:get", () => ({ ...cfg, version: VERSION }));
 ipcMain.handle("cfg:set", (e, patch) => {
   const before = { ...cfg };
   cfg = { ...cfg, ...patch }; saveCfg();
-  if (["priceHotkey", "overlayHotkey", "interactHotkey", "copyHotkey", "wikiHotkey", "pageHotkey", "cheatHotkey", "pinHotkey"].some((k) => before[k] !== cfg[k])) registerHotkeys();
+  if (["priceHotkey", "overlayHotkey", "interactHotkey", "copyHotkey", "wikiHotkey", "pageHotkey", "cheatHotkey", "pinHotkey", "mediaHotkey", "mediaPlayHotkey", "mediaClickHotkey"].some((k) => before[k] !== cfg[k])) registerHotkeys();
+  if (mediaWin && before.mediaOpacity !== cfg.mediaOpacity) mediaWin.setOpacity(Math.min(1, Math.max(0.3, +cfg.mediaOpacity || 1)));
+  if (before.nowPlaying !== cfg.nowPlaying) { if (cfg.nowPlaying === false) { mediaBridge.stop(); broadcastNow({ off: true }); } else pollNow(); }
   if (pinWin && before.pinOpacity !== cfg.pinOpacity) pinWin.setOpacity(Math.min(1, Math.max(0.4, +cfg.pinOpacity || 1)));
   if (before.streamEnabled !== cfg.streamEnabled || before.streamPort !== cfg.streamPort) startStream();
   if (before.logPath !== cfg.logPath) startLog();
@@ -543,11 +556,23 @@ ipcMain.on("browser:external", (e, url) => { if (typeof url === "string" && /^ht
 let webView = null;
 let webShown = false;
 function webSession() { return session.fromPartition(WEB_PARTITION); }
-let sessionReady = false;
-function prepareWebSession() {
-  if (sessionReady) return;
-  sessionReady = true;
-  const ses = webSession();
+// each kind of web view: its own session (cookies, sign-ins) and its own list of sites
+const PROFILES = {
+  web: { partition: WEB_PARTITION, allowed: webHostAllowed, perm: (perm, url) => perm === "clipboard-sanitized-write" && webHostAllowed(url) },
+  media: { partition: MEDIA_PARTITION, allowed: mediaHostAllowed, perm: () => false },
+};
+const sessionsReady = new Set();
+function prepareWebSession(profile) {
+  profile = profile || PROFILES.web;
+  if (sessionsReady.has(profile.partition)) return;
+  sessionsReady.add(profile.partition);
+  const ses = session.fromPartition(profile.partition);
+  if (profile !== PROFILES.web) {
+    ses.setPermissionRequestHandler((wc, perm, cb, details) => cb(profile.perm(perm, details && details.requestingUrl)));
+    ses.setPermissionCheckHandler((wc, perm, origin) => profile.perm(perm, origin));
+    ses.on("will-download", (e) => e.preventDefault());
+    return;
+  }
   // Keep Electron's own user agent: Cloudflare's human check (Turnstile) loops forever when the user agent
   // is rewritten to look like plain Chrome, because the other browser signals then don't match.
   ses.setPermissionRequestHandler((wc, perm, cb, details) => cb(perm === "clipboard-sanitized-write" && webHostAllowed(details && details.requestingUrl)));
@@ -555,21 +580,23 @@ function prepareWebSession() {
   ses.on("will-download", (e, item) => { e.preventDefault(); sendMain("browser:blocked", { url: item.getURL(), reason: "download" }); });
 }
 // a sandboxed web view on the shared "persist:web" session; send(channel, data) reports its state
-function makeWebView(send) {
-  prepareWebSession();
-  const view = new WebContentsView({ webPreferences: { partition: WEB_PARTITION, contextIsolation: true, sandbox: true, nodeIntegration: false, webSecurity: true, spellcheck: false } });
+function makeWebView(send, profile) {
+  profile = profile || PROFILES.web;
+  prepareWebSession(profile);
+  const allowed = profile.allowed;
+  const view = new WebContentsView({ webPreferences: { partition: profile.partition, contextIsolation: true, sandbox: true, nodeIntegration: false, webSecurity: true, spellcheck: false } });
   view.setBackgroundColor("#0e0c0a");
   const wc = view.webContents;
   // keep the page itself on allowlisted sites; frames inside it (e.g. Cloudflare's human check) are left alone
   const guard = (e, url, isMainFrame) => {
     const main = e && e.isMainFrame !== undefined ? e.isMainFrame : isMainFrame;
     const target = (e && e.url) || url;
-    if (blockNavigation(target, main)) { e.preventDefault(); if (/^https:\/\//i.test(target)) send("browser:blocked", { url: target }); }
+    if (main !== false && !allowed(target)) { e.preventDefault(); if (/^https:\/\//i.test(target)) send("browser:blocked", { url: target }); }
   };
   wc.on("will-navigate", (e, url) => guard(e, url, true));                                         // main frame only
   wc.on("will-redirect", (e, url, isInPlace, isMainFrame) => guard(e, url, isMainFrame));            // fires for frames too
   wc.on("will-frame-navigate", (e) => guard(e, e.url, e.isMainFrame));
-  wc.setWindowOpenHandler(({ url }) => { if (webHostAllowed(url)) wc.loadURL(url); else if (/^https:\/\//i.test(url)) send("browser:blocked", { url }); return { action: "deny" }; });
+  wc.setWindowOpenHandler(({ url }) => { if (allowed(url)) wc.loadURL(url); else if (/^https:\/\//i.test(url)) send("browser:blocked", { url }); return { action: "deny" }; });
   const push = (extra) => {
     if (wc.isDestroyed()) return;
     const h = wc.navigationHistory;
@@ -682,6 +709,108 @@ ipcMain.on("pin:nav", (e, what) => {
 });
 ipcMain.handle("pin:go", (e, url) => { if (!pinView || !webHostAllowed(String(url || ""))) return false; pinView.webContents.loadURL(String(url)).catch(() => {}); return true; });
 ipcMain.handle("pin:opacity", (e, v) => { cfg.pinOpacity = Math.min(1, Math.max(0.4, +v || 1)); saveCfg(); if (pinWin) pinWin.setOpacity(cfg.pinOpacity); return cfg.pinOpacity; });
+/* ---------------- media: mini player over the game + "now playing" from Windows ----------------
+   The mini player is a sandboxed view on its own session ("persist:media") limited to video and music sites
+   without copy protection (YouTube, YouTube Music, Twitch…). Click-through lets clicks pass to the game. */
+const { createMedia } = require("./lib/media");
+const mediaBridge = createMedia();
+let mediaWin = null, mediaView = null, mediaClickThrough = false, lastNow = null, nowTimer = null;
+const MEDIA_BAR = 34;
+const sendMedia = (ch, data) => { if (mediaWin && !mediaWin.isDestroyed()) mediaWin.webContents.send(ch === "browser:state" ? "media:view" : ch === "browser:blocked" ? "media:blocked" : ch, data); if (ch === "browser:state") pushPlayer(); };
+function layoutMedia() { if (!mediaWin || !mediaView) return; const [w, h] = mediaWin.getContentSize(); mediaView.setBounds({ x: 0, y: MEDIA_BAR, width: w, height: Math.max(0, h - MEDIA_BAR) }); }
+function createMediaWin() {
+  const b = cfg.mediaBounds || (() => { const wa = screen.getPrimaryDisplay().workArea; return { width: 480, height: 304, x: wa.x + wa.width - 500, y: wa.y + wa.height - 330 }; })();
+  mediaWin = new BrowserWindow({ ...b, minWidth: 260, minHeight: 170, frame: false, alwaysOnTop: true, skipTaskbar: true, show: false, backgroundColor: "#000000", title: "Exile Companion media", icon: APP_ICON, webPreferences: prefs() });
+  mediaWin.setAlwaysOnTop(true, "screen-saver");
+  mediaWin.setOpacity(Math.min(1, Math.max(0.3, +cfg.mediaOpacity || 1)));
+  mediaWin.loadFile(path.join(__dirname, "app", "media.html"));
+  externalLinks(mediaWin);
+  mediaView = makeWebView(sendMedia, PROFILES.media);
+  mediaView.setBackgroundColor("#000000");
+  mediaWin.contentView.addChildView(mediaView);
+  layoutMedia();
+  mediaWin.on("resize", layoutMedia);
+  const saveBounds = () => { if (mediaWin && !mediaWin.isDestroyed()) { cfg.mediaBounds = mediaWin.getBounds(); saveCfg(); } };
+  mediaWin.on("moved", saveBounds); mediaWin.on("resized", saveBounds);
+  mediaWin.on("show", pushPlayer); mediaWin.on("hide", pushPlayer);
+  mediaWin.on("closed", () => { mediaWin = null; mediaView = null; mediaClickThrough = false; pushPlayer(); });
+  mediaView.webContents.on("media-started-playing", pushPlayer);
+  mediaView.webContents.on("media-paused", pushPlayer);
+  mediaView.webContents.on("did-navigate", (e, url) => { if (mediaHostAllowed(url)) { cfg.mediaUrl = url; saveCfg(); } });
+}
+function toggleMedia(show, url) {
+  if (!mediaWin) createMediaWin();
+  const want = show === undefined ? !mediaWin.isVisible() : !!show;
+  if (!want) { mediaWin.hide(); return false; }
+  const cur = mediaView.webContents.getURL();
+  const u = url && mediaHostAllowed(url) ? url : (!cur || cur === "about:blank") ? (mediaHostAllowed(cfg.mediaUrl) ? cfg.mediaUrl : "https://www.youtube.com/") : null;
+  if (u) mediaView.webContents.loadURL(u).catch(() => {});
+  // show without stealing focus from the game; click it to interact
+  mediaWin.showInactive();
+  return true;
+}
+function setMediaClickThrough(on) {
+  mediaClickThrough = !!on && !!mediaWin;
+  if (mediaWin) { mediaWin.setIgnoreMouseEvents(mediaClickThrough, { forward: true }); mediaWin.webContents.send("media:click", mediaClickThrough); }
+  pushPlayer();
+}
+// controls run inside the player page itself (its own video element and buttons): nothing reaches the game
+const PLAYER_JS = {
+  state: `(()=>{const v=document.querySelector('video');return v?{has:true,paused:v.paused,volume:v.volume,muted:v.muted,time:v.currentTime,dur:isFinite(v.duration)?v.duration:0}:{has:false}})()`,
+  toggle: `(()=>{const v=document.querySelector('video');if(!v)return false;if(v.paused)v.play();else v.pause();return true})()`,
+  next: `(()=>{const b=document.querySelector('.ytp-next-button,ytmusic-player-bar .next-button,[aria-label="Next"],[data-a-target="player-skip-forward"]');if(b){b.click();return true}return false})()`,
+  prev: `(()=>{const b=document.querySelector('.ytp-prev-button,ytmusic-player-bar .previous-button,[aria-label="Previous"]');if(b){b.click();return true}const v=document.querySelector('video');if(v){v.currentTime=0;return true}return false})()`,
+};
+async function playerState() {
+  if (!mediaWin || !mediaView) return { open: false };
+  const wc = mediaView.webContents;
+  let v = { has: false };
+  try { v = await wc.executeJavaScript(PLAYER_JS.state, true); } catch (e) { /* page busy */ }
+  return { open: true, visible: mediaWin.isVisible(), url: wc.getURL(), title: wc.getTitle(), clickThrough: mediaClickThrough, opacity: mediaWin.getOpacity(), ...v, muted: wc.isAudioMuted() || !!v.muted };
+}
+let pushT = null;
+function pushPlayer() { clearTimeout(pushT); pushT = setTimeout(async () => { const st = await playerState(); sendMain("media:player", st); if (mediaWin && !mediaWin.isDestroyed()) mediaWin.webContents.send("media:player", st); }, 120); }
+async function playerCmd(cmd, arg) {
+  if (!mediaView) return playerState();
+  const wc = mediaView.webContents;
+  try {
+    if (cmd === "toggle" || cmd === "next" || cmd === "prev") await wc.executeJavaScript(PLAYER_JS[cmd], true);
+    else if (cmd === "mute") wc.setAudioMuted(!wc.isAudioMuted());
+    else if (cmd === "volume") { const v = Math.min(1, Math.max(0, +arg || 0)); await wc.executeJavaScript(`(()=>{const v=document.querySelector('video');if(v){v.volume=${v};v.muted=false}})()`, true); }
+    else if (cmd === "back" && wc.navigationHistory.canGoBack()) wc.navigationHistory.goBack();
+    else if (cmd === "reload") wc.reload();
+    else if (cmd === "hide") mediaWin.hide();
+    else if (cmd === "click") setMediaClickThrough(!mediaClickThrough);
+    else if (cmd === "opacity") { cfg.mediaOpacity = Math.min(1, Math.max(0.3, +arg || 1)); saveCfg(); mediaWin.setOpacity(cfg.mediaOpacity); }
+  } catch (e) { /* page not ready */ }
+  pushPlayer();
+  return playerState();
+}
+// play/pause hotkey: the mini player if it's playing or open, otherwise whatever plays in Windows
+async function mediaPlayPause() {
+  if (mediaWin && mediaWin.isVisible()) return playerCmd("toggle");
+  const r = await mediaBridge.command("toggle"); broadcastNow(r); return r;
+}
+function broadcastNow(r) {
+  lastNow = r;
+  sendMain("media:now", r);
+  if (overlayWin && !overlayWin.isDestroyed()) overlayWin.webContents.send("media:now", r);
+}
+async function pollNow() {
+  clearTimeout(nowTimer);
+  if (cfg.nowPlaying === false) return;
+  const active = (mainWin && !mainWin.isDestroyed() && mainWin.isVisible() && !mainWin.isMinimized()) || (overlayWin && !overlayWin.isDestroyed() && overlayWin.isVisible());
+  if (active) { const r = await mediaBridge.now(); broadcastNow(r); if (r && r.error && /Windows only|doesn't offer/.test(r.error)) return; }
+  nowTimer = setTimeout(pollNow, active ? 4000 : 10000);
+}
+ipcMain.handle("media:toggle", (e, a) => toggleMedia(a && a.show, a && a.url));
+ipcMain.handle("media:go", (e, url) => { if (!mediaHostAllowed(String(url || ""))) return false; if (!mediaWin) createMediaWin(); mediaView.webContents.loadURL(String(url)).catch(() => {}); if (!mediaWin.isVisible()) mediaWin.showInactive(); return true; });
+ipcMain.handle("media:player", (e, a) => playerCmd(a && a.cmd, a && a.arg));
+ipcMain.handle("media:playerState", () => playerState());
+ipcMain.handle("media:now", async () => { if (cfg.nowPlaying === false) return { off: true }; const r = await mediaBridge.now(); broadcastNow(r); return r; });
+ipcMain.handle("media:cmd", async (e, c) => { const r = await mediaBridge.command(String(c)); broadcastNow(r); return r; });
+app.on("will-quit", () => mediaBridge.stop());
+
 ipcMain.handle("clip:history", () => clipHistory.map(({ title, rarity, at }) => ({ title, rarity, at })));
 ipcMain.on("clip:recheck", (e, i) => { const h = clipHistory[+i]; if (h) showPrice(h.text); });
 ipcMain.on("clip:clear", () => { clipHistory.length = 0; sendMain("clip:history", []); });
@@ -818,6 +947,7 @@ else {
     createPrice();
     registerHotkeys();
     startClipboardWatch();
+    setTimeout(pollNow, 5000);
     mainWin.webContents.once("did-finish-load", () => { startLog(); detectLeague().then((l) => sendMain("league", l)); startDiscord(); startStream(); setupUpdater(); });
   });
   app.on("will-quit", () => { globalShortcut.unregisterAll(); clearInterval(clipTimer); if (tail) tail.stop(); if (discord) discord.close(); if (streamServer) streamServer.close(); });
