@@ -42,10 +42,17 @@ button{font:inherit;color:var(--gold);background:var(--panel);border:1px solid v
 body.interactive button{pointer-events:auto;opacity:1}
 .threads{display:flex;gap:4px;flex-wrap:wrap}
 .thread{font-size:11px;padding:1px 6px;border-radius:3px;background:#2a2219;border:1px solid var(--gold-dim);color:var(--gold)}
+.np[hidden]{display:none}
 .np{display:flex;justify-content:space-between;align-items:center;gap:6px;padding:4px 10px;border-top:1px solid var(--line);font-size:11px;color:var(--muted)}
 .np span:first-child{overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
 .np-c{display:none;gap:2px}body.interactive .np-c{display:flex}
 .np-c button{background:none;border:1px solid var(--line);color:var(--text);border-radius:4px;padding:0 5px;cursor:pointer;font-size:11px}
+.tool-list{display:flex;flex-wrap:wrap;gap:4px}
+.tool{background:none;border:1px solid var(--line);color:var(--text);border-radius:4px;padding:2px 7px;font-size:11px;cursor:pointer;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tool:hover{border-color:var(--gold)}
+.sw{display:flex;justify-content:space-between;align-items:center}.sw b{font-size:18px;font-variant-numeric:tabular-nums}
+#notes{width:100%;box-sizing:border-box;background:rgba(0,0,0,.35);color:var(--text);border:1px solid var(--line);border-radius:4px;font:inherit;font-size:12px;resize:vertical}
+body:not(.interactive) .tool,body:not(.interactive) #notes{pointer-events:none}
 footer{padding:5px 10px;border-top:1px solid var(--line);color:var(--muted);font-size:11px;display:flex;justify-content:space-between;gap:6px}
 .toast{position:fixed;left:10px;right:10px;bottom:34px;background:var(--gold);color:#1a140c;border-radius:4px;padding:5px 8px;font-weight:700;font-size:12px;opacity:0;transition:opacity .2s}
 .toast.on{opacity:1}
@@ -94,7 +101,15 @@ const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&
 const fmt=n=>{n=Number(n)||0;if(Math.abs(n)>=1e6)return (n/1e6).toFixed(2).replace(/\.?0+$/,"")+"M";if(Math.abs(n)>=1e4)return Math.round(n/1e3)+"k";return Math.round(n).toLocaleString()};
 const hms=ms=>{const t=Math.max(0,Math.floor(ms/1000));const h=Math.floor(t/3600),m=Math.floor(t/60)%60,s=t%60;return (h?h+":"+String(m).padStart(2,"0"):m)+":"+String(s).padStart(2,"0")};
 let data=null, mapTimer=null, page="now";
-const PAGES=[["now","Now"],["build","Build"],["gear","Gear"],["atlas","Atlas"],["session","Session"],["trades","Trades"]];
+const NOTES=()=>{try{return localStorage.getItem("ec330.notes")||""}catch(e){return ""}};
+const SW={running:false,start:0,acc:0,laps:[],
+  now(){return this.acc+(this.running?Date.now()-this.start:0)},
+  fmt(ms){const s=Math.floor(ms/1000);return `${Math.floor(s/60)}:${String(s%60).padStart(2,"0")}.${Math.floor(ms%1000/100)}`},
+  view(){return {text:this.fmt(this.now()),running:this.running,laps:this.laps.slice(-5)}},
+  go(){if(this.running){this.acc=this.now();this.running=false}else{this.start=Date.now();this.running=true}},
+  lap(){if(this.now())this.laps.push(this.fmt(this.now()))},
+  reset(){this.running=false;this.acc=0;this.laps=[]}};
+const PAGES=[["now","Now"],["build","Build"],["gear","Gear"],["atlas","Atlas"],["session","Session"],["trades","Trades"],["tools","Tools"]];
 function pageHtml(){
   const P=(data&&data.pages)||{};
   const pct=v=>Math.round((v||0)*100);
@@ -112,6 +127,10 @@ function pageHtml(){
   if(page==="session"){const s=P.session;if(!s)return "";
     return `${s.goal?`<section><h3>Goal · ${esc(s.goal.label)}${s.goal.done?" ✓":""}</h3><div class="bar"><i style="width:${Math.round(s.goal.pct*100)}%"></i></div><p style="margin:2px 0 0" class="sub">${esc(s.goal.now)}</p></section>`:""}<section><h3>This session</h3><div class="stats"><div class="stat"><div class="k">Maps</div><div class="v">${s.maps}</div></div><div class="stat"><div class="k">Div / h</div><div class="v">${s.div!=null?s.div.toFixed(2):"–"}</div></div><div class="stat"><div class="k">In maps</div><div class="v">${hms(s.mapMs)}</div></div></div></section>
     <section><div class="kv">${s.profit?`<span>Profit logged</span><span>${fmt(s.profit)}c</span>`:""}${s.net!=null?`<span>Net worth</span><span>${s.net.toFixed(1)} div</span>`:""}${s.sales?`<span>Sales today</span><span>${fmt(s.sales)}c</span>`:""}</div>${s.recap?`<p style="margin:4px 0 0" class="sub">${esc(s.recap)}</p>`:""}</section>`}
+  if(page==="tools"){const t=P.tools||{};const sw=SW.view();
+    return `<section><h3>Stash searches</h3>${(t.searches||[]).length?`<div class="tool-list">${t.searches.map((x,i)=>`<button class="tool" data-tcopy="${i}" title="${esc(x.text)}">${esc(x.name)}</button>`).join("")}</div>`:'<p class="sub">Save searches on the Trading page to see them here.</p>'}<p class="sub" style="margin:2px 0 0">Click to copy, then Ctrl+F, Ctrl+V in your stash.</p></section>
+      <section><h3>Stopwatch</h3><div class="sw"><b id="swT">${sw.text}</b><span class="np-c" style="display:flex"><button data-sw="go">${sw.running?"Pause":"Start"}</button><button data-sw="lap">Lap</button><button data-sw="reset">Reset</button></span></div>${sw.laps.length?`<p class="sub" style="margin:2px 0 0">${sw.laps.map((l,i)=>`#${i+1} ${l}`).join(" · ")}</p>`:""}</section>
+      <section><h3>Notes</h3><textarea id="notes" rows="4" placeholder="Anything to remember: map plans, trades, crafts…">${esc(NOTES())}</textarea></section>`}
   if(page==="trades"){const t=P.trades||{};const tr=data.trades||[];
     return (tr.length?"":'<p class="empty">No trade requests in the last 20 minutes.</p>')+(t.alerts&&t.alerts.length?`<section><h3>Price alerts hit</h3><ul>${t.alerts.map(a=>`<li>• ${esc(a)}</li>`).join("")}</ul></section>`:"")+(t.sold&&t.sold.length?`<section><h3>Recently sold</h3><ul>${t.sold.map(a=>`<li>• ${esc(a)}</li>`).join("")}</ul></section>`:"")}
   return null;
@@ -175,7 +194,12 @@ if(D){
   D.onOverlayData(d=>{data=d;render()});
   D.onOverlayInteractive(on=>{document.body.classList.toggle("interactive",on);$("done").hidden=!on;if(on)toast("Click mode: tick steps, copy, drag the header. Press Done when finished.")});
   D.onOverlayToast(toast);
-  if(D.onOverlayPage)D.onOverlayPage(()=>{const i=PAGES.findIndex(p=>p[0]===page);page=PAGES[(i+1)%PAGES.length][0];render();toast(PAGES.find(p=>p[0]===page)[1]+" page")});
+  if(D.onOverlayPage)D.onOverlayPage(to=>{if(to&&PAGES.some(p=>p[0]===to))page=to;else{const i=PAGES.findIndex(p=>p[0]===page);page=PAGES[(i+1)%PAGES.length][0]}render();toast(PAGES.find(p=>p[0]===page)[1]+" page")});
+  // tools page: copy searches, stopwatch, notes (all local to the overlay)
+  document.addEventListener("click",e=>{const c=e.target.closest&&e.target.closest("[data-tcopy]");if(c){const x=((data.pages||{}).tools||{}).searches[+c.dataset.tcopy];if(x&&D.copy){D.copy(x.text);toast("Copied: Ctrl+F, Ctrl+V in your stash")}}
+    const w=e.target.closest&&e.target.closest("[data-sw]");if(w){SW[w.dataset.sw]();render()}});
+  document.addEventListener("input",e=>{if(e.target&&e.target.id==="notes"){try{localStorage.setItem("ec330.notes",e.target.value)}catch(x){}}});
+  setInterval(()=>{if(page==="tools"&&SW.running){const el=$("swT");if(el)el.textContent=SW.view().text}},250);
   $("done").onclick=()=>D.overlayAction({type:"interactive",value:false});
   // now playing (Windows media controls); buttons work in click mode
   if(D.onMediaNow){D.onMediaNow(n=>{const show=n&&n.title&&!n.error&&!n.off;$("np").hidden=!show;if(show){$("npT").textContent=`${n.status==="Playing"?"♪":"❚❚"} ${n.title}${n.artist?" · "+n.artist:""}`;$("npP").textContent=n.status==="Playing"?"⏸":"▶"}});

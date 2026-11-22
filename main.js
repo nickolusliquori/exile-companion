@@ -57,6 +57,7 @@ const DEFAULTS = {
   copyHotkey: "Ctrl+Shift+F",     // copy the overlay's current search string
   wikiHotkey: "Ctrl+Alt+W",       // open the wiki page for the item you last copied
   pageHotkey: "Ctrl+Shift+P",     // next overlay page
+  widgetHotkey: "Ctrl+Shift+Space", // overlay Tools page (stash searches, stopwatch, notes) in click mode
   cheatHotkey: "Ctrl+Shift+H",    // show / cycle / hide cheat sheets
   pinHotkey: "Ctrl+Shift+B",      // show / hide the browser pinned over the game
   mediaHotkey: "Ctrl+Shift+M",    // show / hide the media mini player
@@ -152,6 +153,16 @@ function setOverlayInteractive(on) {
   overlayWin.webContents.send("overlay:interactive", overlayInteractive);
   sendMain("overlay:interactive", overlayInteractive);
 }
+// Tools menu: opens the overlay on its Tools page in click mode; pressing the hotkey again leaves click mode
+let widgetsOpen = false;
+function toggleWidgets() {
+  if (widgetsOpen && overlayWin && overlayWin.isVisible() && overlayInteractive) { widgetsOpen = false; setOverlayInteractive(false); return; }
+  if (!overlayWin || !overlayWin.isVisible()) toggleOverlay(true);
+  if (!overlayWin) return;
+  overlayWin.webContents.send("overlay:page", "tools");
+  widgetsOpen = true;
+  setOverlayInteractive(true);
+}
 function toggleOverlay(force) {
   if (!overlayWin) createOverlay();
   const show = typeof force === "boolean" ? force : !overlayWin.isVisible();
@@ -225,6 +236,7 @@ function registerHotkeys() {
     const u = txt && wikiUrlFor(txt);
     if (u) openLink(u); else overlayWin && overlayWin.webContents.send("overlay:toast", "Copy an item in game first (Ctrl+C)");
   }, "wiki lookup");
+  bind(cfg.widgetHotkey, () => toggleWidgets(), "tools menu");
   bind(cfg.pageHotkey, () => { if (!overlayWin) return; if (!overlayWin.isVisible()) toggleOverlay(true); overlayWin.webContents.send("overlay:page", "next"); }, "overlay page");
   bind(cfg.cheatHotkey, () => cycleCheat(), "cheat sheets");
   bind(cfg.pinHotkey, () => togglePin(), "pinned browser");
@@ -492,7 +504,7 @@ ipcMain.handle("cfg:get", () => ({ ...cfg, version: VERSION }));
 ipcMain.handle("cfg:set", (e, patch) => {
   const before = { ...cfg };
   cfg = { ...cfg, ...patch }; saveCfg();
-  if (["priceHotkey", "overlayHotkey", "interactHotkey", "copyHotkey", "wikiHotkey", "pageHotkey", "cheatHotkey", "pinHotkey", "mediaHotkey", "mediaPlayHotkey", "mediaClickHotkey"].some((k) => before[k] !== cfg[k])) registerHotkeys();
+  if (["priceHotkey", "overlayHotkey", "interactHotkey", "copyHotkey", "wikiHotkey", "pageHotkey", "widgetHotkey", "cheatHotkey", "pinHotkey", "mediaHotkey", "mediaPlayHotkey", "mediaClickHotkey"].some((k) => before[k] !== cfg[k])) registerHotkeys();
   if (mediaWin && before.mediaOpacity !== cfg.mediaOpacity) mediaWin.setOpacity(Math.min(1, Math.max(0.3, +cfg.mediaOpacity || 1)));
   if (before.nowPlaying !== cfg.nowPlaying) { if (cfg.nowPlaying === false) { mediaBridge.stop(); broadcastNow({ off: true }); } else pollNow(); }
   if (pinWin && before.pinOpacity !== cfg.pinOpacity) pinWin.setOpacity(Math.min(1, Math.max(0.4, +cfg.pinOpacity || 1)));

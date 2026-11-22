@@ -96,7 +96,7 @@ Your character at a glance: progress toward the goal build, what to do next (cam
 | **Look and feel** | Three themes (Dark minimal, Modern, Path of Exile), light animations that respect Windows "reduce motion", a loading bar, and minimal synthesized sounds (button clicks, a cue for empty required fields) with volume control. |
 | **Media** | A YouTube / YouTube Music / Twitch mini player that stays on top of the game (with click-through), and a Now playing panel for whatever plays in Windows (Spotify, Apple Music, Netflix in a browser…) with play/pause and skip, also on the overlay. |
 | **Browser** (desktop) | The trade site, poe.ninja, the wiki, poedb, poelab, Craft of Exile, FilterBlade, poe.re and pobb.in inside the app, signed in, with quick links and a wiki search. Links from the price window and elsewhere open here. Pages are sandboxed away from the app and your saved secrets; other sites open in your own browser. |
-| **Account** (desktop) | Live character sync from your GGG profile, stash net worth over time, stash finds (upgrades and items worth selling), currency trends and a sales tracker. |
+| **Account** (desktop) | Live character sync from your GGG profile, stash net worth over time, a chaos/regal recipe tracker, stash finds (upgrades and items worth selling), currency trends and a sales tracker. |
 
 <p align="center"><img src="docs/screenshots/craft-lab.jpg" alt="The Craft lab: chance per try and average cost of each crafting method for a life and cold resistance Vaal Regalia" width="820"></p>
 <p align="center"><img src="docs/screenshots/emulator.jpg" alt="The crafting emulator: a rolled Vaal Regalia with the currency buttons" width="820"></p>
@@ -131,6 +131,7 @@ All of these can be changed in **Settings → Hotkeys**.
 | **Ctrl+Shift+F** | Copy the overlay's current search, then paste it in game with Ctrl+V |
 | **Ctrl+Alt+W** | Open the wiki page of the item you last copied |
 | **Ctrl+Shift+H** | Show the next cheat sheet |
+| **Ctrl+Shift+Space** | Overlay Tools page: stash searches to copy, a stopwatch and notes (click mode) |
 | **Ctrl+Shift+M** | Show or hide the media mini player |
 | **Ctrl+Shift+B** | Show or hide the browser pinned over the game (Esc hides it too) |
 | **Ctrl+K** or **/** (in the app) | Search everything |

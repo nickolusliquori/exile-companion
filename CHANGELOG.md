@@ -2,6 +2,18 @@
 
 What changed in each release, newest first. Installed copies update themselves; see the [Releases page](https://github.com/nickolusliquori/exile-companion/releases) for the installers. Planned releases are on the [roadmap](README.md#roadmap).
 
+## [1.21.0] - 2026-11-22
+
+### Added
+- **Overlay Tools page** on **Ctrl+Shift+Space** (changeable in Settings): opens the overlay straight into click mode with
+  - your **saved stash searches** from the Trading page plus chaos/regal recipe searches, copied with one click to paste into the stash search box;
+  - a **stopwatch** with laps;
+  - **notes** that are kept between sessions.
+  Press the hotkey again to leave click mode. It's also reachable with the overlay's page hotkey.
+
+### Fixed
+- The overlay's now-playing bar no longer shows empty buttons when nothing is playing.
+
 ## [1.20.0] - 2026-11-22
 
 ### Added

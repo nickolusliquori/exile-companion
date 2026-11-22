@@ -3428,6 +3428,8 @@ function overlayPages(){
     pages.atlas={done:MAP_POOL.length?MAP_POOL.filter(m=>done[m.key]).length:Object.keys(done).length,total:MAP_POOL.length||0,strat:strat.name,threads:Object.entries(strat.threads),next:mech?atlasNodesFor(mech).filter(n=>!have.has(String(n.id))).slice(0,4).map(n=>n.name):[],bosses:BOSSES.filter(b=>!S.bosses||!S.bosses[b.id]).slice(0,3).map(b=>b.name)};
     const maps=S.session.maps,timed=maps.filter(m=>m.dur),ms=timed.reduce((a,m)=>a+m.dur,0),profit=maps.reduce((a,m)=>a+(+m.profit||0),0);
     const live=makeRecap();
+    pages.tools={searches:[...((S.trade&&S.trade.saved)||[]).map(x=>({name:x.name,text:x.text})),
+      {name:"Chaos recipe pieces",text:'"rarity: rare" "item level: (6\\d|7[0-4])"'},{name:"Regal recipe pieces",text:'"rarity: rare" "item level: (7[5-9]|8\\d)"'},{name:"Unidentified rares",text:'"rarity: rare" unidentified'}].slice(0,16)};
     pages.session={goal:goalState(),maps:maps.length,mapMs:ms,div:ms>60000&&profit?profit/(ms/3.6e6)/S.divine:null,profit,net:S.netLatest&&S.netLatest.div?S.netLatest.total/S.netLatest.div:null,sales:(S.sales||[]).filter(x=>Date.now()-x.t<86400e3).reduce((a,x)=>a+(x.chaos||0),0),recap:live?recapLine(live):null};
     pages.trades={alerts:Object.values(S.watch||{}).filter(w=>w.last!=null&&w.last<=w.target).map(w=>`${w.name}: ${fmt(w.last)}c (≤ ${fmt(w.target)}c)`),sold:(S.sales||[]).slice(-3).reverse().map(x=>`${x.name}: ${x.amount} ${x.cur}`)};
   }catch(e){console.error(e)}
@@ -3907,7 +3909,7 @@ async function importBuild(input,slot){
 }
 
 /* settings page */
-const HOTKEYS=[["overlayHotkey","Show / hide overlay","Ctrl+Shift+O"],["interactHotkey","Overlay click mode","Ctrl+Shift+I"],["pageHotkey","Next overlay page","Ctrl+Shift+P"],["copyHotkey","Copy overlay search","Ctrl+Shift+F"],["priceHotkey","Re-open price check","Ctrl+D"],["wikiHotkey","Wiki lookup","Ctrl+Alt+W"],["cheatHotkey","Cheat sheets","Ctrl+Shift+H"],["pinHotkey","Browser over the game","Ctrl+Shift+B"],["mediaHotkey","Media player","Ctrl+Shift+M"],["mediaPlayHotkey","Play / pause music","",],["mediaClickHotkey","Media player click-through",""]];
+const HOTKEYS=[["overlayHotkey","Show / hide overlay","Ctrl+Shift+O"],["interactHotkey","Overlay click mode","Ctrl+Shift+I"],["widgetHotkey","Overlay tools (searches, stopwatch, notes)","Ctrl+Shift+Space"],["pageHotkey","Next overlay page","Ctrl+Shift+P"],["copyHotkey","Copy overlay search","Ctrl+Shift+F"],["priceHotkey","Re-open price check","Ctrl+D"],["wikiHotkey","Wiki lookup","Ctrl+Alt+W"],["cheatHotkey","Cheat sheets","Ctrl+Shift+H"],["pinHotkey","Browser over the game","Ctrl+Shift+B"],["mediaHotkey","Media player","Ctrl+Shift+M"],["mediaPlayHotkey","Play / pause music","",],["mediaClickHotkey","Media player click-through",""]];
 const RESERVED_KEYS=["Ctrl+C","Ctrl+V","Ctrl+X","Ctrl+A","Ctrl+Z","Ctrl+F","Alt+F4","Ctrl+Enter"];
 function accelFrom(e){
   if(["Control","Shift","Alt","Meta"].includes(e.key)) return null;
