@@ -505,7 +505,8 @@ function webSession() { return session.fromPartition(WEB_PARTITION); }
 function ensureWebView() {
   if (webView || !mainWin || mainWin.isDestroyed()) return webView;
   const ses = webSession();
-  ses.setUserAgent(ses.getUserAgent().replace(/\s(Electron|exile-companion)\/\S+/gi, ""));
+  // Keep Electron's own user agent: Cloudflare's human check (Turnstile) loops forever when the user agent
+  // is rewritten to look like plain Chrome, because the other browser signals then don't match.
   ses.setPermissionRequestHandler((wc, perm, cb, details) => cb(perm === "clipboard-sanitized-write" && webHostAllowed(details && details.requestingUrl)));
   ses.setPermissionCheckHandler((wc, perm, origin) => perm === "clipboard-sanitized-write" && webHostAllowed(origin));
   ses.on("will-download", (e, item) => { e.preventDefault(); sendMain("browser:blocked", { url: item.getURL(), reason: "download" }); });

@@ -2,6 +2,10 @@
 
 What changed in each release, newest first. Installed copies update themselves; see the [Releases page](https://github.com/nickolusliquori/exile-companion/releases) for the installers. Planned releases are on the [roadmap](README.md#roadmap).
 
+## [1.9.2] - 2026-11-21
+
+- **Fixed:** Cloudflare's "verify you are human" check still looped in the in-app browser. The browser presented itself as plain Chrome, and Cloudflare rejects that inside Electron apps because the browser's other signals don't match. It now uses Electron's own identity, which passes. A release check keeps it that way.
+
 ## [1.9.1] - 2026-11-21
 
 - **Fixed:** the in-app browser looped on Cloudflare's "verify you are human" check (for example on the trade site). The browser's site guard also blocked frames inside the page, including Cloudflare's checkbox; it now only applies to the page itself, as a normal browser does. A release check covers this.
@@ -100,6 +104,7 @@ First public release of the Windows app, installed from GitHub with automatic up
 - **Account:** live character sync, stash net worth, stash finds, currency trends, price alerts and a sales tracker.
 - **Also:** notifications, Discord status, session recaps, backups, phone sync and an OBS stream overlay.
 
+[1.9.2]: https://github.com/nickolusliquori/exile-companion/releases/tag/v1.9.2
 [1.9.1]: https://github.com/nickolusliquori/exile-companion/releases/tag/v1.9.1
 [1.9.0]: https://github.com/nickolusliquori/exile-companion/releases/tag/v1.9.0
 [1.8.1]: https://github.com/nickolusliquori/exile-companion/releases/tag/v1.8.1
