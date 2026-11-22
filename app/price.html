@@ -102,6 +102,9 @@ function parseItem(text){
   }
   if(!it.base)it.base=it.name;
   it.base=it.base.replace(/^(Superior|Synthesised) /,"");
+  // magic items have no separate base line: "Glinting Ruby Ring of the Lynx" -> try "Glinting Ruby Ring", then "Ruby Ring"
+  if(it.rarity==="magic"&&it.base===it.name){const noSuf=it.name.replace(/ of .+$/,"");const hasPrefix=it.craft.length?it.craft.some(c=>c.kind==="prefix"):null;
+    const noPre=noSuf.split(" ").slice(1).join(" ");it.base=hasPrefix===true&&noPre?noPre:noSuf;it.baseAlt=hasPrefix===null&&noPre&&noPre!==it.base?noPre:null}
   let ilvlSec=-1;
   secs.forEach((s,i)=>{
     if(s[0]==="Requirements:")return;
@@ -201,10 +204,15 @@ async function loadStats(){
   if(statIndex)return statIndex;
   const r=await get(TRADE+"/api/trade/data/stats",24*3600e3);
   statIndex=new Map();
-  ((r.data&&r.data.result)||[]).forEach(g=>(g.entries||[]).forEach(e=>{const k=(e.type||g.id)+"|"+e.text.toLowerCase();if(!statIndex.has(k))statIndex.set(k,e.id)}));
+  statLoose=new Map();
+  ((r.data&&r.data.result)||[]).forEach(g=>(g.entries||[]).forEach(e=>{const ty=e.type||g.id;const k=ty+"|"+e.text.toLowerCase();if(!statIndex.has(k))statIndex.set(k,e.id);
+    const lk=ty+"|"+loose(e.text);if(!statLoose.has(lk))statLoose.set(lk,e.id)}));
   return statIndex;
 }
 const tmpl=t=>t.toLowerCase().replace(/\d+(\.\d+)?/g,"#");
+// looser form for matching: no +/- signs, no "(local)", "reduced" read as "increased", spacing evened out
+let statLoose=null;
+const loose=t=>String(t).toLowerCase().replace(/\d+(\.\d+)?/g,"#").replace(/\s*\(local\)/g,"").replace(/[+-](?=#)/g,"").replace(/\breduced\b/g,"increased").replace(/\bless\b/g,"more").replace(/\s+/g," ").trim();
 const valOf=t=>{const m=t.match(/(\d+(?:\.\d+)?) to (\d+(?:\.\d+)?)/);if(m)return (+m[1]+ +m[2])/2;const n=t.match(/\d+(\.\d+)?/);return n?+n[0]:null};
 const MOD_PRIO=[[/maximum Life/i,5],[/to Level of/i,5],[/maximum Energy Shield|increased Energy Shield/i,4],[/Resistance/i,4],[/Suppress Spell/i,4],[/Movement Speed/i,4],[/Critical Strike Multiplier/i,3],[/Critical Strike Chance/i,3],[/Adds .* Damage|increased .*Damage/i,3],[/Attack Speed|Cast Speed/i,3],[/Damage over Time Multiplier/i,3]];
 const LOCAL_CLASSES=/Weapon|Bow|Claw|Dagger|Sword|Axe|Mace|Sceptre|Staff|Wand|Body Armour|Helmet|Gloves|Boots|Shield/i;
@@ -214,9 +222,13 @@ function statId(mod,kind){
     if(LOCAL_CLASSES.test(item.cls)){const loc=statIndex.get(ty+"|"+t+" (local)");if(loc)return loc}
     const id=statIndex.get(ty+"|"+t);if(id)return id;
   }
+  // second pass: looser wording (signs, local tags, reduced/increased)
+  if(statLoose){const l=loose(mod);for(const ty of types){const id=statLoose.get(ty+"|"+l);if(id)return id}}
   return null;
 }
-function minFor(v,pct){if(v==null)return null;if(Math.abs(v)<5)return v;return Math.floor(v*(pct||0.85))}
+function minFor(v,pct){if(v==null)return null;if(Math.abs(v)<5)return v;return v<0?-Math.floor(-v*(pct||0.85)):Math.floor(v*(pct||0.85))}
+// mods that rarely matter for price: not ticked by default (you can still tick them)
+const MOD_LOW=/Attribute Requirements|Light Radius|Stun and Block Recovery|Reflects \d+ Physical|gained (when|on) (you )?Kill|Rarity of Items|Thorns/i;
 // tier, prefix/suffix and roll quality from the advanced copy (Ctrl+Alt+C), matched by mod text
 function enrichMods(mods,craft){
   const norm=t=>String(t).toLowerCase().replace(/\s+/g," ").trim();
@@ -343,7 +355,7 @@ async function loadWiki(it){
   WIKI=`<div class="up wiki"><h3>From the wiki</h3>${row.level?`<p class="status" style="margin:0">Requires level ${esc(row.level)}</p>`:""}${stats&&it.rarity==="divination card"?`<p style="margin:0">Reward: ${esc(stats)}</p>`:""}${drop?`<p style="margin:0">Drops: ${esc(drop)}</p>`:""}${areas.length?`<p class="status" style="margin:0">Drop areas: ${areas.slice(0,8).map(a=>esc(a.replace(/^MapWorlds/,"").replace(/([a-z])([A-Z])/g,"$1 $2"))).join(", ")}${areas.length>8?"…":""}</p>`:""}${row.flavour?`<p class="flavour">${esc(wikiText(row.flavour))}</p>`:""}</div>`;
   if(LAST_STATE) render(LAST_STATE);
 }
-let OPTS={pct:0.85,pseudo:false,ilvl:false,anyBase:false};
+let OPTS={pct:0.85,pseudo:false,ilvl:false,anyBase:false,match:"count",need:null};
 const CATS={"Rings":"accessory.ring","Amulets":"accessory.amulet","Belts":"accessory.belt","Helmets":"armour.helmet","Body Armours":"armour.chest","Gloves":"armour.gloves","Boots":"armour.boots","Shields":"armour.shield","Quivers":"armour.quiver","Jewels":"jewel","Abyss Jewels":"jewel.abyss"};
 function tierBadge(x){if(x.tier==null&&x.roll==null)return "";const c=x.tier===1?"t1":x.tier&&x.tier<=3?"t2":"t9";
   return `<span class="tier ${c}" title="${x.affix?x.affix[0].toUpperCase()+x.affix.slice(1)+", ":""}tier ${x.tier??"?"}${x.roll!=null?`, roll ${Math.round(x.roll*100)}% of its range`:""}">${x.tier!=null?"T"+x.tier:""}${x.affix?" "+x.affix[0].toUpperCase():""}${x.roll!=null?`<i style="--r:${Math.round(x.roll*100)}%"></i>`:""}</span>`}
@@ -363,6 +375,8 @@ function render(state){
       <label class="small"><input type="checkbox" id="oPseudo"${OPTS.pseudo?" checked":""}> Totals for life &amp; res</label>
       ${item.ilvl?`<label class="small"><input type="checkbox" id="oIlvl"${OPTS.ilvl?" checked":""}> ilvl ${item.ilvl}+</label>`:""}
       ${CATS[item.cls]?`<label class="small"><input type="checkbox" id="oAny"${OPTS.anyBase?" checked":""}> Any base</label>`:""}</div>
+    ${(()=>{const n=state.mods.filter(x=>x.on&&x.id).length;const need=OPTS.need==null?needFor(n):Math.min(OPTS.need,n);return `<div class="row opts"><span class="small">Match:</span><select id="oMatch" class="small"><option value="count"${OPTS.match==="count"?" selected":""}>at least</option><option value="and"${OPTS.match==="and"?" selected":""}>all</option></select>${OPTS.match==="count"?`<input type="number" id="oNeed" min="1" max="${Math.max(1,n)}" value="${need}" style="width:44px" aria-label="How many mods"> <span class="small">of ${n} ticked mods</span>`:`<span class="small">${n} ticked mods</span>`}</div>`})()}
+    ${state.unmatched?`<p class="status warn" style="margin:0">${state.unmatched} mod${state.unmatched===1?"":"s"} couldn't be matched to the trade site's stats and ${state.unmatched===1?"isn't":"aren't"} searched (greyed out).</p>`:""}
     <div class="mods-h small"><span></span><span>Mod</span><span>Min</span><span>Max</span></div>
     <div style="display:grid;gap:4px">${state.mods.map((x,i)=>`<label class="mod${x.id?"":" nomatch"}"><input type="checkbox" data-m="${i}"${x.on?" checked":""}${x.id?"":" disabled"}><span>${tierBadge(x)}${esc(x.text)}${x.kind!=="explicit"?` <i style="color:var(--muted)">(${x.kind})</i>`:""}</span>${x.v!=null&&x.id?`<input type="number" data-min="${i}" value="${x.min??""}" aria-label="Minimum"><input type="number" data-max="${i}" value="${x.max??""}" placeholder="–" aria-label="Maximum">`:"<span></span><span></span>"}</label>`).join("")}</div>
     ${item.advanced?"":'<p class="small" style="margin:0;color:var(--muted)">Tip: copy with <b>Ctrl+Alt+C</b> to see each mod\'s tier and roll.</p>'}
@@ -381,25 +395,47 @@ function render(state){
     const op=$("oPseudo");if(op)op.onchange=()=>{OPTS.pseudo=op.checked};
     const oi=$("oIlvl");if(oi)oi.onchange=()=>{OPTS.ilvl=oi.checked};
     const oa=$("oAny");if(oa)oa.onchange=()=>{OPTS.anyBase=oa.checked};
+    const om=$("oMatch");if(om)om.onchange=()=>{OPTS.match=om.value;render(state)};
+    const on=$("oNeed");if(on)on.onchange=()=>{OPTS.need=Math.max(1,+on.value||1)};
+    m.querySelectorAll("[data-m]").forEach(c=>c.addEventListener("change",()=>{OPTS.need=null;render(state)}));
     $("again").onclick=()=>searchRare(state.mods);
   }
 }
 
-async function searchRare(mods){
-  const st={mods,status:"Searching the trade site…"};render(st);
-  const val=x=>{const v={};if(x.min!=null&&x.min!=="")v.min=+x.min;if(x.max!=null&&x.max!=="")v.max=+x.max;return v};
+// "similar mods": how many of the ticked mods a listing must have
+function needFor(n){return n<=2?n:Math.max(2,Math.ceil(n*0.6))}
+async function searchRare(mods,auto){
+  const st={mods,status:"Searching the trade site…",unmatched:mods.filter(x=>!x.id&&x.kind!=="implicit").length};render(st);
+  const val=x=>{const v={};if(x.min!=null&&x.min!=="")v.min=+x.min;if(x.max!=null&&x.max!=="")v.max=+x.max;
+    // a "reduced" mod is a negative value on the trade site: 10% reduced means at most -8 or so
+    if(x.v!=null&&x.v<0&&v.min!=null&&v.max==null){v.max=v.min;delete v.min}return v};
   let use=mods.map((x,i)=>({x,i})).filter(o=>o.x.on&&o.x.id);
   const filters=[];
   if(OPTS.pseudo){const plan=pseudoPlan(mods.filter(x=>x.on));
     const onIdx=mods.map((x,i)=>x.on?i:-1).filter(i=>i>=0);const coveredAll=new Set([...plan.covered].map(k=>onIdx[k]));
     use=use.filter(o=>!coveredAll.has(o.i));
     PSEUDO.forEach(([k,text])=>{const id=statIndex&&statIndex.get("pseudo|"+text.toLowerCase());if(id&&plan.totals[k])filters.push({id,value:{min:minFor(plan.totals[k],OPTS.pct)},disabled:false})})}
-  use.forEach(({x})=>filters.push({id:x.id,value:val(x),disabled:false}));
+  const modFilters=use.map(({x})=>({id:x.id,value:val(x),disabled:false}));
+  const need=OPTS.need==null?needFor(modFilters.length):Math.min(OPTS.need,modFilters.length);
+  const groups=[];
+  if(filters.length)groups.push({type:"and",filters});
+  if(modFilters.length)groups.push(OPTS.match==="count"&&modFilters.length>1?{type:"count",value:{min:need},filters:modFilters}:{type:"and",filters:modFilters});
   const misc=item.corrupted?{}:{corrupted:{option:"false"}};if(OPTS.ilvl&&item.ilvl)misc.ilvl={min:item.ilvl};
-  const q={type:OPTS.anyBase?undefined:item.base,stats:[{type:"and",filters}],filters:{type_filters:{filters:{rarity:{option:"nonunique"},...(OPTS.anyBase&&CATS[item.cls]?{category:{option:CATS[item.cls]}}:{})}},misc_filters:{filters:misc}}};
+  const q={type:OPTS.anyBase?undefined:item.base,stats:groups.length?groups:[{type:"and",filters:[]}],filters:{type_filters:{filters:{rarity:{option:"nonunique"},...(OPTS.anyBase&&CATS[item.cls]?{category:{option:CATS[item.cls]}}:{})}},misc_filters:{filters:misc}}};
   if(!q.type)delete q.type;
-  try{const r=await tradeSearch(q);const sum=summarize(r.listings);
-    render({mods,listings:r.listings,total:r.total,sum,status:r.total?"":"No matches. Untick a mod or lower a minimum, then search again.",statusCls:r.total?"":"warn"})}
+  try{let r;try{r=await tradeSearch(q)}catch(e){
+      // a magic item's base guessed with its prefix still on: try again without it
+      if(item.baseAlt&&q.type&&/base|type|unknown/i.test(e.message||"")){item.base=item.baseAlt;item.baseAlt=null;q.type=item.base;r=await tradeSearch(q)}else throw e}
+    let note="";
+    // first automatic search found nothing: loosen step by step (fewer mods needed, then lower minimums) instead of giving up
+    if(auto&&!r.total&&modFilters.length){
+      const cg=q.stats.find(g=>g.filters===modFilters);
+      for(let n=need-1;n>=Math.min(2,modFilters.length)&&!r.total;n--){if(!cg)break;cg.type="count";cg.value={min:n};r=await tradeSearch(q);if(r.total){OPTS.match="count";OPTS.need=n;note=`Nothing had ${need} of these mods; showing items with ${n}.`}}
+      if(!r.total){modFilters.forEach(f=>{if(f.value.min!=null)f.value.min=Math.floor(f.value.min*0.8);delete f.value.max});r=await tradeSearch(q);if(r.total)note="Nothing close enough; minimums lowered by 20%."}
+    }
+    if(!modFilters.length)note=note||"None of this item's mods could be matched to the trade site, so this searched by base only.";
+    const sum=summarize(r.listings);
+    render({mods,unmatched:st.unmatched,listings:r.listings,total:r.total,sum,status:r.total?note:"No matches. Untick a mod, lower the number to match or a minimum, then search again.",statusCls:r.total?(note&&!modFilters.length?"warn":""):"warn"})}
   catch(e){render({mods,status:e.message,statusCls:"err"})}
 }
 
@@ -447,12 +483,13 @@ async function check(text){
       render({listings:r.listings,total:r.total,sum:summarize(r.listings)});
       return;
     }
-    if(item.rarity==="rare"&&item.cls!=="Maps"){
+    if((item.rarity==="rare"||item.rarity==="magic")&&item.cls!=="Maps"&&(item.mods||[]).length){
       await loadStats();
-      const all=enrichMods([...item.implicits,...item.mods].map(x=>{const id=statId(x.text,x.kind);const v=valOf(x.text);const p=(MOD_PRIO.find(([re])=>re.test(x.text))||[0,1])[1];return {...x,id,v,min:minFor(v,OPTS.pct),max:null,prio:p,on:false}}),item.craft);
-      all.filter(x=>x.id&&x.kind!=="implicit").sort((a,b)=>b.prio-a.prio).filter(x=>x.prio>=3).slice(0,5).forEach(x=>x.on=true);
-      if(!all.some(x=>x.on))all.filter(x=>x.id&&x.kind!=="implicit").slice(0,3).forEach(x=>x.on=true);
-      await searchRare(all);
+      const all=enrichMods([...item.implicits,...item.mods].map(x=>{const id=statId(x.text,x.kind);const neg=/\b(reduced|less)\b/i.test(x.text)&&id&&!statIndex.get(((x.kind==="implicit"?"implicit":"explicit")+"|"+tmpl(x.text)));const v0=valOf(x.text);const v=neg&&v0!=null?-v0:v0;const p=(MOD_PRIO.find(([re])=>re.test(x.text))||[0,1])[1];return {...x,id,v,min:minFor(v,OPTS.pct),max:null,prio:p,on:false}}),item.craft);
+      // tick every prefix and suffix that matched; the search then asks for most of them ("similar mods")
+      all.filter(x=>x.id&&x.kind!=="implicit"&&x.kind!=="enchant"&&!MOD_LOW.test(x.text)).forEach(x=>x.on=true);
+      OPTS.need=null;OPTS.match="count";
+      await searchRare(all,true);
       return;
     }
     if(item.cls==="Maps"){
@@ -474,7 +511,7 @@ $("close").onclick=()=>D&&D.closePrice();
 document.addEventListener("keydown",e=>{if(e.key==="Escape")D&&D.closePrice()});
 if(D){D.onPriceItem(({text,league:l})=>{if(l)league=l;check(text)})}
 window.__parseItem=parseItem; // for testing
-window.__priceTest={enrichMods,pseudoPlan,minFor};
+window.__priceTest={enrichMods,pseudoPlan,minFor,loose,needFor};
 </script>
 </body>
 </html>

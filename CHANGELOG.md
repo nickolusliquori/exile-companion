@@ -2,6 +2,15 @@
 
 What changed in each release, newest first. Installed copies update themselves; see the [Releases page](https://github.com/nickolusliquori/exile-companion/releases) for the installers. Planned releases are on the [roadmap](README.md#roadmap).
 
+## [1.18.1] - 2026-11-22
+
+### Fixed
+- **Price check now finds items with similar prefixes and suffixes**, not just the same base. The first search ticks every matched prefix and suffix (except low-value ones such as reduced attribute requirements or light radius) and asks for listings with most of them, using the trade site's "count" filter. "Open on trade site" opens that same search. You can switch between **at least N** and **all** of the ticked mods.
+- Mods whose wording differs slightly from the trade site's (signs, "(Local)", "reduced" vs "increased") are now matched instead of being silently dropped. "Reduced" mods are searched as the negative values the trade site expects.
+- If nothing is listed, the search loosens step by step (fewer mods needed, then minimums lowered by 20%) and tells you what it changed, instead of returning nothing.
+- If an item's mods can't be matched at all, the popup now says so instead of quietly searching by base only.
+- **Magic items** are searched by their mods too (they used to get no search). The base is worked out from the name ("Glinting Ruby Ring of the Lynx" → Ruby Ring).
+
 ## [1.18.0] - 2026-11-22
 
 ### Added
