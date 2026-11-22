@@ -144,7 +144,7 @@ const SAMPLES=[
   {name:"6-socket Plate Vest",cls:"Body Armours",base:"Plate Vest",rarity:"Normal",itemLevel:80,sockets:6,linkedSockets:2,dropLevel:1},
   {name:"Tier 16 map",cls:"Maps",base:"Crimson Temple Map",rarity:"Normal",mapTier:16,itemLevel:83},
   {name:"Tier 1 map",cls:"Maps",base:"Arcade Map",rarity:"Normal",mapTier:1,itemLevel:68},
-  {name:"Ambush Scarab",cls:"Map Fragments",base:"Ambush Scarab",stackSize:1},
+  {name:"Legion Thread",cls:"Map Fragments",base:"Legion Thread",stackSize:1},
   {name:"Enlighten Support",cls:"Support Gems",base:"Enlighten Support",gemLevel:1,quality:0},
   {name:"Vaal Grace (20% quality)",cls:"Skill Gems",base:"Vaal Grace",gemLevel:1,quality:20,corrupted:true},
   {name:"Divine Life Flask",cls:"Life Flasks",base:"Divine Life Flask",rarity:"Normal",itemLevel:83,dropLevel:60},

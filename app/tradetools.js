@@ -10,7 +10,7 @@ const copy=t=>{if(DESK&&DESK.copy)DESK.copy(t);else if(navigator.clipboard)navig
 /* ---------- search strings ---------- */
 const normT=t=>String(t).toLowerCase().replace(/[+-]?\d+(\.\d+)?/g,"#");
 // lines on a map that aren't modifiers but must not be hit by an "avoid" search
-const MAP_LINES=["item quantity: +#%","item rarity: +#%","monster pack size: +#%","more currency: +#%","more maps: +#%","more scarabs: +#%","map tier: #","item level: #","quality: +#%","area level: #","travel to this map by using it in a personal map device. maps can only be used once.","corrupted","unidentified","rarity: rare","rarity: magic","rarity: normal","area is influenced by the shaper","area is influenced by the elder","delirium","map"];
+const MAP_LINES=["item quantity: +#%","item rarity: +#%","monster pack size: +#%","more currency: +#%","more maps: +#%","more scarabs: +#%","more threads: +#%","map tier: #","item level: #","quality: +#%","area level: #","travel to this map by using it in a personal map device. maps can only be used once.","corrupted","unidentified","rarity: rare","rarity: magic","rarity: normal","area is influenced by the shaper","area is influenced by the elder","delirium","map"];
 function familyLines(f){return f.v.map(v=>v.split(" / ").map(normT))}
 function candidates(lines){const out=new Set();for(const l of lines)for(let i=0;i<l.length;i++)for(let n=3;n<=16&&i+n<=l.length;n++){const t=l.slice(i,i+n);if(/^[a-z' ]+$/.test(t)&&t.trim()===t)out.add(t)}return out}
 // shortest set of fragments that hits every chosen family (any tier) and nothing else on a map

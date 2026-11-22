@@ -2,6 +2,21 @@
 
 What changed in each release, newest first. Installed copies update themselves; see the [Releases page](https://github.com/nickolusliquori/exile-companion/releases) for the installers. Planned releases are on the [roadmap](README.md#roadmap).
 
+## [1.11.0] - 2026-11-21
+
+### Added
+- **League page** (Play → League), built for 3.30's Threads:
+  - **Threads per map:** set what goes in the map device and see the cost per map from poe.ninja prices. Free Threads from a Shaped Region of the same type come off the cost. Warns when you go over the 8-Thread cap, or use more than one type with Unwavering Vision. Shows the Frayed Thread price next to the average Thread price.
+  - **What your maps return:** uses your session log to show, per strategy, average profit, Thread spend, return per chaos spent on Threads, and profit per hour.
+  - **Betrayal board:** the 3.30 reward table for all 17 members, with 3.30 changes highlighted. Record each member's current division and rank and where you want them, or pick a starter plan (Threads and Ancient Orbs, crafting benches, gems, uniques). The page then lists the moves you still need.
+  - **Expedition:** what 100 Exotic Coinage, Burial Medallions, Scrap Metal and Astragali are worth, plus the 3.30 vendor changes (Gwennen, Rog, Tujen).
+  - **Heist, Labyrinth and Thread sources:** 3.30 notes (Whakano, Blueprints, Rogue's Markers), a poelab shortcut, and where Threads drop.
+- Search (Ctrl+K) entries: "Plan Threads per map" and "Betrayal board".
+
+### Fixed
+- The first time the Browser page opened from a shortcut (for example "Open poe.ninja"), it could load the default site instead of the one you picked.
+- The trading map search leaves "More Threads" map lines alone, and the loot filter preview uses a Thread sample in place of a Scarab.
+
 ## [1.10.0] - 2026-11-21
 
 - **New: Trading page** (Economy → Trading).

@@ -206,6 +206,39 @@ try {
   ok(`trading tools work (${all.length} map mod families, ${ctx.MAPMOD_DATA.names.length} map names)`);
 } catch (e) { fail("trading tools: " + e.message); }
 
+// league tools: Thread costs, map return, Betrayal board
+try {
+  const ctx = { console, S: {}, save() {}, toast() {}, emptyBox: (m) => m, $: () => null, DESK: null };
+  ctx.window = ctx; vm.createContext(ctx);
+  vm.runInContext(fs.readFileSync(path.join(appDir, "league.js"), "utf8"), ctx);
+  const L = ctx.LeagueTools._test;
+  assert.strictEqual(L.MEMBERS.length, 17, "17 Syndicate members");
+  assert.strictEqual(L.THREADS.length, 10, "10 Thread types");
+  const pr = L.threadPrices({ cur: { "Legion Thread": 5 }, ex: { "Breach Thread": 2 } });
+  assert.strictEqual(pr.Legion, 5); assert.strictEqual(pr.Breach, 2); assert.strictEqual(pr.Abyss, null);
+  let r = L.planCost({ Legion: 4, Breach: 2 }, pr, {});
+  assert.strictEqual(r.total, 6); assert.strictEqual(r.cost, 24); assert(!r.warn.length);
+  r = L.planCost({ Legion: 4 }, pr, { free: 2, freeType: "Legion" });
+  assert.strictEqual(r.cost, 10, "free Threads come off the cost");
+  r = L.planCost({ Legion: 6, Breach: 3 }, pr, {});
+  assert(r.warn.length === 1 && /cap of 8/.test(r.warn[0]), "over the cap warns");
+  r = L.planCost({ Legion: 10 }, pr, { uv: true });
+  assert(!r.warn.length, "Unwavering Vision allows 10 of one type");
+  assert(L.planCost({ Legion: 4, Breach: 1 }, pr, { uv: true }).warn.some((w) => /one Thread type/.test(w)));
+  assert.deepStrictEqual(Array.from(L.planCost({ Abyss: 1 }, pr, {}).missing), ["Abyss"]);
+  const ret = L.mapReturn([{ strat: "Legion", profit: 100, threads: 4, dur: 360000 }, { strat: "Legion", profit: 60, threads: 4 }, { strat: "Harvest", profit: 30, threads: 0 }], 5);
+  assert.strictEqual(ret[0].strat, "Legion"); assert.strictEqual(ret[0].avgProfit, 80); assert.strictEqual(ret[0].spend, 20); assert.strictEqual(ret[0].perChaos, 4);
+  assert.strictEqual(ret[1].perChaos, null, "no Thread spend gives no ratio");
+  for (const [k, p] of Object.entries(L.PRESETS)) for (const [m, d] of Object.entries(p.t)) { assert(L.MEMBERS.includes(m), k + ": unknown member " + m); assert("TFRI".includes(d)); }
+  const adv = L.boardAdvice({ Rin: { d: "R", r: 3 }, Riker: { d: "T" }, Tora: { d: "F" } }, { Rin: "R", Riker: "F" });
+  const by = Object.fromEntries(adv.map((a) => [a.m, a]));
+  assert.strictEqual(by.Rin.ok, true); assert.strictEqual(by.Riker.ok, false); assert(/Fortification/.test(by.Riker.text));
+  assert.strictEqual(by.Tora.ok, false, "a member blocking a wanted slot is flagged");
+  assert(!/scarab/i.test(L.MEMBERS.map((m) => ["T", "F", "R", "I"].map((d) => L.reward(m, d)).join(" ")).join(" ")), "no Scarab rewards left in 3.30 table");
+  assert(L.changed("Rin", "R") && L.changed("Aisling", "I") && !L.changed("Aisling", "R"));
+  ok("league tools work (Thread costs, map return, Betrayal board)");
+} catch (e) { fail("league tools: " + e.message); }
+
 Promise.all(pending).then(() => {
   if (failures) { console.error(`\n${failures} check(s) failed`); process.exit(1); }
   console.log("\nAll checks passed");
