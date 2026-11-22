@@ -578,7 +578,7 @@ function onTradeEvents(evs){
   for(const e of evs){
     if(e.type==="whisper"&&e.trade&&e.dir==="in"){TRADES.unshift({name:e.name,t:e.t,...e.trade,dir:"in",joined:false,state:"new"});changed=true}
     else if(e.type==="whisper"&&e.trade&&e.dir==="out"){if(!BUYS.some(x=>x.name===e.name&&x.item===e.trade.item&&Date.now()-x.t<10*60e3)){BUYS.unshift({name:e.name,t:e.t,...e.trade,dir:"out"});changed=true}}
-    else if(e.type==="join"){const tr=TRADES.find(x=>x.name===e.name&&Date.now()-x.t<30*60e3);if(tr){tr.joined=true;changed=true;DESK.notify({kind:"trades",title:`${e.name} is here`,body:`Buyer for ${tr.item} joined your area.`})}}
+    else if(e.type==="join"){const tr=TRADES.find(x=>x.name===e.name&&Date.now()-x.t<30*60e3);if(tr){tr.joined=true;changed=true;if(S.stashAuto!==false&&STASH_ST.calibrated&&tr.tab&&tr.left)stashShow(tr,true);DESK.notify({kind:"trades",title:`${e.name} is here`,body:`Buyer for ${tr.item} joined your area.`})}}
   }
   TRADES.splice(12);BUYS.splice(8);
   if(changed){renderTrades();publishOverlay();if(DESK&&typeof ninjaPrices==="function")ninjaPrices(false).then(P=>{[...TRADES,...BUYS].forEach(t=>{if(t.hint===undefined)t.hint=fairHint(t,P)});renderTrades()}).catch(()=>{})}
@@ -588,11 +588,43 @@ function tradeCmds(tr){
   if(tr.dir==="out")return [["Visit hideout",`/hideout ${tr.name}`],["Still for sale?",`@${tr.name} Hi, is your ${tr.item} still for sale?`],["Thanks",`@${tr.name} Thanks!`]];
   return [["Invite",`/invite ${tr.name}`],["Trade",`/tradewith ${tr.name}`],["Sold",`@${tr.name} Sorry, that item is sold.`],["Kick",`/kick ${tr.name}`],...own];
 }
+/* ---------- stash highlight: outline a trade's item on a grid over the stash (desktop) ---------- */
+let STASH_ST={calibrated:false};
+const quadTab=name=>!!name&&(S.quadTabs||[]).some(q=>q.toLowerCase()===String(name).toLowerCase());
+function stashShow(tr,auto){
+  if(!DESK||!DESK.stashHighlight||!tr||!tr.left)return;
+  if(!STASH_ST.calibrated&&!auto){toast("Line up the stash grid once first (Desktop tools → Stash highlight).",()=>{showTab("desktop");DESK.stashCalibrate()},"Line it up");return}
+  DESK.stashHighlight({left:tr.left,top:tr.top,item:tr.item,price:tr.amount?`${tr.amount} ${tr.currency}`:"",buyer:tr.name,quad:quadTab(tr.tab),seconds:S.stashSecs||20});
+}
+function latestStashTrade(){return TRADES.filter(t=>t.tab&&t.left).sort((a,b)=>(!!b.joined-!!a.joined)||(b.t-a.t))[0]||null}
+function renderStashCard(){
+  const el=$("deskStash");if(!el)return;
+  el.innerHTML=`<h2>Stash highlight</h2>
+    <p class="small" style="margin:0">When someone buys from you, the app outlines the item on a see-through grid over your stash, using the tab and position in their whisper. It only draws on top of the game; it doesn't read your screen.</p>
+    <div class="row"><span class="pill ${STASH_ST.calibrated?"good":"warn"}">${STASH_ST.calibrated?"Grid lined up":"Not lined up yet"}</span>
+      <button class="btn ${STASH_ST.calibrated?"ghost":"primary"} small" id="stCal">${STASH_ST.calibrated?"Line it up again":"Line up the grid"}</button>
+      <button class="btn ghost small" id="stTest"${STASH_ST.calibrated?"":" disabled"}>Test (top-left cell)</button></div>
+    <label class="row small"><input type="checkbox" id="stAuto"${S.stashAuto!==false?" checked":""}> Show it automatically when the buyer arrives in your hideout</label>
+    <div class="row small"><label for="stQuad">Quad tabs (names, comma-separated)</label><input id="stQuad" value="${esc((S.quadTabs||[]).join(", "))}" placeholder="e.g. Sell, Q1" style="flex:1;min-width:160px"></div>
+    <div class="row small"><label for="stSecs">Show for</label><input id="stSecs" type="number" min="3" max="120" value="${S.stashSecs||20}" style="width:70px"> seconds</div>
+    <p class="small muted" style="margin:0">${esc(keyName((LIVE.cfg&&LIVE.cfg.stashHotkey)||"Ctrl+Shift+G"))} shows the latest trade's item (press again to hide). Positions past 12 use the quad grid automatically. Line it up again if you change resolution or UI scale.</p>`;
+  $("stCal").onclick=()=>DESK.stashCalibrate();
+  $("stTest").onclick=()=>DESK.stashHighlight({left:1,top:1,item:"Test: top-left cell",price:"",seconds:8});
+  $("stAuto").onchange=e=>{S.stashAuto=e.target.checked;save()};
+  $("stQuad").onchange=e=>{S.quadTabs=e.target.value.split(",").map(x=>x.trim()).filter(Boolean).slice(0,30);save()};
+  $("stSecs").onchange=e=>{S.stashSecs=Math.max(3,Math.min(120,+e.target.value||20));save()};
+}
+if(DESK&&DESK.stashStatus){
+  DESK.stashStatus().then(st=>{STASH_ST=st||STASH_ST;renderStashCard()}).catch(()=>{});
+  DESK.onStashStatus(st=>{STASH_ST=st||STASH_ST;renderStashCard();if(st&&st.calibrated)toast("Stash grid saved. Trades will now show where the item is.")});
+  DESK.onStashHotkey(()=>{const tr=latestStashTrade();if(tr)stashShow(tr);else if(DESK.overlayHint)DESK.overlayHint("No trade request with a stash position yet.")});
+}
 function tradeLi(t,i,list){return `<li class="sg"><div class="row" style="justify-content:space-between"><b>${esc(t.name)}</b>${t.joined?'<span class="pill good">in your area</span>':`<span class="muted">${new Date(t.t).toLocaleTimeString()}</span>`}</div>
   <div>${esc(t.item)} · <b>${esc(t.amount)} ${esc(t.currency)}</b>${t.tab?` <span class="muted">· "${esc(t.tab)}" left ${t.left}, top ${t.top}</span>`:""}</div>
   ${t.hint?`<div class="small" style="color:var(--${t.hint.cls==="bad"?"bad":t.hint.cls==="warn"?"warn":t.hint.cls==="good"?"good":"muted"})">${esc(t.hint.text)}</div>`:""}
-  <div class="row" style="margin-top:4px">${tradeCmds(t).map(([l,c],j)=>`<button class="btn ghost small" data-tc="${list}:${i}:${j}" title="${esc(c)}">${esc(l)}</button>`).join("")}<button class="btn ghost small" data-tx="${list}:${i}">Dismiss</button></div></li>`}
+  <div class="row" style="margin-top:4px">${tradeCmds(t).map(([l,c],j)=>`<button class="btn ghost small" data-tc="${list}:${i}:${j}" title="${esc(c)}">${esc(l)}</button>`).join("")}${list==="in"&&t.tab&&t.left?`<button class="btn small" data-tsh="${i}" title="Outline it on the stash grid over the game (${esc(keyName((LIVE.cfg&&LIVE.cfg.stashHotkey)||"Ctrl+Shift+G"))})">Show in stash</button>`:""}<button class="btn ghost small" data-tx="${list}:${i}">Dismiss</button></div></li>`}
 function renderTrades(){
+  renderStashCard();
   const el=$("deskTrades");if(!el) return;
   const reps=S.tradeReplies||DEFAULT_REPLIES;
   el.innerHTML=`<h2>Trade requests</h2>
@@ -603,6 +635,7 @@ function renderTrades(){
       <div class="rep-list">${reps.map((r,i)=>`<div class="row" style="flex-wrap:nowrap"><input type="text" value="${esc(r.l)}" data-repl="${i}" aria-label="Button label" style="width:110px"><input type="text" value="${esc(r.t)}" data-rept="${i}" aria-label="Message" style="flex:1"><button class="btn ghost small" data-repx="${i}" aria-label="Remove">✕</button></div>`).join("")}</div>
       <div class="row"><button class="btn ghost small" id="repAdd">Add reply</button><span class="muted">Use {name}, {item} and {price} in the message.</span></div></details>`;
   const listOf=k=>k==="out"?BUYS:TRADES;
+  el.querySelectorAll("[data-tsh]").forEach(b=>b.onclick=()=>stashShow(TRADES[+b.dataset.tsh]));
   el.querySelectorAll("[data-tc]").forEach(b=>b.onclick=()=>{const [k,i,j]=b.dataset.tc.split(":");const t=listOf(k)[+i];DESK.copy(tradeCmds(t)[+j][1]);b.textContent="Copied"});
   el.querySelectorAll("[data-tx]").forEach(b=>b.onclick=()=>{const [k,i]=b.dataset.tx.split(":");const L=listOf(k),t=L.splice(+i,1)[0];renderTrades();publishOverlay();toast(`Dismissed ${t.name}'s ${k==="out"?"listing":"request"}.`,()=>{L.splice(+i,0,t);renderTrades();publishOverlay()})});
   const setReps=f=>{const r=(S.tradeReplies||DEFAULT_REPLIES).map(x=>({...x}));f(r);S.tradeReplies=r;save()};

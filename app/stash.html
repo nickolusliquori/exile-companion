@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; font-src 'self' file:; img-src data:; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<title>Exile Companion stash grid</title>
+<style>
+/* Stash grid: a see-through window over the game's stash tab. It only draws; it never reads the screen. */
+@font-face{font-family:"Source Sans 3";src:url("fonts/SourceSans3.ttf") format("truetype");font-weight:200 900;font-display:swap}
+html,body{margin:0;height:100%;overflow:hidden;background:transparent;font-family:"Source Sans 3","Segoe UI",system-ui,sans-serif;color:#f3ead8;user-select:none}
+#grid{position:absolute;inset:0}
+.cal #grid{background:rgba(14,12,10,.25);outline:2px solid #e9c46a}
+.cal{-webkit-app-region:drag;cursor:move}
+.line{position:absolute;background:rgba(233,196,106,.55)}
+.cell{position:absolute;box-sizing:border-box;border:3px solid #ffd166;border-radius:3px;box-shadow:0 0 0 2px rgba(0,0,0,.7),0 0 18px 4px rgba(255,209,102,.75),inset 0 0 12px rgba(255,209,102,.5)}
+html:not(.still) .cell{animation:pulse 1s ease-in-out infinite}
+@keyframes pulse{50%{box-shadow:0 0 0 2px rgba(0,0,0,.7),0 0 28px 10px rgba(255,209,102,.95),inset 0 0 16px rgba(255,209,102,.7)}}
+.label{position:absolute;background:rgba(14,12,10,.92);border:1px solid #c9a45c;border-radius:6px;padding:4px 8px;font-size:13px;white-space:nowrap;max-width:calc(100% - 8px);box-sizing:border-box;overflow:hidden;text-overflow:ellipsis}
+.label b{color:#ffd166}
+#help{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:min(90%,420px);background:rgba(14,12,10,.94);border:1px solid #c9a45c;border-radius:10px;padding:12px 14px;font-size:14px;line-height:1.35;-webkit-app-region:no-drag;cursor:default}
+#help h1{font-size:16px;margin:0 0 6px;color:#e9c46a}
+#help p{margin:0 0 8px}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+button{font:inherit;font-size:13px;padding:5px 10px;border-radius:6px;border:1px solid #8a6f3c;background:#2a2219;color:#f3ead8;cursor:pointer}
+button.primary{background:#c9a45c;color:#1d1408;border-color:#c9a45c;font-weight:700}
+kbd{font-size:12px;border:1px solid #6b5a3e;border-radius:4px;padding:0 4px}
+</style>
+</head>
+<body>
+<div id="grid"></div>
+<script>
+"use strict";
+const D=window.exileDesktop||{};
+const grid=document.getElementById("grid");
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+let mode="hide",N=12,hideT=null;
+if(matchMedia("(prefers-reduced-motion: reduce)").matches)document.documentElement.classList.add("still");
+function lines(n){let h="";for(let i=1;i<n;i++){const p=(i/n*100).toFixed(4)+"%";h+=`<div class="line" style="left:${p};top:0;bottom:0;width:1px"></div><div class="line" style="top:${p};left:0;right:0;height:1px"></div>`}return h}
+function calibrate(n){
+  mode="cal";N=n||12;clearTimeout(hideT);document.body.className="cal";
+  grid.innerHTML=lines(N)+`<div id="help" role="dialog" aria-label="Line up the stash grid"><h1>Line this grid up with your stash</h1>
+    <p>Open a normal stash tab in game. Drag this box so its lines sit on the stash's cell borders, and use Bigger/Smaller until the cells match. Arrow keys move it 1 pixel (Shift: 10), <kbd>+</kbd>/<kbd>−</kbd> resize it.</p>
+    <div class="row" style="margin-bottom:6px"><button id="smaller">− Smaller</button><button id="bigger">+ Bigger</button></div>
+    <div class="row"><button class="primary" id="done">Done</button><button id="quad">${N===12?"Show quad grid (24×24)":"Show normal grid (12×12)"}</button><button id="reset">Reset</button><button id="cancel">Cancel</button></div></div>`;
+  document.getElementById("done").onclick=()=>D.stashCalibrated&&D.stashCalibrated(true);
+  document.getElementById("cancel").onclick=()=>D.stashCalibrated&&D.stashCalibrated(false);
+  document.getElementById("reset").onclick=()=>D.stashNudge&&D.stashNudge({reset:true});
+  document.getElementById("quad").onclick=()=>calibrate(N===12?24:12);
+  let rep=null;const hold=(id,m)=>{const b=document.getElementById(id),go=e=>{D.stashNudge&&D.stashNudge({ds:e&&e.shiftKey?10:2*m})};
+    b.onpointerdown=e=>{go(e);clearInterval(rep);rep=setInterval(()=>go(e),60)};b.onpointerup=b.onpointerleave=()=>clearInterval(rep)};
+  hold("smaller",-1);hold("bigger",1);
+}
+function highlight(h){
+  mode="hl";document.body.className="";clearTimeout(hideT);
+  const n=h.quad?24:12,x=Math.max(1,Math.min(n,h.left|0)),y=Math.max(1,Math.min(n,h.top|0)),w=Math.max(1,h.w|0||1),hh=Math.max(1,h.h|0||1);
+  const pct=v=>(v/n*100).toFixed(4)+"%";
+  const below=y<=n/2;
+  grid.innerHTML=`<div class="cell" style="left:${pct(x-1)};top:${pct(y-1)};width:${pct(w)};height:${pct(hh)}"></div>
+    <div class="label" style="${x-1+w/2>n/2?`right:${pct(n-(x-1+w))}`:`left:${pct(x-1)}`};${below?`top:calc(${pct(y-1+hh)} + 8px)`:`bottom:calc(${pct(n-y+1)} + 8px)`}"><b>${esc(h.item||"Item")}</b>${h.price?` · ${esc(h.price)}`:""}${h.buyer?` · for ${esc(h.buyer)}`:""}</div>`;
+  hideT=setTimeout(()=>D.stashHide&&D.stashHide(),Math.max(3,Math.min(120,h.seconds||20))*1000);
+}
+document.addEventListener("keydown",e=>{
+  if(mode!=="cal")return;const k=e.shiftKey?10:1;const m={ArrowLeft:{dx:-k},ArrowRight:{dx:k},ArrowUp:{dy:-k},ArrowDown:{dy:k},"+":{ds:k},"=":{ds:k},"-":{ds:-k},"_":{ds:-k}}[e.key];
+  if(m){e.preventDefault();D.stashNudge&&D.stashNudge(m)}else if(e.key==="Enter"){D.stashCalibrated&&D.stashCalibrated(true)}else if(e.key==="Escape"){D.stashCalibrated&&D.stashCalibrated(false)}
+});
+if(D.onStash)D.onStash(m=>{if(!m)return;if(m.mode==="cal")calibrate(m.n);else if(m.mode==="hl")highlight(m);else{mode="hide";grid.innerHTML=""}});
+</script>
+</body>

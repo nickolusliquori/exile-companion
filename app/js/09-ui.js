@@ -136,7 +136,7 @@ async function importBuild(input,slot){
 }
 
 /* settings page */
-const HOTKEYS=[["overlayHotkey","Show / hide overlay","Ctrl+Shift+O"],["interactHotkey","Overlay click mode","Ctrl+Shift+I"],["widgetHotkey","Overlay tools (searches, stopwatch, notes)","Ctrl+Shift+Space"],["pageHotkey","Next overlay page","Ctrl+Shift+P"],["copyHotkey","Copy overlay search","Ctrl+Shift+F"],["priceHotkey","Price check (after Ctrl+C)","Ctrl+D"],["wikiHotkey","Wiki lookup","Ctrl+Alt+W"],["cheatHotkey","Cheat sheets","Ctrl+Shift+H"],["pinHotkey","Browser over the game","Ctrl+Shift+B"],["mediaHotkey","Media player","Ctrl+Shift+M"],["mediaPlayHotkey","Play / pause music","",],["mediaClickHotkey","Media player click-through",""]];
+const HOTKEYS=[["overlayHotkey","Show / hide overlay","Ctrl+Shift+O"],["interactHotkey","Overlay click mode","Ctrl+Shift+I"],["widgetHotkey","Overlay tools (searches, stopwatch, notes)","Ctrl+Shift+Space"],["stashHotkey","Show the latest trade's item in your stash","Ctrl+Shift+G"],["pageHotkey","Next overlay page","Ctrl+Shift+P"],["copyHotkey","Copy overlay search","Ctrl+Shift+F"],["priceHotkey","Price check (after Ctrl+C)","Ctrl+D"],["wikiHotkey","Wiki lookup","Ctrl+Alt+W"],["cheatHotkey","Cheat sheets","Ctrl+Shift+H"],["pinHotkey","Browser over the game","Ctrl+Shift+B"],["mediaHotkey","Media player","Ctrl+Shift+M"],["mediaPlayHotkey","Play / pause music","",],["mediaClickHotkey","Media player click-through",""]];
 const RESERVED_KEYS=["Ctrl+C","Ctrl+V","Ctrl+X","Ctrl+A","Ctrl+Z","Ctrl+F","Alt+F4","Ctrl+Enter"];
 function accelFrom(e){
   if(["Control","Shift","Alt","Meta"].includes(e.key)) return null;

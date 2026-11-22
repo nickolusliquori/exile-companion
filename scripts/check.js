@@ -459,10 +459,14 @@ try {
   const cut = (from, to) => { const a = html.indexOf(from), b = html.indexOf(to, a + 1); assert(a > 0 && b > a, "section " + from); return html.slice(a, b); };
   const fam = cut("const BASE_FAMILY=", "\nfunction stashFinds");
   const code = fam + "\n" + cut("/* ---------- trades (log whispers) ----------", "/* ---------- reminders (notifications) ---------- */");
-  const ctx = { console, S: {}, fmt: (v) => String(Math.round(v)), stripTags: (x) => x, esc: (x) => x, $: () => null, ACCT: {} };
+  const ctx = { console, S: {}, fmt: (v) => String(Math.round(v)), stripTags: (x) => x, esc: (x) => x, $: () => null, ACCT: {}, DESK: null };
   vm.createContext(ctx);
-  vm.runInContext(code + "\n;this.__t={recipeSets,recipeSlot,fairHint,tradeCmds,fillReply};", ctx);
+  vm.runInContext(code + "\n;this.__t={recipeSets,recipeSlot,fairHint,tradeCmds,fillReply,quadTab,latestStashTrade,TRADES};", ctx);
   const T = ctx.__t;
+  // stash highlight: quad tabs by name, and the latest trade with a position (a buyer who has arrived comes first)
+  ctx.S.quadTabs = ["Sell"]; assert(T.quadTab("sell") && !T.quadTab("Dump"), "quad tabs by name, any case");
+  T.TRADES.push({ name: "a", t: 1, tab: "x", left: 1, top: 1 }, { name: "b", t: 3, tab: "x", left: 2, top: 2 }, { name: "c", t: 2, tab: "x", left: 3, top: 3, joined: true }, { name: "d", t: 9 });
+  assert.strictEqual(T.latestStashTrade().name, "c", "a buyer in your hideout comes first"); T.TRADES.length = 0;
   const P = { cur: { "Chaos Orb": 1, "Divine Orb": 200 }, ex: { "Divine Orb": 200 }, items: { "Headhunter": [{ chaosValue: 3000 }] } };
   assert.strictEqual(T.fairHint({ dir: "in", bulk: true, item: "10 Divine Orb", amount: "1500", currency: "Chaos Orb" }, P).cls, "bad", "bulk offer 25% under is flagged");
   assert.strictEqual(T.fairHint({ dir: "in", bulk: true, item: "1 Divine Orb", amount: "205", currency: "Chaos Orb" }, P).cls, "", "fair bulk offer");

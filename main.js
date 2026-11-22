@@ -71,6 +71,8 @@ const DEFAULTS = {
   widgetHotkey: "Ctrl+Shift+Space", // overlay Tools page (stash searches, stopwatch, notes) in click mode
   cheatHotkey: "Ctrl+Shift+H",    // show / cycle / hide cheat sheets
   pinHotkey: "Ctrl+Shift+B",      // show / hide the browser pinned over the game
+  stashHotkey: "Ctrl+Shift+G",    // outline the latest trade's item on the stash grid
+  stashBounds: null,              // where the stash grid sits on screen (set by lining it up once)
   mediaHotkey: "Ctrl+Shift+M",    // show / hide the media mini player
   mediaPlayHotkey: "",            // play / pause (mini player, or whatever plays in Windows)
   mediaClickHotkey: "",           // mini player click-through on / off
@@ -253,6 +255,7 @@ function registerHotkeys() {
   bind(cfg.pageHotkey, () => { if (!overlayWin) return; if (!overlayWin.isVisible()) toggleOverlay(true); overlayWin.webContents.send("overlay:page", "next"); }, "overlay page");
   bind(cfg.cheatHotkey, () => cycleCheat(), "cheat sheets");
   bind(cfg.pinHotkey, () => togglePin(), "pinned browser");
+  bind(cfg.stashHotkey, () => { if (stashWin && stashWin.isVisible() && !stashCal) stashWin.hide(); else sendMain("stash:hotkey", true); }, "stash highlight");
   bind(cfg.mediaHotkey, () => toggleMedia(), "media player");
   bind(cfg.mediaPlayHotkey, () => mediaPlayPause(), "play / pause");
   bind(cfg.mediaClickHotkey, () => setMediaClickThrough(!mediaClickThrough), "media click-through");
@@ -524,7 +527,7 @@ ipcMain.handle("cfg:get", () => ({ ...cfg, version: VERSION }));
 ipcMain.handle("cfg:set", (e, patch) => {
   const before = { ...cfg };
   cfg = { ...cfg, ...patch }; saveCfg();
-  if (["priceHotkey", "overlayHotkey", "interactHotkey", "copyHotkey", "wikiHotkey", "pageHotkey", "widgetHotkey", "cheatHotkey", "pinHotkey", "mediaHotkey", "mediaPlayHotkey", "mediaClickHotkey"].some((k) => before[k] !== cfg[k])) registerHotkeys();
+  if (["priceHotkey", "overlayHotkey", "interactHotkey", "copyHotkey", "wikiHotkey", "pageHotkey", "widgetHotkey", "cheatHotkey", "pinHotkey", "mediaHotkey", "mediaPlayHotkey", "mediaClickHotkey", "stashHotkey"].some((k) => before[k] !== cfg[k])) registerHotkeys();
   if (mediaWin && before.mediaOpacity !== cfg.mediaOpacity) mediaWin.setOpacity(Math.min(1, Math.max(0.3, +cfg.mediaOpacity || 1)));
   if (before.nowPlaying !== cfg.nowPlaying) { if (cfg.nowPlaying === false) { mediaBridge.stop(); broadcastNow({ off: true }); } else pollNow(); }
   if (pinWin && before.pinOpacity !== cfg.pinOpacity) pinWin.setOpacity(Math.min(1, Math.max(0.4, +cfg.pinOpacity || 1)));
@@ -993,6 +996,59 @@ app.on("web-contents-created", (e, wc) => {
 app.on("child-process-gone", (e, d) => { if (d.reason !== "clean-exit") LOG.error("app", `${d.type} process stopped (${d.reason}${d.name ? ", " + d.name : ""}, exit code ${d.exitCode})`); });
 app.on("before-quit", () => { app.isQuitting = true; });
 
+/* ---------------- stash grid: outline a trade's item over the stash tab ----------------
+   A see-through, click-through window the user lines up with their stash once. It only draws; it never reads the screen. */
+let stashWin = null, stashCal = null;
+function defaultStashBounds() {
+  const b = screen.getPrimaryDisplay().bounds, h = b.height, size = Math.round(h * 0.587);   // the game's stash grid at 16:9
+  return { x: b.x + Math.round(h * 0.0157), y: b.y + Math.round(h * 0.1491), width: size, height: size };
+}
+function ensureStashWin() {
+  if (stashWin && !stashWin.isDestroyed()) return stashWin;
+  let b = cfg.stashBounds || defaultStashBounds();
+  const disp = screen.getDisplayMatching(b); if (!disp || b.x > disp.bounds.x + disp.bounds.width || b.y > disp.bounds.y + disp.bounds.height) b = defaultStashBounds();
+  stashWin = new BrowserWindow({ ...b, frame: false, transparent: true, resizable: false, alwaysOnTop: true, skipTaskbar: true, focusable: false, show: false, hasShadow: false,
+    roundedCorners: false, backgroundColor: "#00000000", title: "Exile Companion stash grid", icon: APP_ICON, webPreferences: prefs() });
+  stashWin.setAlwaysOnTop(true, "screen-saver"); stashWin.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+  stashWin.setIgnoreMouseEvents(true);
+  stashWin.loadFile(path.join(__dirname, "app", "stash.html"));
+  stashWin.on("closed", () => { stashWin = null; stashCal = null; });
+  return stashWin;
+}
+function sendStash(m) { const w = ensureStashWin(); const go = () => { if (!w.isDestroyed()) w.webContents.send("stash:show", m); }; if (w.webContents.isLoading()) w.webContents.once("did-finish-load", go); else go(); }
+function stashHighlight(h) {
+  if (stashCal) return;
+  const w = ensureStashWin(); w.setIgnoreMouseEvents(true); w.setFocusable(false);
+  sendStash({ mode: "hl", ...h }); w.showInactive();
+}
+function stashCalibrate() {
+  const w = ensureStashWin(); stashCal = w.getBounds();
+  w.setIgnoreMouseEvents(false); w.setFocusable(true); sendStash({ mode: "cal", n: 12 }); w.show(); w.focus();
+}
+function stashEndCal(keep) {
+  const w = stashWin; if (!w || w.isDestroyed()) return;
+  if (keep) { cfg.stashBounds = w.getBounds(); saveCfg(); } else if (stashCal) w.setBounds(stashCal);
+  stashCal = null; w.setIgnoreMouseEvents(true); w.setFocusable(false); w.hide(); sendStash({ mode: "hide" });
+  sendMain("stash:status", { calibrated: !!cfg.stashBounds });
+}
+const clip = (v, n) => String(v == null ? "" : v).slice(0, n);
+ipcMain.on("stash:highlight", (e, h) => {
+  if (!h || typeof h !== "object") return;
+  const n = (v) => Math.max(1, Math.min(24, Math.round(+v) || 1));
+  const quad = !!h.quad || +h.left > 12 || +h.top > 12;
+  stashHighlight({ left: n(h.left), top: n(h.top), w: Math.min(2, n(h.w)), h: Math.min(4, n(h.h)), quad, item: clip(h.item, 120), price: clip(h.price, 40), buyer: clip(h.buyer, 40), seconds: Math.max(3, Math.min(120, +h.seconds || 20)) });
+});
+ipcMain.on("stash:calibrate", () => stashCalibrate());
+ipcMain.on("stash:calibrated", (e, keep) => stashEndCal(!!keep));
+ipcMain.on("stash:nudge", (e, m) => {
+  if (!stashWin || stashWin.isDestroyed() || !stashCal || !m || typeof m !== "object") return;
+  if (m.reset) { stashWin.setBounds(defaultStashBounds()); return; }
+  const b = stashWin.getBounds(), k = (v) => Math.max(-50, Math.min(50, Math.round(+v) || 0)), ds = k(m.ds), size = Math.max(120, Math.min(4000, b.width + ds));
+  stashWin.setBounds({ x: b.x + k(m.dx), y: b.y + k(m.dy), width: size, height: size });
+});
+ipcMain.on("stash:hide", () => { if (stashWin && !stashWin.isDestroyed() && !stashCal) { stashWin.hide(); sendStash({ mode: "hide" }); } });
+ipcMain.handle("stash:status", () => ({ calibrated: !!cfg.stashBounds }));
+
 // text size: the price popup grows with the app's text size; the overlay grows when its own text size changes
 const PRICE_BASE = { width: 400, height: 520 };
 function sizePrice() {
@@ -1090,6 +1146,15 @@ async function runSmoke() {
       await new Promise((r) => mainWin.webContents.once("did-finish-load", r)); await wait(1500);
       const main = await js(mainWin.webContents, "({act:S.campAct,active:activeChar().name,n:charList().list.length})");
       return { ok: alt.active === "SmokeAlt" && alt.act === 1 && main.act === 7 && main.n === 2, info: JSON.stringify({ alt, main }) };
+    });
+    await run("stash grid: highlight shows, line-up mode cancels back to where it was", async () => {
+      stashHighlight({ left: 3, top: 2, w: 1, h: 1, quad: false, item: "Smoke test", price: "1 chaos", buyer: "", seconds: 5 }); await wait(1500);
+      const shown = !!stashWin && stashWin.isVisible() && !stashWin.webContents.isCrashed() && /stash\.html$/.test(stashWin.webContents.getURL());
+      const cells = await js(stashWin.webContents, "document.querySelectorAll('.cell').length");
+      const before = JSON.stringify(stashWin.getBounds()); stashCalibrate(); await wait(500);
+      stashWin.setBounds({ ...stashWin.getBounds(), x: stashWin.getBounds().x + 40 }); stashEndCal(false); await wait(300);
+      const after = JSON.stringify(stashWin.getBounds());
+      return { ok: shown && cells === 1 && before === after && !stashWin.isVisible(), info: `shown ${shown}, cells ${cells}, bounds kept ${before === after}` };
     });
     await run("safe-mode state answers", () => ({ info: JSON.stringify({ safe: SAFE }) }));
   } catch (e) { step("test run", false, (e && e.stack) || e); }

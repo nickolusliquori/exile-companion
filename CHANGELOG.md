@@ -2,6 +2,11 @@
 
 What changed in each release, newest first. Installed copies update themselves; see the [Releases page](https://github.com/nickolusliquori/exile-companion/releases) for the installers. Planned releases are on the [roadmap](README.md#roadmap).
 
+## [1.32.0] - 2026-11-22
+
+### Added
+- **Stash highlight for trades:** when someone buys from you, the app outlines the item on a see-through grid over your stash, using the tab and position from their whisper, with the item, price and buyer beside it. Line the grid up with your stash once (Desktop tools → Stash highlight); after that, "Show in stash" on a trade request, Ctrl+Shift+G (latest trade; press again to hide), or automatically when the buyer arrives in your hideout. Quad tabs work by name, and any position past 12 uses the quad grid. It only draws over the game and never reads your screen.
+
 ## [1.31.0] - 2026-11-22
 
 ### Added
