@@ -108,7 +108,7 @@ General options and your builds, a **hotkey recorder**, your GGG account, Discor
 ### In game
 
 - **Overlay:** a see-through panel over the game. In the campaign it shows the act's next steps, gem rewards and XP range; in maps a timer, deaths, your session rate, map-mod search and cards that drop there. Flip pages for build, gear, atlas, session and trades.
-- **Price check:** hover an item and press **Ctrl+C**. A window opens by your cursor with poe.ninja values, the cheapest live listings, a mod picker for rares (min and max per mod, tier and roll badges with Ctrl+Alt+C, life and resistance totals), an upgrade check against what you're wearing and a wiki panel. Maps get a "run it or reroll it" verdict.
+- **Price check:** hover an item and press **Ctrl+C**. A window opens by your cursor with poe.ninja values, the cheapest live listings, a map check where you mark dangerous mods, poedb and Craft lab links, a mod picker for rares and magic items (similar-mods search, min and max per mod, tier and roll badges with Ctrl+Alt+C, life and resistance totals), an upgrade check against what you're wearing and a wiki panel. Maps get a "run it or reroll it" verdict.
 - **Trade whispers:** buyers show on the overlay with item, price and stash position, and buttons copy `/invite`, `/tradewith` and replies for you to paste.
 - **Cheat sheets:** your own images (Betrayal board, Lab layout) shown over the game with a hotkey.
 

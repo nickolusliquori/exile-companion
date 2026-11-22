@@ -1171,6 +1171,15 @@ function gearButtons(prefix){
 
 /* ---------------- render: maps ---------------- */
 function avoidList(){return MAPMODS.filter(m=>m.when(T))}
+// map mods you marked in the price popup (warning / danger), kept in their own storage key
+function renderMapMarks(){
+  const host=document.querySelector('[data-avoid]')&&document.querySelector('[data-avoid]').closest(".card");if(!host)return;
+  let box=$("mapMarks");if(!box){box=document.createElement("div");box.id="mapMarks";host.appendChild(box)}
+  let marks={};try{marks=JSON.parse(localStorage.getItem("ec330.mapMarks")||"{}")||{}}catch(e){}
+  const list=Object.entries(marks).sort((a,b)=>(a[1].v===b[1].v?0:a[1].v==="danger"?-1:1));
+  box.innerHTML=`<h3 style="margin:10px 0 4px">Mods you marked</h3>${list.length?`<ul class="clean">${list.map(([k,m])=>`<li class="row" style="justify-content:space-between;flex-wrap:nowrap"><span class="small" style="color:${m.v==="danger"?"var(--bad)":"var(--warn)"}">${m.v==="danger"?"⛔":"⚠"} ${esc(m.text||k)}</span><button class="btn ghost small" data-unmark="${esc(k)}" aria-label="Remove mark">✕</button></li>`).join("")}</ul>`:'<p class="small muted" style="margin:0">None yet. Ctrl+C a map in game and click any mod in the price window to mark it as a warning or danger for every map.</p>'}`;
+  box.querySelectorAll("[data-unmark]").forEach(b=>b.onclick=()=>{delete marks[b.dataset.unmark];try{localStorage.setItem("ec330.mapMarks",JSON.stringify(marks))}catch(e){}renderMapMarks()});
+}
 function renderMaps(){
   const done=PROGRESS.filter(p=>S.progress[p.id]).length;
   const next=PROGRESS.find(p=>!S.progress[p.id]);
@@ -1201,6 +1210,7 @@ function renderMaps(){
     <div class="row"><button class="btn" id="copyRegex">Copy regex</button><span class="small muted" id="copyMsg" role="status"></span></div>
     <p class="note" style="margin:0">Map mod wording can shift between patches. Test the regex on one map tab first; maps that stay highlighted are safe to run.</p>`;
   document.querySelectorAll("[data-avoid]").forEach(c=>c.onchange=()=>{S.avoidOff[c.dataset.avoid]=!c.checked;save();renderMaps()});
+  renderMapMarks();
   $("copyRegex").onclick=async()=>{try{await navigator.clipboard.writeText(regex);$("copyMsg").textContent="Copied."}catch(e){$("copyMsg").textContent="Copy blocked: select the text and copy it manually."}};
   $("mapsProgress").innerHTML=`<h2>Atlas progression</h2>
     <ul class="clean">${PROGRESS.map(p=>`<li><label class="check ${S.progress[p.id]?"done":""}"><input type="checkbox" data-prog="${p.id}"${S.progress[p.id]?" checked":""}><div style="flex:1"><div class="t">${esc(p.t)}</div><div class="small muted">${esc(p.tip)}</div>${gateHtml(p)}</div></label></li>`).join("")}</ul>
@@ -4206,6 +4216,7 @@ function brSync(){
 if(DESK&&DESK.onBrowserState){
   DESK.onBrowserState(st=>{BR.state=st;if(st&&st.url&&/^https:/.test(st.url)&&!st.error){S.browserLast=st.url;rememberTradeSearch(st.url);save()}if(CUR_TAB==="browser")renderBrowserBar()});
   DESK.onBrowserBlocked(x=>{BR.blocked=x;if(CUR_TAB!=="browser")showTab("browser");renderBrowserBar()});
+  if(DESK.onCraftItem)DESK.onCraftItem(it=>{if(!it||!it.base)return;showTab("craftlab");openCraftLab(it);toast(`Opened ${it.base} in the Craft lab.`)});
   if(DESK.onMediaNow){DESK.onMediaNow(n=>{MNOW=n;if(CUR_TAB==="media")renderMedia()});DESK.onMediaPlayer(s=>{MPL=s;if(CUR_TAB==="media"&&!(document.activeElement&&/mpVol|mpOp|mpUrl/.test(document.activeElement.id)))renderMedia()})}
   if(DESK.clipHistory){DESK.clipHistory().then(h=>{CLIP=h||[];renderClip()}).catch(()=>{});DESK.onClipHistory(h=>{CLIP=h||[];renderClip()})}
   DESK.onBrowserShow(x=>{BR.started=true;BR.blocked=null;if(CUR_TAB!=="browser")showTab("browser");BR.state={...(BR.state||{}),url:x.url,loading:true};renderBrowserBar()});

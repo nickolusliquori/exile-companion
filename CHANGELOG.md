@@ -2,6 +2,13 @@
 
 What changed in each release, newest first. Installed copies update themselves; see the [Releases page](https://github.com/nickolusliquori/exile-companion/releases) for the installers. Planned releases are on the [roadmap](README.md#roadmap).
 
+## [1.19.0] - 2026-11-22
+
+### Added
+- **Mark map mods in the price window:** Ctrl+C a map, then click any mod to mark it as a warning (⚠), then danger (⛔), then clear. Marks are remembered by wording for every map, and danger marks (plus your build's avoid list) turn the verdict to "Reroll it". The Maps page lists your marks so you can remove them.
+- The map check also shows quality, delirious and "More …" rewards (currency, maps, divination cards, Threads) next to quantity, rarity and pack size.
+- **Item links in the price window:** **poedb** next to Wiki, and **Craft lab**, which opens the item in the main window's Craft lab with its base, item level, influences and mods filled in.
+
 ## [1.18.1] - 2026-11-22
 
 ### Fixed

@@ -813,6 +813,15 @@ ipcMain.handle("media:now", async () => { if (cfg.nowPlaying === false) return {
 ipcMain.handle("media:cmd", async (e, c) => { const r = await mediaBridge.command(String(c)); broadcastNow(r); return r; });
 app.on("will-quit", () => mediaBridge.stop());
 
+// "Craft lab" button in the price popup: hand the item to the main window's Craft lab
+ipcMain.on("price:toCraft", (e, item) => {
+  if (!mainWin || mainWin.isDestroyed() || !item || typeof item !== "object") return;
+  const clean = { base: String(item.base || "").slice(0, 80), ilvl: +item.ilvl || null, flags: (Array.isArray(item.flags) ? item.flags : []).map(String).slice(0, 2),
+    mods: (Array.isArray(item.mods) ? item.mods : []).slice(0, 20).map((m) => ({ text: String((m && m.text) || "").slice(0, 200), crafted: !!(m && m.crafted) })) };
+  sendMain("craft:item", clean);
+  if (priceWin && !priceWin.isDestroyed()) priceWin.hide();
+  mainWin.show(); mainWin.focus();
+});
 ipcMain.handle("clip:history", () => clipHistory.map(({ title, rarity, at }) => ({ title, rarity, at })));
 ipcMain.on("clip:recheck", (e, i) => { const h = clipHistory[+i]; if (h) showPrice(h.text); });
 ipcMain.on("clip:clear", () => { clipHistory.length = 0; sendMain("clip:history", []); });

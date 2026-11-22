@@ -33,6 +33,10 @@ table{border-collapse:collapse;width:100%;font-size:12px}
 td,th{padding:3px 6px;border-bottom:1px solid var(--line);text-align:left;font-variant-numeric:tabular-nums}
 th{color:var(--muted);font-weight:600;font-size:10px;text-transform:uppercase}
 .mod{display:grid;grid-template-columns:auto 1fr 56px 56px;gap:6px;align-items:center;font-size:12px}
+.mapmods{display:grid;gap:2px;margin:4px 0}
+.mm{all:unset;cursor:pointer;font-size:12px;padding:2px 6px;border-radius:4px;line-height:1.35}
+.mm:hover{background:rgba(255,255,255,.06)}.mm.warn{color:#e8c25a;background:rgba(232,194,90,.08)}.mm.danger{color:#ff7a6b;background:rgba(224,88,75,.12);font-weight:600}
+.mm i{color:var(--muted);font-weight:400}
 .mods-h{display:grid;grid-template-columns:auto 1fr 56px 56px;gap:6px;color:var(--muted);font-size:11px;padding-left:20px}
 .tier{display:inline-flex;align-items:center;gap:3px;font-size:10px;font-weight:700;border:1px solid var(--line);border-radius:3px;padding:0 4px;margin-right:5px;color:var(--muted);vertical-align:1px}
 .tier.t1{color:#1d1408;background:var(--gold);border-color:var(--gold)}.tier.t2{color:var(--good);border-color:#71c27a66}
@@ -114,6 +118,7 @@ function parseItem(text){
       else if((m=l.match(/^Quality: \+?(\d+)%/)))it.quality=+m[1];
       else if((m=l.match(/^Level: (\d+)/))&&it.rarity==="gem")it.gemLevel=+m[1];
       else if((m=l.match(/^Map Tier: (\d+)/)))it.mapTier=+m[1];
+      else if((m=l.match(/^(Shaper|Elder|Crusader|Redeemer|Hunter|Warlord) Item$/))){(it.flags=it.flags||[]).push(m[1]);continue}
       else if((m=l.match(/^Stack Size: ([\d,.]+)\//)))it.stack=+m[1].replace(/[,.]/g,"");
       else if((m=l.match(/^Sockets: (.+)/)))it.links=Math.max(...m[1].trim().split(" ").map(g=>g.split("-").length));
       else if(/^Corrupted$/.test(l)||/^Twice Corrupted$/.test(l))it.corrupted=true;
@@ -166,20 +171,39 @@ function craftHtml(it){
     <p class="status" style="margin:0;font-size:11px">Tier 1 is the best roll of that mod; roll % is where the value sits inside its tier.</p></div>`;
 }
 
-/* ---------- map checker ---------- */
+/* ---------- map checker ----------
+   Mods you mark here (warning / danger) are remembered by their wording, for every map. Your build's avoid list
+   (from the Maps page) counts as danger too. */
+const MARK_KEY="ec330.mapMarks";
+const markOf=t=>String(t).toLowerCase().replace(/\d+(\.\d+)?/g,"#").replace(/\s+/g," ").trim();
+function getMarks(){try{return JSON.parse(localStorage.getItem(MARK_KEY)||"{}")||{}}catch(e){return {}}}
+function setMark(t,v){const m=getMarks();const k=markOf(t);if(v)m[k]={v,text:t,at:Date.now()};else delete m[k];try{localStorage.setItem(MARK_KEY,JSON.stringify(m))}catch(e){}}
+function mapVerdict(lines,avoid,marks){
+  const rows=lines.map(t=>{const a=avoid.find(x=>x.frag&&t.toLowerCase().includes(x.frag.toLowerCase()));const mk=marks[markOf(t)];
+    return {t,level:mk?mk.v:a?"danger":null,why:a?a.label:null,own:!!mk}});
+  const d=rows.filter(r=>r.level==="danger").length,w=rows.filter(r=>r.level==="warn").length;
+  return {rows,danger:d,warn:w,verdict:d?["Reroll it","bad"]:w?["Careful","warn"]:null};
+}
 async function mapHtml(it){
   if(it.cls!=="Maps") return "";
   const gear=D.getGear?await D.getGear():null;
   const avoid=(gear&&gear.avoid)||[];
-  const lines=[...it.implicits,...it.mods].map(m=>m.text);
-  const bad=[];
-  avoid.forEach(a=>{const hit=lines.find(l=>l.toLowerCase().includes(a.frag.toLowerCase()));if(hit)bad.push({label:a.label,line:hit})});
-  const props=Object.entries(it.props).filter(([k])=>/Quantity|Rarity|Pack Size|Atlas|Scarab|Currency|Maps|Monster/i.test(k));
-  const verdict=bad.length?["Reroll it","bad"]:it.rarity==="normal"?["Roll it first","warn"]:["Run it","good"];
-  return `<div class="up"><div class="row" style="justify-content:space-between;align-items:center"><h3>Map check${it.mapTier?` · T${it.mapTier}`:""}</h3><span class="pill ${verdict[1]}">${verdict[0]}</span></div>
-    ${bad.length?bad.map(b=>`<p class="status err" style="margin:0">⚠ ${esc(b.line)} <i>(${esc(b.label)})</i></p>`).join(""):`<p class="status" style="margin:0">${avoid.length?"None of the mods your build should avoid.":"Set up your build in the companion to check mods against it."}</p>`}
-    ${props.length?`<div class="deltas">${props.map(([k,v])=>`<span class="pos">+${v}% ${esc(k)}</span>`).join("")}</div>`:""}
-    <p class="status" style="margin:0;font-size:11px">${lines.length} mods${it.corrupted?" · corrupted":""}. Your avoid list comes from the Maps tab.</p></div>`;
+  const lines=[...it.implicits,...it.mods].filter(m=>m.kind!=="implicit").map(m=>m.text);
+  const v=mapVerdict(lines,avoid,getMarks());
+  const verdict=v.verdict||(it.rarity==="normal"?["Roll it first","warn"]:["Run it","good"]);
+  const props=Object.entries(it.props).filter(([k])=>/Quantity|Rarity|Pack Size|Atlas|Scarab|Thread|Currency|Maps|Monster|Delirious|Divination|Quality/i.test(k));
+  return `<div class="up mapbox"><div class="row" style="justify-content:space-between;align-items:center"><h3>Map check${it.mapTier?` · T${it.mapTier}`:""}</h3><span class="pill ${verdict[1]}">${verdict[0]}</span></div>
+    ${props.length?`<div class="deltas">${props.map(([k,val])=>`<span class="pos">${/^\d/.test(String(val))?"+":""}${esc(String(val))}% ${esc(k)}</span>`).join("")}</div>`:""}
+    <div class="mapmods">${v.rows.map((r,i)=>`<button class="mm ${r.level||""}" data-mm="${i}" title="Click to mark: warning, then danger, then clear">${r.level==="danger"?"⛔":r.level==="warn"?"⚠":"·"} ${esc(r.t)}${r.why&&!r.own?` <i>(${esc(r.why)})</i>`:""}</button>`).join("")}</div>
+    <p class="status" style="margin:0;font-size:11px">${lines.length} mods${it.corrupted?" · corrupted":""}. Click a mod to mark it for every map (warning → danger → clear). Your build's avoid list comes from the Maps page.</p></div>`;
+}
+function bindMapMods(it){
+  document.querySelectorAll("[data-mm]").forEach(b=>b.onclick=async()=>{
+    const lines=[...it.implicits,...it.mods].filter(m=>m.kind!=="implicit").map(m=>m.text);const t=lines[+b.dataset.mm];
+    const cur=(getMarks()[markOf(t)]||{}).v;setMark(t,cur==="warn"?"danger":cur==="danger"?null:"warn");
+    try{EXTRA=(await mapHtml(it))+craftHtml(it)}catch(e){}
+    if(LAST_STATE)render(LAST_STATE);
+  });
 }
 const wikiUrl=it=>{const n=it.rarity==="unique"||it.rarity==="gem"||it.rarity==="currency"||it.rarity==="divination card"?it.name:it.base;return "https://www.poewiki.net/wiki/"+encodeURIComponent(String(n||"").replace(/ /g,"_"))};
 
@@ -381,11 +405,14 @@ function render(state){
     <div style="display:grid;gap:4px">${state.mods.map((x,i)=>`<label class="mod${x.id?"":" nomatch"}"><input type="checkbox" data-m="${i}"${x.on?" checked":""}${x.id?"":" disabled"}><span>${tierBadge(x)}${esc(x.text)}${x.kind!=="explicit"?` <i style="color:var(--muted)">(${x.kind})</i>`:""}</span>${x.v!=null&&x.id?`<input type="number" data-min="${i}" value="${x.min??""}" aria-label="Minimum"><input type="number" data-max="${i}" value="${x.max??""}" placeholder="–" aria-label="Maximum">`:"<span></span><span></span>"}</label>`).join("")}</div>
     ${item.advanced?"":'<p class="small" style="margin:0;color:var(--muted)">Tip: copy with <b>Ctrl+Alt+C</b> to see each mod\'s tier and roll.</p>'}
     <div class="row"><button class="b p" id="again">Search again</button></div>`;
-  h+=`<div class="row">${lastSearchId?`<button class="b" id="open">Open on trade site</button>`:""}${state.exchange?`<button class="b" id="openEx">Open bulk exchange</button>`:""}<button class="b" id="wiki">Wiki</button><button class="b" id="close2">Close</button></div>`;
+  h+=`<div class="row">${lastSearchId?`<button class="b" id="open">Open on trade site</button>`:""}${state.exchange?`<button class="b" id="openEx">Open bulk exchange</button>`:""}<button class="b" id="wiki">Wiki</button><button class="b" id="poedb">poedb</button>${D&&D.toCraft&&/^(rare|magic|normal)$/.test(item.rarity)&&!/Maps|Gem|Currency|Flask|Jewel/i.test(item.cls)?`<button class="b" id="craft">Craft lab</button>`:""}<button class="b" id="close2">Close</button></div>`;
   m.innerHTML=h;
   const o=$("open");if(o)o.onclick=()=>D.openExternal(`${TRADE}/trade/search/${encodeURIComponent(league)}/${lastSearchId}`);
   $("close2").onclick=()=>D.closePrice();
   $("wiki").onclick=()=>D.openExternal(wikiUrl(item));
+  $("poedb").onclick=()=>D.openExternal("https://poedb.tw/us/search?q="+encodeURIComponent(item.rarity==="unique"||item.rarity==="gem"||item.rarity==="divination card"?item.name:item.base));
+  const cb=$("craft");if(cb)cb.onclick=()=>D.toCraft({base:item.base,ilvl:item.ilvl,flags:item.flags||[],mods:item.mods.map(m=>({text:m.text,crafted:m.kind==="crafted"}))});
+  bindMapMods(item);
   const ox=$("openEx");if(ox)ox.onclick=()=>D.openExternal(`${TRADE}/trade/exchange/${encodeURIComponent(league)}`);
   if(state.mods){
     m.querySelectorAll("[data-m]").forEach(c=>c.onchange=()=>{state.mods[+c.dataset.m].on=c.checked});
@@ -511,7 +538,7 @@ $("close").onclick=()=>D&&D.closePrice();
 document.addEventListener("keydown",e=>{if(e.key==="Escape")D&&D.closePrice()});
 if(D){D.onPriceItem(({text,league:l})=>{if(l)league=l;check(text)})}
 window.__parseItem=parseItem; // for testing
-window.__priceTest={enrichMods,pseudoPlan,minFor,loose,needFor};
+window.__priceTest={enrichMods,pseudoPlan,minFor,loose,needFor,mapVerdict,markOf};
 </script>
 </body>
 </html>
