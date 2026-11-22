@@ -236,6 +236,19 @@ section.tab .card{scroll-margin-top:140px}
 
 
 
+
+/* in-app browser */
+.br-bar{gap:6px;padding:10px 12px}
+.br-row{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.br-addr{flex:1;min-width:220px}
+.br-addr input{width:100%;padding:6px 10px;background:#0b0806;border:1px solid var(--line);border-radius:3px;font-size:.88rem}
+.br-links .btn{padding:3px 9px;font-size:.78rem;min-height:0}
+.br-status{min-height:1.4em;display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.br-host{position:relative;border:1px solid var(--line);border-radius:4px;background:#0e0c0a;min-height:300px;overflow:hidden}
+.br-empty{padding:16px}
+body.browsing #toast{top:12px;bottom:auto}
+body.browsing{overflow:hidden}
+body.browsing #exampleBanner{display:none!important}
 /* loot filter editor */
 .fl-label{display:inline-flex;align-items:center;gap:4px;border:1.5px solid transparent;padding:1px 7px;font-family:var(--display);line-height:1.35;white-space:nowrap;max-width:100%;overflow:hidden;text-overflow:ellipsis}
 .fl-label.hid{opacity:.35;text-decoration:line-through}
@@ -414,6 +427,7 @@ header{transition:transform .2s ease}
     <button role="tab" data-tab="craft" data-g="trade" aria-selected="false">Crafting</button>
     <button role="tab" data-tab="craftlab" data-g="trade" aria-selected="false">Craft lab</button>
     <button role="tab" data-tab="filter" data-g="trade" aria-selected="false">Loot filter</button>
+    <button role="tab" data-tab="browser" data-g="trade" aria-selected="false">Browser</button>
     <button role="tab" data-tab="account" data-g="trade" aria-selected="false" id="acctTabBtn" hidden>Account</button>
     <button role="tab" data-tab="settings" data-g="app" aria-selected="false">Settings</button>
     <button role="tab" data-tab="desktop" data-g="app" aria-selected="false" id="deskTabBtn" hidden>Desktop tools</button>
@@ -541,6 +555,11 @@ header{transition:transform .2s ease}
   <!-- LOOT FILTER EDITOR (loads when opened) -->
   <section class="tab" id="tab-filter" role="tabpanel">
     <div id="filterLab" style="display:grid;gap:16px"></div>
+  </section>
+
+  <!-- IN-APP BROWSER (desktop: a sandboxed web view sits over #brHost) -->
+  <section class="tab" id="tab-browser" role="tabpanel">
+    <div id="browserPage" style="display:grid;gap:12px"></div>
   </section>
 
   <!-- ACCOUNT (only in the desktop app) -->
@@ -3330,6 +3349,9 @@ function showTab(name){
   if(name==="settings") setTimeout(renderSettings,0);
   if(name==="craftlab") setTimeout(openCraftLab,0);
   if(name==="filter") setTimeout(openFilterLab,0);
+  if(name==="browser") setTimeout(()=>{renderBrowser();brSync()},0);
+  document.body.classList.toggle("browsing",name==="browser"&&!!DESK);
+  if(typeof brSync==="function") setTimeout(brSync,0);
   if(name==="trees") setTimeout(renderTrees,0);
   if(name==="maps"&&!$("mapsCards").dataset.loaded){$("mapsCards").dataset.loaded="1";setTimeout(()=>renderCards(false),0)}
   if(location.hash!=="#"+name) history.replaceState(null,"","#"+name);
@@ -3427,7 +3449,7 @@ setInterval(()=>{if(CUR_TAB==="home"&&!document.hidden)renderHome()},10000);
 const cmdk=$("cmdk");let CMDK=[],CMDK_SEL=0,CMDK_ITEMS=[];
 function cmdkIndex(){
   const out=[], names={};document.querySelectorAll("#tabs [data-tab]").forEach(b=>names[b.dataset.tab]=b.textContent.trim());
-  const acts=[["Import goal build",()=>openImport("goal")],["Import current character",()=>openImport("current")],["Run setup wizard",()=>openWizard()],["Report a problem",()=>openReport()],["Edit my loot filter",()=>showTab("filter")],[S.compact?"Turn compact mode off":"Turn compact mode on",()=>setCompact(!S.compact)]];
+  const acts=[["Import goal build",()=>openImport("goal")],["Import current character",()=>openImport("current")],["Run setup wizard",()=>openWizard()],["Report a problem",()=>openReport()],["Edit my loot filter",()=>showTab("filter")],["Open the trade site",()=>{showTab("browser");brGo("https://www.pathofexile.com/trade")}],["Open poe.ninja",()=>{showTab("browser");brGo("https://poe.ninja/economy")}],["Open the wiki",()=>{showTab("browser");brGo("https://www.poewiki.net/wiki/Path_of_Exile_Wiki")}],[S.compact?"Turn compact mode off":"Turn compact mode on",()=>setCompact(!S.compact)]];
   if(DESK)acts.push(["Change hotkeys",()=>{showTab("settings");scrollToCard("setHotkeys")}]);
   if($("sessToggle"))acts.push([S.session.start?"Pause session timer":"Start session timer",()=>$("sessToggle").click()]);
   if(DESK){acts.push([LIVE.overlayVisible?"Hide overlay":"Show overlay",()=>DESK.toggleOverlay(!LIVE.overlayVisible)]);
@@ -3532,6 +3554,7 @@ const HELP={
   clOdds:"For the mods you ticked: the chance per try and the average cost of each method, simulated with the game's mod weights and current prices.",
   clEmu:"Click currency on the item to practice a craft with the game's real odds. Undo and New item are free; the spent counter uses current prices.",
   clSim:"Build a plan from steps (for example Alteration until 2 targets, then Regal, then Exalt) and run it thousands of times for the average, median and unlucky cost.",
+  brBar:"A browser for Path of Exile sites. Pages run in their own sandbox with no access to the app, your files or your saved POESESSID; other sites open in your own browser.",
   flFile:"Open the NeverSink filter you use. Changes are saved as a separate ExileCompanion-… copy; your original file is never touched.",
   flPrev:"A typical set of endgame drops run through your edited filter, top to bottom like the game does. Click a label to edit the rule that styles it.",
   flTiers:"Every rule in the filter, grouped by section. Hidden rules are dimmed. Pick one to edit it.",
@@ -3622,6 +3645,9 @@ function renderSettings(){
     <label class="row small"><input type="checkbox" id="stOnCopy"${c.priceOnCopy!==false?" checked":""}> Price-check automatically when I press Ctrl+C on an item</label>
     <div class="fgrid"><label class="f" for="stLeague">Trade league<input type="text" id="stLeague" value="${esc(c.league||"")}" data-cfg="league" placeholder="detected automatically"></label>
       <label class="f" for="stContact">Contact for API requests (optional)<input type="text" id="stContact" value="${esc(c.contact||"")}" data-cfg="contact" placeholder="email or forum name"></label></div>`:""}
+    ${DESK?`<h3>Web links</h3>
+    <label class="row small"><input type="checkbox" id="stInApp"${c.inAppBrowser!==false?" checked":""}> Open trade, wiki and poe.ninja links in the app's browser (other sites always open in your own browser)</label>
+    <div class="row"><button class="btn ghost small" id="stBrClear">Clear browser data</button><span class="small muted">Signs you out of pathofexile.com in the app and clears its cookies and cache.</span></div>`:""}
     <h3>Display</h3>
     <label class="row small"><input type="checkbox" id="stCompact"${S.compact?" checked":""}> Compact mode: smaller text and tighter spacing for small screens or a side monitor</label>
     <label class="row small"><input type="checkbox" id="stHelp"${S.helpOff?"":" checked"}> Show the ? explainer button on cards</label>`;
@@ -3630,6 +3656,8 @@ function renderSettings(){
   const dc=$("stDelC");if(dc)dc.onclick=()=>{const xml=store.get("xml.current",null);clearSlot("current");renderSettings();if(xml)toast("Removed your current character.",async()=>{await loadSlot("current",xml,false);renderSettings()})};
   $("stHelp").onchange=e=>{S.helpOff=!e.target.checked;save();ensureHelp()};
   $("stCompact").onchange=e=>setCompact(e.target.checked);
+  if(DESK){const ia=$("stInApp");if(ia)ia.onchange=async e=>{LIVE.cfg=await DESK.setConfig({inAppBrowser:e.target.checked});toast(e.target.checked?"Links open in the app's browser.":"Links open in your own browser.")};
+    const bc=$("stBrClear");if(bc)bc.onclick=async()=>{const r=await DESK.browserClear();toast(r&&r.ok?"Browser data cleared. You're signed out of pathofexile.com in the app.":"Couldn't clear browser data.")}}
   if(DESK){
     $("stOnCopy").onchange=async e=>{LIVE.cfg=await DESK.setConfig({priceOnCopy:e.target.checked});renderDesktop()};
     g.querySelectorAll("[data-cfg]").forEach(inp=>inp.onchange=async()=>{const patch={};patch[inp.dataset.cfg]=inp.value.trim()||null;LIVE.cfg=await DESK.setConfig(patch);if(inp.dataset.cfg==="league"&&LIVE.cfg.league){S.league=LIVE.cfg.league;save();renderShop()}publishOverlay();renderDesktop()});
@@ -3766,7 +3794,7 @@ const ICONS={
   wand:'<path d="M4 20L16 8"/><path d="M15 3v3M18 6h3M19 2l-1 2M13 5l2 1"/>',
 };
 const svgIcon=(n,cls)=>ICONS[n]?`<svg class="${cls||"ico-s"}" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">${ICONS[n]}</svg>`:"";
-const TAB_ICONS={filter:"filter",craftlab:"wand",home:"home",build:"sword",progress:"chart",shop:"bag",trees:"tree",campaign:"flag",maps:"map",atlas:"compass",session:"hourglass",craft:"hammer",account:"coins",settings:"gear",desktop:"monitor"};
+const TAB_ICONS={browser:"search",filter:"filter",craftlab:"wand",home:"home",build:"sword",progress:"chart",shop:"bag",trees:"tree",campaign:"flag",maps:"map",atlas:"compass",session:"hourglass",craft:"hammer",account:"coins",settings:"gear",desktop:"monitor"};
 const GROUP_ICONS={home:"home",char:"user",play:"map",trade:"coins",app:"gear"};
 function decorateNav(){
   document.querySelectorAll("#tabs [data-tab]").forEach(b=>{if(!b.querySelector("svg"))b.insertAdjacentHTML("afterbegin",svgIcon(TAB_ICONS[b.dataset.tab]))});
@@ -3898,6 +3926,58 @@ $("rpIssue").onclick=async()=>{
 $("rpClose").onclick=()=>$("reportDlg").close();
 // offer a report the first time something breaks in this session
 {let offered=false;const n0=(window.__ERRS||[]).length;window.__onAppError=()=>{if(offered||!document.body)return;offered=true;setTimeout(()=>toast("Something went wrong in the app.",()=>openReport(),"Report it"),300)};if(n0)setTimeout(window.__onAppError,3000);}
+
+/* ---------------- in-app browser page ---------------- */
+const BR_LINKS=[["Trade","https://www.pathofexile.com/trade"],["Currency exchange","https://www.pathofexile.com/trade/exchange"],["poe.ninja","https://poe.ninja/economy"],["Builds","https://poe.ninja/builds"],["Wiki","https://www.poewiki.net/wiki/Path_of_Exile_Wiki"],["poedb","https://poedb.tw/us/"],["Lab layout","https://www.poelab.com/"],["Craft of Exile","https://www.craftofexile.com/"],["FilterBlade","https://www.filterblade.xyz/?game=Poe1"],["poe.re","https://poe.re/"],["pobb.in","https://pobb.in/"]];
+const BR={state:null,blocked:null,last:"",started:false};
+function brUrlFrom(v){v=String(v||"").trim();if(!v)return null;if(/^https?:\/\//i.test(v))return v.replace(/^http:/i,"https:");if(/^[\w-]+(\.[\w-]+)+(\/\S*)?$/.test(v))return "https://"+v;return "https://www.poewiki.net/index.php?search="+encodeURIComponent(v)}
+function brGo(v){const u=brUrlFrom(v);if(!u)return;if(!DESK){window.open(u,"_blank","noopener");return}BR.blocked=null;DESK.browserGo(u);renderBrowserBar()}
+function renderBrowser(){
+  const el=$("browserPage");if(!el)return;
+  if(!DESK){el.innerHTML=`<div class="card hl"><h2>Browser</h2><p class="small" style="margin:0">In the desktop app, these sites open inside the app, signed in and next to your build. Here they open in a new tab.</p><div class="row">${BR_LINKS.map(([l,u])=>`<a class="btn ghost small" href="${esc(u)}" target="_blank" rel="noopener">${esc(l)}</a>`).join("")}</div></div>`;return}
+  if(!$("brBar")){el.innerHTML=`<div class="card br-bar" id="brBar"></div><div id="brHost" class="br-host" aria-label="Web page"><div class="br-empty">${emptyBox("Pick a site above, or type an address or a wiki search.")}</div></div>`}
+  renderBrowserBar();
+  if(!BR.started){BR.started=true;DESK.browserState().then(st=>{if(st&&st.url&&st.url!=="about:blank"){BR.state=st;renderBrowserBar()}else brGo(S.browserLast||BR_LINKS[0][1])})}
+}
+function renderBrowserBar(){
+  const bar=$("brBar");if(!bar)return;const st=BR.state||{};const editing=document.activeElement&&document.activeElement.id==="brAddr";
+  const host=(()=>{try{return new URL(st.url).hostname.replace(/^www\./,"")}catch(e){return ""}})();
+  bar.innerHTML=`<div class="br-row">
+      <button class="btn ghost small" id="brBack" aria-label="Back"${st.canBack?"":" disabled"}>◀</button>
+      <button class="btn ghost small" id="brFwd" aria-label="Forward"${st.canForward?"":" disabled"}>▶</button>
+      <button class="btn ghost small" id="brReload" aria-label="${st.loading?"Stop":"Reload"}">${st.loading?"✕":"⟳"}</button>
+      <form id="brForm" class="br-addr"><input id="brAddr" type="text" spellcheck="false" autocomplete="off" aria-label="Address or wiki search" placeholder="Address, or search the wiki" value="${esc(editing?$("brAddr").value:(st.url&&st.url!=="about:blank"?st.url:""))}"></form>
+      <button class="btn ghost small" id="brExt" title="Open this page in your own web browser"${st.url&&/^https:/.test(st.url)?"":" disabled"}>Open in my browser</button>
+    </div>
+    <div class="br-row br-links">${BR_LINKS.map(([l,u])=>`<button class="btn ghost small" data-brgo="${esc(u)}">${esc(l)}</button>`).join("")}</div>
+    <div class="small br-status">${BR.blocked?`<span style="color:var(--warn)">${BR.blocked.reason==="download"?"Downloads are blocked in the app's browser.":`The app only opens trusted Path of Exile sites itself; this link goes to <b>${esc((()=>{try{return new URL(BR.blocked.url).hostname}catch(e){return BR.blocked.url}})())}</b>.`}</span> <button class="btn primary small" id="brBlockedOpen">Open in my browser</button> <button class="btn ghost small" id="brBlockedX">Dismiss</button>`
+      :st.error?`<span style="color:var(--warn)">Couldn't load the page: ${esc(st.error)}</span>`
+      :`<span class="muted">${st.loading?"Loading…":esc(st.title||"")}${host?` · ${esc(host)}`:""}</span>`}</div>`;
+  $("brBack").onclick=()=>DESK.browserNav("back");$("brFwd").onclick=()=>DESK.browserNav("forward");
+  $("brReload").onclick=()=>DESK.browserNav(st.loading?"stop":"reload");
+  $("brForm").onsubmit=e=>{e.preventDefault();brGo($("brAddr").value);$("brAddr").blur()};
+  $("brExt").onclick=()=>{if(st.url)DESK.browserExternal(st.url)};
+  bar.querySelectorAll("[data-brgo]").forEach(b=>b.onclick=()=>brGo(b.dataset.brgo));
+  const bo=$("brBlockedOpen");if(bo)bo.onclick=()=>{DESK.browserExternal(BR.blocked.url);BR.blocked=null;renderBrowserBar()};
+  const bx=$("brBlockedX");if(bx)bx.onclick=()=>{BR.blocked=null;renderBrowserBar()};
+  if(editing){const a=$("brAddr");a.focus();a.setSelectionRange(a.value.length,a.value.length)}
+}
+// keep the native web view over the page's host box; hide it whenever something should sit on top
+function brSync(){
+  if(!DESK||!DESK.browserBounds)return;
+  const host=$("brHost");let b={visible:false};
+  if(CUR_TAB==="browser"&&host&&!document.hidden&&!document.querySelector("dialog[open]")){
+    const top=host.getBoundingClientRect().top;host.style.height=Math.max(200,innerHeight-top-12)+"px";
+    const r=host.getBoundingClientRect();if(r.width>50&&r.height>50)b={visible:true,x:r.left,y:r.top,width:r.width,height:r.height};
+  }
+  const key=JSON.stringify(b);if(key!==BR.last){BR.last=key;DESK.browserBounds(b)}
+}
+if(DESK&&DESK.onBrowserState){
+  DESK.onBrowserState(st=>{BR.state=st;if(st&&st.url&&/^https:/.test(st.url)&&!st.error){S.browserLast=st.url;save()}if(CUR_TAB==="browser")renderBrowserBar()});
+  DESK.onBrowserBlocked(x=>{BR.blocked=x;if(CUR_TAB!=="browser")showTab("browser");renderBrowserBar()});
+  DESK.onBrowserShow(x=>{BR.started=true;BR.blocked=null;if(CUR_TAB!=="browser")showTab("browser");BR.state={...(BR.state||{}),url:x.url,loading:true};renderBrowserBar()});
+  setInterval(brSync,150);addEventListener("resize",brSync);
+}
 
 const dlg=$("importDlg");
 const openImport=slot=>{if(typeof slot!=="string")slot=exG?"goal":"current";$(slot==="current"?"slotCur":"slotGoal").checked=true;$("pobCode").value="";$("pobFile").value="";$("importStatus").textContent="";$("importStatus").className="status";try{dlg.showModal()}catch(e){dlg.setAttribute("open","")}setTimeout(()=>$("pobCode").focus(),50)};

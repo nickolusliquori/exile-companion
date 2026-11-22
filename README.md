@@ -89,6 +89,7 @@ Your character at a glance: progress toward the goal build, what to do next (cam
 | **Crafting** | A crafting plan for each gear slot, crafts that tend to sell for profit, a cost calculator and a 3.30 crafting cheat sheet. |
 | **Craft lab** | Mod pools from the game files (patch 3.30.0.4) for any base, item level and influence, with tiers, roll ranges and weights. Tick the mods you want to see the chance and cost of chaos spam, essences, fossils and alteration methods; practise on an **emulator** item; or **simulate** a whole plan 2,000 times for its average and unlucky cost. |
 | **Loot filter** | Edit the NeverSink filter you use: show or hide rules, restyle them (size, colours, sound, beam, minimap icon), preview 36 typical drops through it, re-tier currency, cards and uniques with today's poe.ninja prices, and add highlights for your build. Saves a separate `ExileCompanion-…` copy; your original is never changed. |
+| **Browser** (desktop) | The trade site, poe.ninja, the wiki, poedb, poelab, Craft of Exile, FilterBlade, poe.re and pobb.in inside the app, signed in, with quick links and a wiki search. Links from the price window and elsewhere open here. Pages are sandboxed away from the app and your saved secrets; other sites open in your own browser. |
 | **Account** (desktop) | Live character sync from your GGG profile, stash net worth over time, stash finds (upgrades and items worth selling), currency trends and a sales tracker. |
 
 <p align="center"><img src="docs/screenshots/craft-lab.jpg" alt="The Craft lab: chance per try and average cost of each crafting method for a life and cold resistance Vaal Regalia" width="820"></p>
@@ -129,11 +130,10 @@ All of these can be changed in **Settings → Hotkeys**.
 
 ## Roadmap
 
-The loot filter editor shipped in 1.8. Planned releases, in order. Each ships as a regular release through auto-update, gets tested in game afterwards, and any problems found are fixed in a follow-up patch (for example 1.8.1).
+The loot filter editor shipped in 1.8 and the in-app browser in 1.9. Planned releases, in order. Each ships as a regular release through auto-update, gets tested in game afterwards, and any problems found are fixed in a follow-up patch (for example 1.8.1).
 
 | Version | Feature |
 |---|---|
-| **1.9** | **In-app browser** for the trade site, poe.ninja, poewiki, poedb, pobb.in, poelab, Craft of Exile and FilterBlade, in its own sandbox. "Open on trade" and other links open inside the app, and your pathofexile.com login is remembered.|
 | **1.10** | **Trading and money:** a search-string builder (like poe.re), a dump-tab pricer that writes `~b/o` notes for you to copy, a currency flip watcher, and divination card and unique collection trackers.|
 | **1.11** | **Mapping and league content:** scarab and map-device return on investment from your own maps, a Betrayal board helper, Heist and Expedition helpers, and the daily Lab layout with enchant prices.|
 | **1.12** | **Build tools:** a meta comparison from poe.ninja builds, timeless and cluster jewel helpers, and gem levelling profit.|
@@ -145,7 +145,7 @@ Not planned: anything that sends input to the game (auto-setting stash notes, ch
 
 - **Stays on your PC:** builds, progress, map log, settings and backups. Settings live in `%APPDATA%\exile-companion\config.json`; everything else in the app's own storage.
 - **Encrypted:** your POESESSID and any GGG sign-in tokens are encrypted with Windows' data protection, and never included in backups, sync codes or problem reports.
-- **Network:** only `pathofexile.com`, `poe.ninja`, `poewiki.net`, `pobb.in`, `pastebin.com`, item pictures from `web.poecdn.com`, and this repository's releases.
+- **Network:** the app itself only talks to `pathofexile.com`, `poe.ninja`, `poewiki.net`, `pobb.in`, `pastebin.com`, item pictures from `web.poecdn.com`, and this repository's releases. The in-app browser loads the sites you open in it, in a separate sandboxed session.
 - **Problem reports** are built on your PC, shown to you in full, and only sent if you copy them or open a GitHub issue yourself.
 
 See [SECURITY.md](SECURITY.md) for how the app is protected.

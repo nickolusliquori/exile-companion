@@ -1,7 +1,8 @@
 // Exile Companion desktop: main process.
 // Windows: companion (main), overlay (click-through, always on top), price check popup.
 "use strict";
-const { app, BrowserWindow, globalShortcut, ipcMain, clipboard, screen, shell, dialog, Menu, Notification, safeStorage } = require("electron");
+const { app, BrowserWindow, WebContentsView, session, globalShortcut, ipcMain, clipboard, screen, shell, dialog, Menu, Notification, safeStorage } = require("electron");
+const { webHostAllowed } = require("./lib/webhosts");
 const fs = require("fs");
 const path = require("path");
 const { parseEvents, detectLogPaths, readTail, Tail } = require("./lib/logtail");
@@ -31,16 +32,20 @@ const trusted = (e) => {
   ipcMain.handle = (ch, fn) => _handle(ch, (e, ...a) => { if (!trusted(e)) throw new Error("Blocked: untrusted sender"); return fn(e, ...a); });
   ipcMain.on = (ch, fn) => _on(ch, (e, ...a) => { if (!trusted(e)) return; return fn(e, ...a); });
 }
+const WEB_PARTITION = "persist:web";
 app.on("web-contents-created", (_e, contents) => {
+  // the in-app browser's pages live in their own session and get their own rules (see "in-app browser" below)
+  if (contents.session === session.fromPartition(WEB_PARTITION)) { contents.on("will-attach-webview", (e) => e.preventDefault()); return; }
   // no new windows, no navigation away from the app, no embedded webviews
-  contents.setWindowOpenHandler(({ url }) => { if (/^https:\/\//i.test(url)) shell.openExternal(url); return { action: "deny" }; });
-  contents.on("will-navigate", (e, url) => { if (!url.toLowerCase().startsWith(APP_URL)) { e.preventDefault(); if (/^https:\/\//i.test(url)) shell.openExternal(url); } });
+  contents.setWindowOpenHandler(({ url }) => { if (/^https:\/\//i.test(url)) openLink(url); return { action: "deny" }; });
+  contents.on("will-navigate", (e, url) => { if (!url.toLowerCase().startsWith(APP_URL)) { e.preventDefault(); if (/^https:\/\//i.test(url)) openLink(url); } });
   contents.on("will-attach-webview", (e) => e.preventDefault());
 });
 const VERSION = app.getVersion();
 
 /* ---------------- config ---------------- */
 const DEFAULTS = {
+  inAppBrowser: true,           // open trade, wiki and poe.ninja links inside the app
   logPath: null,
   league: null,                 // trade league id, auto-detected when null
   contact: "",                  // optional email/handle sent in the User-Agent (GGG and poe.ninja ask for one)
@@ -75,8 +80,8 @@ let overlayInteractive = false, lastOverlayData = null, lastPriceText = null;
 const prefs = () => ({ preload: path.join(__dirname, "preload.js"), contextIsolation: true, nodeIntegration: false, sandbox: true });
 
 function externalLinks(win) {
-  win.webContents.setWindowOpenHandler(({ url }) => { if (/^https:\/\//i.test(url)) shell.openExternal(url); return { action: "deny" }; });
-  win.webContents.on("will-navigate", (e, url) => { if (!url.toLowerCase().startsWith(APP_URL)) { e.preventDefault(); if (/^https:\/\//i.test(url)) shell.openExternal(url); } });
+  win.webContents.setWindowOpenHandler(({ url }) => { if (/^https:\/\//i.test(url)) openLink(url); return { action: "deny" }; });
+  win.webContents.on("will-navigate", (e, url) => { if (!url.toLowerCase().startsWith(APP_URL)) { e.preventDefault(); if (/^https:\/\//i.test(url)) openLink(url); } });
 }
 
 const APP_ICON = path.join(__dirname, "app", "icon.png");
@@ -190,7 +195,7 @@ function registerHotkeys() {
     const cur = await clipRead();
     const txt = isItemText(cur) ? cur : lastPriceText;
     const u = txt && wikiUrlFor(txt);
-    if (u) shell.openExternal(u); else overlayWin && overlayWin.webContents.send("overlay:toast", "Copy an item in game first (Ctrl+C)");
+    if (u) openLink(u); else overlayWin && overlayWin.webContents.send("overlay:toast", "Copy an item in game first (Ctrl+C)");
   }, "wiki lookup");
   bind(cfg.pageHotkey, () => { if (!overlayWin) return; if (!overlayWin.isVisible()) toggleOverlay(true); overlayWin.webContents.send("overlay:page", "next"); }, "overlay page");
   bind(cfg.cheatHotkey, () => cycleCheat(), "cheat sheets");
@@ -483,8 +488,90 @@ ipcMain.handle("diag:save", async (e, text) => {
   fs.writeFileSync(r.filePath, body, "utf8");
   return path.basename(r.filePath);
 });
-ipcMain.on("open:external", (e, url) => { if (typeof url === "string" && /^https:\/\/[^\s]+$/i.test(url) && url.length < 2048) shell.openExternal(url); });
+ipcMain.on("open:external", (e, url) => { if (typeof url === "string" && /^https:\/\/[^\s]+$/i.test(url) && url.length < 2048) openLink(url); });
+// always the user's own browser (the "Open in my browser" button)
+ipcMain.on("browser:external", (e, url) => { if (typeof url === "string" && /^https:\/\/[^\s]+$/i.test(url) && url.length < 2048) shell.openExternal(url); });
 
+
+
+/* ---------------- in-app browser ----------------
+   Web pages run in a WebContentsView inside the main window, in their own session ("persist:web"):
+   no preload, sandboxed, no access to the app's IPC, secrets or files. Only allowlisted sites load;
+   other links ask the user and open in their own browser. Downloads, pop-up windows and device
+   permissions are blocked (except the trade site's "copy whisper" button, which needs clipboard write). */
+let webView = null;
+let webShown = false;
+function webSession() { return session.fromPartition(WEB_PARTITION); }
+function ensureWebView() {
+  if (webView || !mainWin || mainWin.isDestroyed()) return webView;
+  const ses = webSession();
+  ses.setUserAgent(ses.getUserAgent().replace(/\s(Electron|exile-companion)\/\S+/gi, ""));
+  ses.setPermissionRequestHandler((wc, perm, cb, details) => cb(perm === "clipboard-sanitized-write" && webHostAllowed(details && details.requestingUrl)));
+  ses.setPermissionCheckHandler((wc, perm, origin) => perm === "clipboard-sanitized-write" && webHostAllowed(origin));
+  ses.on("will-download", (e, item) => { e.preventDefault(); sendMain("browser:blocked", { url: item.getURL(), reason: "download" }); });
+  webView = new WebContentsView({ webPreferences: { partition: WEB_PARTITION, contextIsolation: true, sandbox: true, nodeIntegration: false, webSecurity: true, spellcheck: false } });
+  webView.setBackgroundColor("#0e0c0a");
+  const wc = webView.webContents;
+  const guard = (e, url) => { if (!webHostAllowed(url)) { e.preventDefault(); if (/^https:\/\//i.test(url)) sendMain("browser:blocked", { url }); } };
+  wc.on("will-navigate", guard);
+  wc.on("will-redirect", guard);
+  wc.on("will-frame-navigate", (e) => { if (e.isMainFrame && !webHostAllowed(e.url)) { e.preventDefault(); if (/^https:\/\//i.test(e.url)) sendMain("browser:blocked", { url: e.url }); } });
+  wc.setWindowOpenHandler(({ url }) => { if (webHostAllowed(url)) wc.loadURL(url); else if (/^https:\/\//i.test(url)) sendMain("browser:blocked", { url }); return { action: "deny" }; });
+  const push = (extra) => {
+    if (wc.isDestroyed()) return;
+    const h = wc.navigationHistory;
+    sendMain("browser:state", { url: wc.getURL(), title: wc.getTitle(), canBack: h.canGoBack(), canForward: h.canGoForward(), loading: wc.isLoading(), ...(extra || {}) });
+  };
+  ["did-navigate", "did-navigate-in-page", "page-title-updated", "did-start-loading", "did-stop-loading"].forEach((ev) => wc.on(ev, () => push()));
+  wc.on("did-fail-load", (e, code, desc, url, isMain) => { if (isMain && code !== -3) push({ error: `${desc} (${code})`, failedUrl: url }); });
+  wc.on("render-process-gone", () => push({ error: "The page crashed. Press reload." }));
+  mainWin.contentView.addChildView(webView);
+  webView.setVisible(false);
+  return webView;
+}
+function webGo(url) {
+  if (!webHostAllowed(url)) { if (/^https:\/\//i.test(String(url))) sendMain("browser:blocked", { url }); return false; }
+  ensureWebView();
+  if (webView) webView.webContents.loadURL(url).catch(() => {});
+  return true;
+}
+// every "open this link" in the app goes through here
+function openLink(url) {
+  if (cfg.inAppBrowser !== false && webHostAllowed(url) && mainWin && !mainWin.isDestroyed()) {
+    if (mainWin.isMinimized()) mainWin.restore();
+    mainWin.show(); mainWin.focus();
+    sendMain("browser:show", { url });
+    webGo(url);
+    return;
+  }
+  shell.openExternal(url);
+}
+ipcMain.handle("browser:go", (e, url) => webGo(String(url || "")));
+ipcMain.on("browser:nav", (e, what) => {
+  if (!webView) return;
+  const wc = webView.webContents, h = wc.navigationHistory;
+  if (what === "back" && h.canGoBack()) h.goBack();
+  else if (what === "forward" && h.canGoForward()) h.goForward();
+  else if (what === "reload") wc.reload();
+  else if (what === "stop") wc.stop();
+});
+ipcMain.on("browser:bounds", (e, b) => {
+  if (!b || !b.visible) { if (webView && webShown) { webView.setVisible(false); webShown = false; } return; }
+  ensureWebView();
+  if (!webView) return;
+  const [cw, ch] = mainWin.getContentSize();
+  // the page reports CSS pixels; scale by the app's zoom so the view lines up if the user zoomed (Ctrl +/-)
+  const z = mainWin.webContents.getZoomFactor() || 1;
+  const r = (v) => Math.max(0, Math.round((+v || 0) * z));
+  const x = Math.min(r(b.x), cw), y = Math.min(r(b.y), ch);
+  webView.setBounds({ x, y, width: Math.min(r(b.width), cw - x), height: Math.min(r(b.height), ch - y) });
+  if (!webShown) { webView.setVisible(true); webShown = true; }
+});
+ipcMain.handle("browser:state", () => { if (!webView) return null; const wc = webView.webContents; return { url: wc.getURL(), title: wc.getTitle(), canBack: wc.navigationHistory.canGoBack(), canForward: wc.navigationHistory.canGoForward(), loading: wc.isLoading() }; });
+ipcMain.handle("browser:clear", async () => {
+  try { const ses = webSession(); await ses.clearStorageData(); await ses.clearCache(); if (webView) webView.webContents.loadURL("about:blank").catch(() => {}); return { ok: true }; }
+  catch (err) { return { ok: false, error: err.message || String(err) }; }
+});
 
 /* ---------------- IPC: account, filters, notifications, discord ---------------- */
 const wrap = (fn) => async (e, a) => { try { return { ok: true, data: await fn(a || {}) } } catch (err) { return { ok: false, error: err.message || String(err) }; } };

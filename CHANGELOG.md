@@ -2,6 +2,14 @@
 
 What changed in each release, newest first. Installed copies update themselves; see the [Releases page](https://github.com/nickolusliquori/exile-companion/releases) for the installers. Planned releases are on the [roadmap](README.md#roadmap).
 
+## [1.9.0] - 2026-11-21
+
+- **New: in-app browser** (Economy → Browser). The trade site, currency exchange, poe.ninja, the wiki, poedb, poelab, Craft of Exile, FilterBlade, poe.re and pobb.in open inside the app, with back, forward, reload, an address bar that also searches the wiki, and quick links.
+- **Links open there:** "Open on trade" in the price window, trade and wiki links across the app, and the wiki hotkey all open in the app's browser and bring the app to the front. Switch this off in Settings → Web links to keep using your own browser.
+- **Stays signed in:** log into pathofexile.com once and the trade site remembers you, inside the app only. Settings → **Clear browser data** signs you out.
+- **Isolated:** web pages run in their own sandboxed session with no access to the app, your files or your saved POESESSID. Only the sites above load in the app; any other link asks first and opens in your own browser. Downloads and pop-up windows are blocked; the trade site's "copy whisper" button still works.
+- **Checks:** the release checks now start main.js with a stand-in for Electron, so a startup error can't ship.
+
 ## [1.8.1] - 2026-11-21
 
 - **Fixed:** picking a filter in the loot filter editor did nothing for files with an apostrophe in the name, which includes every NeverSink filter ("NeverSink's filter - …"). The same fix applies to the Shopping list's filter add-on.
@@ -87,6 +95,7 @@ First public release of the Windows app, installed from GitHub with automatic up
 - **Account:** live character sync, stash net worth, stash finds, currency trends, price alerts and a sales tracker.
 - **Also:** notifications, Discord status, session recaps, backups, phone sync and an OBS stream overlay.
 
+[1.9.0]: https://github.com/nickolusliquori/exile-companion/releases/tag/v1.9.0
 [1.8.1]: https://github.com/nickolusliquori/exile-companion/releases/tag/v1.8.1
 [1.8.0]: https://github.com/nickolusliquori/exile-companion/releases/tag/v1.8.0
 [1.7.1]: https://github.com/nickolusliquori/exile-companion/releases/tag/v1.7.1

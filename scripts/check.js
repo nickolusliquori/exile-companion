@@ -11,7 +11,7 @@ const pending = [];
 const fail = (msg) => { console.error("✗ " + msg); failures++; };
 const ok = (msg) => console.log("✓ " + msg);
 
-for (const f of ["main.js", "preload.js", "lib/logtail.js", "lib/ggg.js", "lib/discord.js", "lib/clip.js", "lib/diag.js", "lib/files.js"]) {
+for (const f of ["main.js", "preload.js", "lib/logtail.js", "lib/ggg.js", "lib/discord.js", "lib/clip.js", "lib/diag.js", "lib/files.js", "lib/webhosts.js"]) {
   try { new vm.Script(fs.readFileSync(path.join(root, f), "utf8"), { filename: f }); ok(`${f} parses`); }
   catch (e) { fail(`${f}: ${e.message}`); }
 }
@@ -118,6 +118,21 @@ try {
   assert(sim.ok && sim.cost > 0, "simulator should finish a chaos-spam plan");
   ok(`craft lab engine works (${ctx.CRAFTDATA.v}, ${Object.keys(ctx.CRAFTDATA.mods).length} mods)`);
 } catch (e) { fail("craft lab: " + e.message); }
+
+// main.js must start: load it with a stand-in for Electron in a separate process
+try {
+  const r = require("child_process").spawnSync(process.execPath, [path.join(__dirname, "load-main.js")], { encoding: "utf8", timeout: 20000 });
+  if (r.status !== 0 || !/present\)/.test(r.stdout)) throw new Error((r.stderr || r.stdout || "no output").split("\n").slice(0, 6).join(" | "));
+  ok("main.js starts (" + r.stdout.trim().split(":").pop().trim() + ")");
+} catch (e) { fail("main.js startup: " + e.message); }
+
+// in-app browser: only allowlisted https sites open inside the app
+try {
+  const { webHostAllowed } = require(path.join(root, "lib", "webhosts.js"));
+  for (const u of ["https://www.pathofexile.com/trade/search/Standard", "https://poe.ninja/economy", "https://www.poewiki.net/wiki/Headhunter", "https://pobb.in/abc"]) assert(webHostAllowed(u), "should allow " + u);
+  for (const u of ["http://www.pathofexile.com/", "https://evil-pathofexile.com/", "https://pathofexile.com.evil.io/", "https://user:pw@poe.ninja/", "file:///C:/x", "javascript:alert(1)", "https://example.com/"]) assert(!webHostAllowed(u), "should block " + u);
+  ok("in-app browser opens only allowlisted https sites");
+} catch (e) { fail("web hosts: " + e.message); }
 
 // filter file names: keep NeverSink's apostrophe, never allow folders or non-filter files
 try {
