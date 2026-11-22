@@ -132,7 +132,7 @@ All of these can be changed in **Settings → Hotkeys**.
 
 ## Roadmap
 
-The loot filter editor shipped in 1.8, the in-app browser in 1.9 the trading tools in 1.10 and the League page in 1.11. Planned releases, in order. Each ships as a regular release through auto-update, gets tested in game afterwards, and any problems found are fixed in a follow-up patch (for example 1.8.1).
+The loot filter editor shipped in 1.8, the in-app browser in 1.9, the trading tools in 1.10 and the League page in 1.11. Planned releases, in order. Each ships as a regular release through auto-update, gets tested in game afterwards, and any problems found are fixed in a follow-up patch (for example 1.8.1).
 
 | Version | Feature |
 |---|---|
