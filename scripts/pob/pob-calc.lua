@@ -3,9 +3,21 @@
 --   luajit pob-calc.lua <build.xml> [<item.txt> <slot name>]
 -- Prints one line of JSON.
 local xmlPath, itemPath, slotName = arg[1], arg[2], arg[3]
-dofile("HeadlessWrapper.lua")
+-- Path of Building's files can start with a UTF-8 BOM and a "#@" line that its own launcher strips: do the same
+-- for everything it loads (keeps line numbers: the line becomes a comment)
+local function loadClean(p)
+  local f = io.open(p, "rb"); if not f then return nil, "cannot open " .. tostring(p) end
+  local s = f:read("*a"); f:close()
+  s = s:gsub("^\239\187\191", ""); if s:sub(1, 1) == "#" then s = "--" .. s end
+  return loadstring(s, "@" .. p)
+end
+loadfile = function(p) return loadClean(p) end
+dofile = function(p) local fn, err = loadClean(p); if not fn then error(err, 2) end; return fn() end
+local okLoad, errLoad = xpcall(function() dofile("HeadlessWrapper.lua") end, debug.traceback)
+if not okLoad then io.stderr:write(tostring(errLoad), "\n"); print('{"ok":false,"error":"loading Path of Building failed"}'); os.exit(2) end
 local function read(p) local f = assert(io.open(p, "rb")); local s = f:read("*a"); f:close(); return s end
-loadBuildFromXML(read(xmlPath))
+local okB, errB = xpcall(function() loadBuildFromXML(read(xmlPath)) end, debug.traceback)
+if not okB then io.stderr:write(tostring(errB), "\n"); print('{"ok":false,"error":"loading the build failed"}'); os.exit(3) end
 local out = build.calcsTab.mainOutput
 local function pick(o)
   return { dps = o.FullDPS or o.CombinedDPS or o.TotalDPS or 0, life = o.Life or 0, es = o.EnergyShield or 0, ehp = o.TotalEHP or 0,

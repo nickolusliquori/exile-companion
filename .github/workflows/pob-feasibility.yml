@@ -39,14 +39,16 @@ jobs:
         run: |
           $ErrorActionPreference = "Continue"
           Copy-Item luajit\src\luajit.exe pob\src\
+          Copy-Item luajit\src\lua51.dll pob\src\
           Copy-Item scripts\pob\pob-calc.lua pob\src\
+          Write-Host "HeadlessWrapper first bytes:"; [System.IO.File]::ReadAllBytes("$PWD\pob\src\HeadlessWrapper.lua")[0..12] -join " " | Write-Host
           $env:LUA_PATH = "..\runtime\lua\?.lua;..\runtime\lua\?\init.lua;.\?.lua"
           $env:LUA_CPATH = "..\runtime\?.dll"
           $env:PATH = "$PWD\pob\runtime;$env:PATH"
           $xml = Get-ChildItem pob\spec -Recurse -Filter *.xml | Select-Object -First 1
           Write-Host "Build: $($xml.FullName)"
           Push-Location pob\src
-          Write-Host "--- with Path of Building's lua51.dll ---"
+          Write-Host "--- build totals ---"
           .\luajit.exe pob-calc.lua $xml.FullName 2>&1 | Select-Object -Last 15 | ForEach-Object { Write-Host $_ }
           Write-Host "exit: $LASTEXITCODE"
           @"
@@ -67,9 +69,7 @@ jobs:
           .\luajit.exe pob-calc.lua $xml.FullName item.txt "Ring 1" 2>&1 | Select-Object -Last 15 | ForEach-Object { Write-Host $_ }
           Write-Host "exit: $LASTEXITCODE"
           Pop-Location
-          Write-Host "--- with LuaJIT's own lua51.dll ---"
-          Copy-Item luajit\src\lua51.dll pob\src\
+          Write-Host "--- two more test builds ---"
           Push-Location pob\src
-          .\luajit.exe pob-calc.lua $xml.FullName item.txt "Ring 1" 2>&1 | Select-Object -Last 15 | ForEach-Object { Write-Host $_ }
-          Write-Host "exit: $LASTEXITCODE"
+          Get-ChildItem ..\spec -Recurse -Filter *.xml | Select-Object -Skip 1 -First 2 | ForEach-Object { Write-Host $_.Name; .\luajit.exe pob-calc.lua $_.FullName ..\src\item.txt "Ring 1" 2>&1 | Select-Object -Last 6 | ForEach-Object { Write-Host $_ }; Write-Host "exit: $LASTEXITCODE" }
           Pop-Location
