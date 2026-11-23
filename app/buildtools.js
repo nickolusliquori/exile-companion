@@ -133,9 +133,10 @@ function renderSupports(){
         ${r.current.map(c=>`<tr><td>${esc(c.name)} <span class="muted small">${c.level}/${c.quality||0}</span></td><td class="num"><b>${sgn(c.worth)}</b> more damage</td></tr>`).join("")||`<tr><td class="muted">No supports found in the main skill.</td></tr>`}
         ${r.levelUp?`<tr><td>${esc(r.levelUp.name)} level ${r.levelUp.level} → ${r.levelUp.level+1}</td><td class="num"><b>${sgn(r.levelUp.gain)}</b></td></tr>`:""}
       </tbody></table></div></div>
-      ${r.replace?`<div><h3>Instead of ${esc(r.replace.name)} (${sgn(r.replace.worth)})</h3><div class="tw"><table><thead><tr><th>Support</th><th class="num">vs now</th><th class="num">Price</th></tr></thead><tbody>
-        ${r.candidates.slice(0,12).map(c=>{const pr=gemPriceFor(c.name,c.level);return `<tr><td>${esc(c.name)} <span class="muted small">${c.level}/20</span></td><td class="num"><b class="${c.gain>0?"good":"bad"}">${sgn(c.gain)}</b></td><td class="num muted">${chaos(pr)}</td></tr>`}).join("")}
-      </tbody></table></div><p class="small muted" style="margin:0">${r.tried} compatible supports tried at max level, 20% quality.</p></div>`:""}
+      ${r.replace?`<div><h3>Instead of ${esc(r.replace.name)} (${sgn(r.replace.worth)})</h3><div class="tw"><table><thead><tr><th>Support</th><th class="num" title="All damage, including damage over time">Total</th><th class="num" title="Damage from your skill's hits">Hits</th><th class="num">Price</th></tr></thead><tbody>
+        ${r.candidates.slice(0,12).map(c=>{const pr=gemPriceFor(c.name,c.level),dot=c.hitGain!=null&&c.gain>5&&c.hitGain<c.gain*0.25;
+          return `<tr><td>${esc(c.name)} <span class="muted small">${c.level}/20</span>${dot?` <span class="pill warn" title="Most of this comes from an extra damage-over-time effect that doesn't scale much with your build. Check it fits how you play.">mostly added DoT</span>`:""}</td><td class="num"><b class="${c.gain>0?"good":"bad"}">${sgn(c.gain)}</b></td><td class="num">${c.hitGain!=null?sgn(c.hitGain):""}</td><td class="num muted">${chaos(pr)}</td></tr>`}).join("")}
+      </tbody></table></div><p class="small muted" style="margin:0">${r.tried} compatible supports tried at max level, 20% quality. "Total" counts every damage source Path of Building does, including added damage over time; "Hits" is your skill's own hit damage.</p></div>`:""}
     </div>`:""}`;
   const b=$("supGo");if(b)b.onclick=async()=>{SUP_BUSY=true;renderSupports();try{SUP=await DESK.pobGems()}catch(e){SUP={ok:false,error:e.message}}SUP_BUSY=false;renderSupports()};
 }

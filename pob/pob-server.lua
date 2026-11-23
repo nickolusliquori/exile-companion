@@ -27,7 +27,7 @@ if not okInit or not json then send('{"ok":false,"fatal":true,"error":"Path of B
 
 local function num(v) v = tonumber(v); if not v or v ~= v or v == math.huge or v == -math.huge then return 0 end; return v end
 local function pick(o)
-  return { dps = num(o.FullDPS ~= nil and o.FullDPS > 0 and o.FullDPS or o.CombinedDPS or o.TotalDPS), life = num(o.Life), es = num(o.EnergyShield), mana = num(o.Mana),
+  return { dps = num(o.FullDPS ~= nil and o.FullDPS > 0 and o.FullDPS or o.CombinedDPS or o.TotalDPS), hit = num(o.TotalDPS), life = num(o.Life), es = num(o.EnergyShield), mana = num(o.Mana),
     ehp = num(o.TotalEHP), fire = num(o.FireResist), cold = num(o.ColdResist), lightning = num(o.LightningResist), chaos = num(o.ChaosResist),
     armour = num(o.Armour), evasion = num(o.Evasion), speed = num(o.MovementSpeedMod) }
 end
@@ -74,16 +74,17 @@ function handlers.gems(req)
   local grp = build.skillsTab.socketGroupList[build.mainSocketGroup]
   if not grp then return { ok = false, error = "no main skill group" } end
   local function recalc() build.skillsTab:ProcessSocketGroup(grp); build.calcsTab:BuildOutput() end
-  local function dps() return pick(build.calcsTab:GetMiscCalculator()({}, true)).dps end
-  local base = dps()
+  local function both() local o = pick(build.calcsTab:GetMiscCalculator()({}, true)); return o.dps, o.hit end
+  local function dps() return (both()) end
+  local base, baseHit = both()
   local more = function(withDps, withoutDps) if withoutDps and withoutDps > 0 then return (withDps / withoutDps - 1) * 100 end return 0 end
   local out = { ok = true, skill = mainSkillName(), base = base, current = {}, candidates = {} }
   -- each support's share: the DPS lost without it
   for i, g in ipairs(grp.gemList) do
     local ge = g.gemData and g.gemData.grantedEffect
     if g.enabled ~= false and ge and ge.support then
-      g.enabled = false; recalc(); local without = dps(); g.enabled = true; recalc()
-      out.current[#out.current + 1] = { name = g.nameSpec, level = g.level, quality = g.quality, worth = more(base, without), idx = i }
+      g.enabled = false; recalc(); local without, withoutHit = both(); g.enabled = true; recalc()
+      out.current[#out.current + 1] = { name = g.nameSpec, level = g.level, quality = g.quality, worth = more(base, without), hitWorth = more(baseHit, withoutHit), idx = i }
     end
   end
   -- +1 level to the active skill gem
@@ -111,7 +112,7 @@ function handlers.gems(req)
         and pcall(calcLib.canGrantedEffectSupportActiveSkill, ge, active) and calcLib.canGrantedEffectSupportActiveSkill(ge, active) then
         tried = tried + 1
         g.gemId = id; g.nameSpec = gem.name; g.skillId = nil; g.level = gem.naturalMaxLevel or 20; g.quality = 20
-        if pcall(recalc) then out.candidates[#out.candidates + 1] = { name = gem.name, level = g.level, gain = more(dps(), base) } end
+        if pcall(recalc) then local d, h = both(); out.candidates[#out.candidates + 1] = { name = gem.name, level = g.level, gain = more(d, base), hitGain = more(h, baseHit) } end
       end
     end
     g.gemId, g.nameSpec, g.skillId, g.level, g.quality = saved.gemId, saved.nameSpec, saved.skillId, saved.level, saved.quality
