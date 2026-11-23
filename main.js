@@ -1362,6 +1362,11 @@ async function runSmoke() {
       });
       return { ok: r === "welcome", info: r };
     });
+    await run("Twitch: the client ID can start a sign-in (code only, nothing approved)", async () => {
+      if (!twitchClient()) return { ok: false, info: "no client ID" };
+      const r = await twitchForm("https://id.twitch.tv/oauth2/device", { client_id: twitchClient(), scopes: "chat:read chat:edit" });
+      return { ok: r.status === 200 && !!(r.data && r.data.user_code && r.data.device_code), info: r.status === 200 ? "Twitch gave a sign-in code" : `${r.status} ${(r.data && r.data.message) || ""}` };
+    });
     await run("safe-mode state answers", () => ({ info: JSON.stringify({ safe: SAFE }) }));
   } catch (e) { step("test run", false, (e && e.stack) || e); }
   clearTimeout(guard);
