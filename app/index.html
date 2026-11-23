@@ -235,22 +235,33 @@ A();addEventListener("storage",function(e){if(!e.key||e.key==="ec330.state")A()}
 
   <!-- DESKTOP (only in the desktop app) -->
   <section class="tab" id="tab-desktop" role="tabpanel">
+    <nav class="secnav" aria-label="Sections on this page"><button data-sec="desk-ingame">In game</button><button data-sec="desk-trading">Trading</button><button data-sec="desk-stream">Streaming and phone</button><button data-sec="desk-news">News and rules</button></nav>
+    <h2 class="sect" id="desk-ingame">In game</h2>
     <div class="grid">
       <div class="card hl" id="deskLog"></div>
       <div class="card" id="deskOverlay"></div>
     </div>
     <div class="grid">
       <div class="card" id="deskPrice"></div>
+      <div class="card" id="deskPob"></div>
+    </div>
+    <div class="card" id="deskCheats"></div>
+    <h2 class="sect" id="desk-trading">Trading</h2>
+    <div class="grid">
       <div class="card" id="deskTrades"></div>
-    </div>
-    <div class="grid">
       <div class="card" id="deskStash"></div>
-      <div class="card" id="deskChat"></div>
     </div>
     <div class="grid">
+      <div class="card" id="deskChat"></div>
       <div class="card" id="deskAlerts"></div>
-      <div class="card" id="deskCheats"></div>
     </div>
+    <h2 class="sect" id="desk-stream">Streaming and phone</h2>
+    <div class="grid">
+      <div class="card" id="deskStream"></div>
+      <div class="card" id="deskPhone"></div>
+    </div>
+    <div class="card" id="deskTwitch"></div>
+    <h2 class="sect" id="desk-news">News and rules</h2>
     <div class="grid">
       <div class="card" id="deskNews"></div>
       <div class="card" id="deskRules"></div>
@@ -259,27 +270,25 @@ A();addEventListener("storage",function(e){if(!e.key||e.key==="ec330.state")A()}
 
   <!-- SETTINGS -->
   <section class="tab" id="tab-settings" role="tabpanel">
+    <nav class="secnav" aria-label="Sections on this page"><button data-sec="set-general">General</button><button data-sec="set-account">Account and data</button><button data-sec="set-app">Updates, backups and sync</button></nav>
+    <h2 class="sect" id="set-general">General</h2>
     <div class="grid">
       <div class="card hl" id="setGeneral"></div>
       <div class="card" id="setHotkeys"></div>
     </div>
     <div class="card" id="setCharsCard"><h2>Characters</h2><div id="setChars" class="col" style="gap:8px"></div></div>
-    <div class="card" id="setData"></div>
+    <h2 class="sect" id="set-account">Account and data</h2>
     <div class="grid">
       <div class="card" id="acctConn"></div>
       <div class="card" id="deskDiscord"></div>
     </div>
+    <div class="card" id="setData"></div>
+    <h2 class="sect" id="set-app">Updates, backups and sync</h2>
     <div class="grid">
       <div class="card" id="deskUpdates"></div>
       <div class="card" id="deskBackup"></div>
     </div>
-    <div class="grid">
-      <div class="card" id="sessSync"></div>
-      <div class="card" id="deskStream"></div>
-      <div class="card" id="deskPhone"></div>
-      <div class="card" id="deskTwitch"></div>
-      <div class="card" id="deskPob"></div>
-    </div>
+    <div class="card" id="sessSync"></div>
   </section>
 
   <!-- SESSION -->

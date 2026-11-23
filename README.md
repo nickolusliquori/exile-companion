@@ -114,7 +114,7 @@ Your character at a glance: progress toward the goal build, what to do next (cam
 
 General options and your builds, a **hotkey recorder**, **Look and feel** (three themes: Dark minimal, Modern and Path of Exile; animations that respect Windows "reduce motion"; minimal sounds with a volume slider; **text size** from 90% to 150% with Ctrl + plus / minus / 0, plus a separate **overlay text size**; **higher contrast**; **colorblind-friendly colors** that also apply to the overlay and price check; starter mode and the tour), your GGG account, Discord status and notifications, **characters** (several characters, each with its own builds, campaign, atlas, owned gear and map log; switch from the top bar or automatically from the game log), updates, backups (plus automatic daily ones), sync with the web version on your phone, the OBS stream overlay, display options and **Report a problem**.
 
-- **Desktop tools:** the game log, overlay, price check, trade requests, the stash highlight, the chat scanner, price alerts, cheat sheets and recent price checks.
+- **Desktop tools**, in sections: *In game* (game log, overlay, price check, Path of Building numbers, cheat sheets), *Trading* (trade requests, stash highlight, chat scanner, price alerts), *Streaming and phone* (OBS page, phone screen, Twitch) and *News and rules*.
 - **Media:** a YouTube / YouTube Music / Twitch / Kick / SoundCloud **mini player** that stays on top of the game (with click-through, volume and see-through), and **Now playing** controls for whatever plays in Windows (Spotify, Apple Music, Netflix or YouTube in your browser, Stremio…). Netflix, Hulu, Disney+, Apple Music and similar can't play inside the app because they need copy protection (Widevine) it doesn't have.
 
 ### In game

@@ -26,6 +26,14 @@ const FIX={
 document.addEventListener("click",e=>{const b=e.target.closest("[data-fix]");if(b&&FIX[b.dataset.fix]){e.preventDefault();if(b.closest("#setup"))$("setup").close();FIX[b.dataset.fix]()}});
 
 const HELP={
+  deskPob:"Uses your own Path of Building Community to calculate what a price-checked item does to your build (DPS, life, ES, EHP, resistances), compared with what you wear. It runs Path of Building in the background; the first check takes a few seconds, later ones are almost instant.",
+  deskStash:"When someone buys from you, outlines the item over your stash using the tab and position in their whisper. Line the grid up with a normal stash tab once; it only draws on top of the game.",
+  deskChat:"Alerts you when chat mentions your keywords. One keyword per line; -word skips messages with that word, /regex/ for patterns. Reads chat from your game log only.",
+  deskPhone:"Shows the overlay's information on your phone over your home network. Scan the QR code; the link has a private key, and New link makes old links stop working.",
+  deskTwitch:"Answers chat commands like !build and !level in your Twitch chat using what the app already knows. Sign in once with a code; turn single commands off, add your own, or make them mods-only.",
+  setCharsCard:"Keep several characters, each with its own builds, campaign progress, atlas, owned gear and map log. Prices, trading and settings stay shared.",
+  setData:"Where the app's game data comes from and how current it is. It updates itself when new data is published.",
+  deskRules:"How the app stays within Grinding Gear Games' rules: it reads the game log and your clipboard once per key press, and never sends input to the game.",
   acctRecipe:"Counts full sets of rare gear in the stash tabs you include in net worth: helmet, body, gloves, boots, belt, amulet, two rings and a weapon (two-hander, or one-hander plus shield or second one-hander). Lowest item level 60–74 gives Chaos Orbs, all 75+ gives Regal Orbs; unidentified sets pay double.",
   mediaNow:"Shows what's playing anywhere in Windows (Spotify, Apple Music, a Netflix or YouTube tab in your browser, Stremio…) through Windows' own media controls, with play/pause and skip. The overlay shows it too; its buttons work in click mode.",
   mediaPlayer:"A small always-on-top player over the game for YouTube, YouTube Music, Twitch, Kick and SoundCloud. Click-through lets your clicks pass to the game. Netflix, Hulu, Disney+, Apple Music and similar can't play in it: they need copy protection the app doesn't have.",
@@ -434,6 +442,9 @@ document.addEventListener("keydown",e=>{
   else if(e.key==="-"||e.key==="_"){e.preventDefault();setScale([...SCALES].reverse().find(v=>v<cur)||75)}
   else if(e.key==="0"){e.preventDefault();setScale(100)}
 });
+// section buttons at the top of long pages jump to that section
+document.addEventListener("click",e=>{const b=e.target.closest&&e.target.closest(".secnav [data-sec]");if(!b)return;const t=document.getElementById(b.dataset.sec);if(!t)return;
+  t.scrollIntoView({block:"start",behavior:document.documentElement.classList.contains("no-motion")?"auto":"smooth"});t.setAttribute("tabindex","-1");t.focus({preventScroll:true})});
 // arrow keys move between section and page buttons (standard tab-list keys)
 for(const id of ["groups","tabs"])document.getElementById(id).addEventListener("keydown",e=>{
   if(!["ArrowLeft","ArrowRight","Home","End"].includes(e.key))return;

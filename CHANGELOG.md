@@ -2,6 +2,13 @@
 
 What changed in each release, newest first. Installed copies update themselves; see the [Releases page](https://github.com/nickolusliquori/exile-companion/releases) for the installers. Planned releases are on the [roadmap](README.md#roadmap).
 
+## [1.40.0] - 2026-11-23
+
+### Changed
+- **Desktop tools is organised into sections** with buttons at the top to jump to each: In game (game log, overlay, price check, Path of Building numbers, cheat sheets), Trading (trade requests, stash highlight, chat scanner, price alerts), Streaming and phone (OBS page, phone screen, Twitch) and News and rules.
+- The phone screen, Twitch and Path of Building cards moved from Settings to Desktop tools, where the 1.36–1.39 notes said they were. **Settings** now holds only settings: general, hotkeys, characters, account and data, updates, backups and sync, also in sections.
+- The newer cards (Path of Building numbers, stash highlight, chat scanner, phone screen, Twitch, characters, game data, playing by the rules) got their "?" explanations.
+
 ## [1.39.0] - 2026-11-23
 
 ### Added
