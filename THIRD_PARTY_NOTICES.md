@@ -79,3 +79,11 @@ SOFTWARE.
 ## Cinzel and Source Sans 3 (fonts)
 
 Bundled in `app/fonts/`: Cinzel as a subset (Latin, punctuation and arrows) and Source Sans 3 unmodified, from the files in [google/fonts](https://github.com/google/fonts) (`ofl/cinzel`, `ofl/sourcesans3`). Cinzel: Copyright 2020 The Cinzel Project Authors. Source Sans 3: Copyright 2010-2020 Adobe. Both are licensed under the SIL Open Font License, Version 1.1; the full license texts are `app/fonts/OFL-Cinzel.txt` and `app/fonts/OFL-SourceSans3.txt`.
+
+## LuaJIT
+
+The installer includes `luajit.exe` and `lua51.dll` built from [LuaJIT](https://github.com/LuaJIT/LuaJIT) (commit `96f7b297326e9fd454b7186c6858b2773f94a0dc`) by `scripts/pob/build-pob-runtime.cmd`. Copyright (C) 2005-2025 Mike Pall. MIT License; the full text ships as `resources/pob/LICENSE-LuaJIT.txt`.
+
+## Path of Building Community (headless helper files)
+
+`pob/HeadlessWrapper.lua` and `pob/_SimpleGraphic.def.lua` are unmodified copies from [Path of Building Community](https://github.com/PathOfBuildingCommunity/PathOfBuilding) (`src/`), used to run the user's own Path of Building install without its window. Copyright (c) 2016 David Gowor and contributors. MIT License; the full text is `pob/LICENSE-PathOfBuilding.md`. Path of Building itself is not included: the app uses the copy the user installed.

@@ -2,6 +2,13 @@
 
 What changed in each release, newest first. Installed copies update themselves; see the [Releases page](https://github.com/nickolusliquori/exile-companion/releases) for the installers. Planned releases are on the [roadmap](README.md#roadmap).
 
+## [1.39.0] - 2026-11-23
+
+### Added
+- **Path of Building numbers in the price check:** when you price check gear (rings, amulets, belts, armour, weapons, shields, quivers), the popup shows what it would do to your build: DPS, life, energy shield, EHP, resistances and movement speed, for the best slot it fits (and the other ring slot), compared with what you wear. The numbers come from your own Path of Building Community install, run in the background against your imported current character (or your goal build), so they match Path of Building's own item comparison. The first check after starting takes a few seconds while Path of Building loads; after that it's almost instant. Turn it off or pick Path of Building's folder in Desktop tools → Path of Building numbers. (This shipped quietly inside 1.38.0; these are its proper notes.)
+- The app now includes LuaJIT (MIT) and two small headless helper files from Path of Building (MIT) to run it; see THIRD_PARTY_NOTICES.md.
+- The Windows test run now downloads Path of Building and checks an item comparison end to end.
+
 ## [1.38.0] - 2026-11-23
 
 ### Added
