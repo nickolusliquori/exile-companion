@@ -2,6 +2,13 @@
 
 What changed in each release, newest first. Installed copies update themselves; see the [Releases page](https://github.com/nickolusliquori/exile-companion/releases) for the installers. Planned releases are on the [roadmap](README.md#roadmap).
 
+## [1.37.0] - 2026-11-23
+
+### Added
+- **Twitch chat commands** (Desktop tools → Twitch chat commands): sign in with Twitch (a short code you approve on twitch.tv/activate) and your chat can use **!build** (class, main skill and your guide link), **!level**, **!map**, **!deaths**, **!profit**, **!league** and **!commands**, plus your own text commands (like !discord). Each command can be turned off, with a cooldown and an optional mods-only mode; replies are threaded to the person who asked. Sign in with a separate bot account and set your channel if you prefer. The app only reads chat and posts those replies.
+- !build uses the pobb.in / pastebin link you imported your goal build from (or one you set), per character.
+- The Windows test run now also opens an anonymous Twitch chat connection.
+
 ## [1.36.0] - 2026-11-22
 
 ### Added

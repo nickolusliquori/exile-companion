@@ -362,7 +362,7 @@ ipcMain.on("phone:set", (e, o) => {
 /* ---------------- Twitch chat commands ----------------
    Signs in with Twitch's device code flow (public client, no secret), keeps the token encrypted with the other
    secrets, joins your chat and answers !build, !level, !map, !deaths, !profit, !league, !commands and your own. */
-const TWITCH_CLIENT_ID = "";   // Exile Companion's public Twitch client ID (not a secret)
+const TWITCH_CLIENT_ID = "e1o36ijxp4mhz747xe4kw0jmbzatc1";   // Exile Companion's public Twitch client ID (a public client: not a secret)
 const twitchLib = require("./lib/twitch");
 let twitchWs = null, twitchState = { state: "off" }, twitchTimer = null, twitchBackoff = 1000, twitchCmdState = {}, twitchFlow = null;
 const twitchClient = () => String(cfg.twitchClientId || TWITCH_CLIENT_ID || "").trim();
