@@ -197,6 +197,75 @@ function publishStream(p){
   const link=S.twitchLink||S.goalLink||"";
   DESK.publishStream({cls:b.ascend||b.className,level:(S.logInfo&&S.logInfo.level)||b.level,deaths,skill:(()=>{try{return mainSkillName(G||b)}catch(e){return ""}})(),link:/^https:\/\/(pobb\.in|pastebin\.com|poe\.ninja|maxroll\.gg|mobalytics\.gg)\//.test(link)?link:"",league:S.league||(LIVE.cfg&&LIVE.cfg.league)||"",name:S.logInfo&&S.logInfo.name||""});
 }
+/* ---------- loot per map: what each map added to your loot tabs, valued with poe.ninja ----------
+   Reads the tabs you pick when you enter a new map; whatever went up since the previous map's reading is
+   that map's loot (items you used or sold are ignored). One read per tab per map keeps well inside GGG's limits. */
+function lootCfg(){const c=S.loot||(S.loot={on:false,tabs:[],log:[],snap:null});c.tabs=c.tabs||[];c.log=c.log||[];return c}
+const lootName=raw=>(typeof stripTags==="function"?(stripTags(raw.name)||stripTags(raw.typeLine)):(raw.name||raw.typeLine))||"Item";
+const lootKey=raw=>[raw.frameType|0,lootName(raw),raw.typeLine||"",raw.frameType===4?((raw.properties||[]).find(p=>p.name==="Level")||{values:[[""]]}).values[0][0]:""].join("|");
+async function lootRead(c){
+  const lg=S.league||(LIVE.cfg&&LIVE.cfg.league),acct=ACCT.status&&ACCT.status.accountName;
+  if(!ACCT.tabs||!ACCT.tabs.length)await loadTabs();
+  const items={},raws={};
+  for(const id of c.tabs.slice(0,4)){const tab=(ACCT.tabs||[]).find(t=>t.id===id);if(!tab)continue;
+    const r=await DESK.stashTab({account:acct,league:lg,tab});if(!r||!r.ok)throw new Error((r&&r.error)||"Couldn't read "+tab.name);
+    for(const raw of r.data||[]){const k=lootKey(raw);items[k]=(items[k]||0)+(raw.stackSize||1);if(!raws[k])raws[k]=raw}}
+  return {items,raws,at:Date.now()};
+}
+// what went up between two readings (counts), as priced rows
+function lootGained(prev,now,P){
+  const rows=[];let rares=0;
+  for(const k in now.items){const d=now.items[k]-((prev&&prev[k])||0);if(d<=0)continue;const raw=now.raws[k];
+    if(raw.frameType===2&&!raw.stackSize){rares+=d;continue}
+    const one=raw.stackSize?priceApiItem({...raw,stackSize:d},P):priceApiItem(raw,P),total=one==null?null:raw.stackSize?one:one*d;
+    rows.push({name:lootName(raw),qty:d,total})}
+  rows.sort((a,b)=>(b.total||0)-(a.total||0));
+  return {rows,rares,total:rows.reduce((a,r)=>a+(r.total||0),0)};
+}
+let LOOT_BUSY=false,LOOT_ERR=null;
+async function lootOnNewMap(next){
+  const c=lootCfg();if(!c.on||!c.tabs.length||!DESK||!DESK.stashTab||LOOT_BUSY)return;
+  LOOT_BUSY=true;LOOT_ERR=null;
+  try{
+    const now=await lootRead(c);
+    if(c.snap&&c.snap.map){let P=null;try{P=await ninjaExtras(await ninjaPrices())}catch(e){P=null}if(!P)throw new Error("Couldn't reach poe.ninja to price this map's loot.");if(P){const g=lootGained(c.snap.items,now,P),m=c.snap.map,end=next?next.start||Date.now():Date.now();
+      c.log.unshift({map:m.name,tier:m.tier,start:m.start,dur:Math.max(0,end-(m.start||end)),total:g.total,rares:g.rares,div:P.div||null,top:g.rows.slice(0,12).map(r=>({n:r.name,q:r.qty,c:r.total==null?null:Math.round(r.total*10)/10}))});
+      c.log=c.log.slice(0,150)}}
+    c.snap={items:now.items,at:now.at,map:next?{name:next.name,tier:next.tier,start:next.start||Date.now(),key:next.key}:null};save();
+  }catch(e){LOOT_ERR=e.message||String(e)}
+  finally{LOOT_BUSY=false;renderLootCard()}
+}
+// per map name: how much it pays per hour
+function lootByMap(log){
+  const by={};for(const r of log){const k=r.map||"?";const b=(by[k]=by[k]||{map:k,n:0,c:0,ms:0});b.n++;b.c+=r.total||0;b.ms+=r.dur||0}
+  return Object.values(by).map(b=>({...b,avg:b.c/b.n,perHr:b.ms>60e3?b.c/(b.ms/3.6e6):null,avgMs:b.ms/b.n})).sort((a,b)=>(b.perHr||0)-(a.perHr||0));
+}
+function lootMoney(c,div){return div&&c>=div*0.9?`${(c/div).toFixed(1)} div`:`${Math.round(c)}c`}
+function renderLootCard(){
+  const el=$("sessLoot");if(!el)return;
+  if(!DESK){el.innerHTML=`<h2>Loot per map</h2>${emptyBox("Needs the desktop app and your POESESSID: it reads your loot tabs.")}`;return}
+  const c=lootCfg(),tabs=ACCT.tabs||[],div=(c.log[0]&&c.log[0].div)||null;
+  const recent=c.log.slice(0,10),by=lootByMap(c.log).slice(0,8);
+  el.innerHTML=`<h2>Loot per map</h2>
+    <p class="small" style="margin:0">See what each map really dropped and which maps pay best. Pick the tabs you drop your loot into; each new map, the app counts what was added since the last one and prices it with poe.ninja.</p>
+    ${!ACCT.status||!ACCT.status.accountName?`<p class="small warn" style="margin:0">Set your POESESSID in Settings first (it reads your stash tabs).</p>`:""}
+    <label class="row small"><input type="checkbox" id="lootOn"${c.on?" checked":""}> Track loot per map</label>
+    <div class="row small"><span>Loot tabs (up to 4):</span>${tabs.length?tabs.slice(0,60).map(t=>`<label class="row" style="gap:4px"><input type="checkbox" data-ltab="${esc(t.id)}"${c.tabs.includes(t.id)?" checked":""}> ${esc(t.name)}</label>`).join(""):`<button class="btn ghost small" id="lootTabs">Load my tabs</button>`}</div>
+    ${LOOT_ERR?`<p class="small err" style="margin:0">${esc(LOOT_ERR)}</p>`:""}
+    ${c.on&&c.tabs.length?`<div class="row small"><span class="muted">${LOOT_BUSY?"Reading your tabs…":c.snap&&c.snap.map?`Counting ${esc(c.snap.map.name)}: its loot is counted when you enter the next map.`:"Waiting for your next map."}</span>
+      ${c.snap&&c.snap.map?`<button class="btn ghost small" id="lootNow"${LOOT_BUSY?" disabled":""}>Count this map now</button>`:""}</div>`:""}
+    ${by.length?`<h3>Which maps pay</h3><div class="tw"><table><thead><tr><th>Map</th><th class="num">Runs</th><th class="num">Avg loot</th><th class="num">Avg time</th><th class="num">Per hour</th></tr></thead><tbody>
+      ${by.map(b=>`<tr><td>${esc(b.map)}</td><td class="num">${b.n}</td><td class="num">${lootMoney(b.avg,div)}</td><td class="num">${Math.round(b.avgMs/60000)} min</td><td class="num"><b>${b.perHr!=null?lootMoney(b.perHr,div):"–"}</b></td></tr>`).join("")}</tbody></table></div>`:""}
+    ${recent.length?`<h3>Recent maps</h3><ul class="clean small" style="display:grid;gap:6px">${recent.map((r,i)=>`<li class="sg"><div class="row" style="justify-content:space-between"><b>${esc(r.map)}${r.tier?` <span class="muted">T${r.tier}</span>`:""}</b><span><b>${lootMoney(r.total,r.div||div)}</b> <span class="muted">· ${Math.round((r.dur||0)/60000)} min</span></span></div>
+      <div class="muted">${r.top.slice(0,4).map(t=>`${t.q>1?t.q+"× ":""}${esc(t.n)}${t.c!=null?` (${lootMoney(t.c,r.div||div)})`:""}`).join(" · ")||"Nothing priced"}${r.rares?` · ${r.rares} rare${r.rares>1?"s":""}`:""}</div></li>`).join("")}</ul>
+      <button class="btn ghost small" id="lootClear">Clear loot history</button>`:""}`;
+  const on=(id,f)=>{const x=$(id);if(x)f(x)};
+  on("lootOn",b=>b.onchange=async e=>{c.on=e.target.checked;if(!c.on)c.snap=null;save();renderLootCard();if(c.on&&c.tabs.length)lootOnNewMap(LIVE.map||null)});
+  on("lootTabs",b=>b.onclick=async()=>{b.disabled=true;b.textContent="Loading…";await loadTabs();renderLootCard()});
+  el.querySelectorAll("[data-ltab]").forEach(x=>x.onchange=()=>{const id=x.dataset.ltab;c.tabs=x.checked?[...new Set([...c.tabs,id])].slice(0,4):c.tabs.filter(t=>t!==id);c.snap=null;save();renderLootCard();if(c.on&&c.tabs.length)lootOnNewMap(LIVE.map||null)});
+  on("lootNow",b=>b.onclick=()=>lootOnNewMap(null));
+  on("lootClear",b=>b.onclick=()=>{const prev=c.log;c.log=[];save();renderLootCard();toast("Loot history cleared.",()=>{c.log=prev;save();renderLootCard()})});
+}
 /* ---------- phone screen: the overlay's information on your phone, over your home network ---------- */
 function renderPhoneCard(){
   const el=$("deskPhone");if(!el||!DESK||!DESK.phoneSet)return;const p=LIVE.phone||{};

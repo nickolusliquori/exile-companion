@@ -2,6 +2,12 @@
 
 What changed in each release, newest first. Installed copies update themselves; see the [Releases page](https://github.com/nickolusliquori/exile-companion/releases) for the installers. Planned releases are on the [roadmap](README.md#roadmap).
 
+## [1.38.0] - 2026-11-23
+
+### Added
+- **Loot per map** (Play → Session): pick up to four tabs you drop loot into, and each time you enter a new map the app counts what was added since the previous map and prices it with poe.ninja. You get each map's loot (top items, rares counted separately, time spent) and a "Which maps pay" table with average loot, average time and value per hour by map. Re-entering the same map through a portal doesn't count again; "Count this map now" closes the last map when you stop. It reads one tab per map entry (needs your POESESSID), and each character keeps its own history.
+- The Windows test run now also checks that the Twitch client ID can start a sign-in.
+
 ## [1.37.0] - 2026-11-23
 
 ### Added

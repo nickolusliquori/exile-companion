@@ -156,7 +156,7 @@ function dataSets(){
    Switching saves the active character's part of S plus its two builds under "char.<id>", loads the other
    character's copy and reloads the page. Economy, settings and everything account-wide stay shared. */
 const CHAR_KEYS=["progress","camp","campAct","have","levelUps","bosses","bossNotes","splitRuns","played","gameDeaths","questPoints","noBuild",
-  "atlasHashes","atlasManual","strat","mapsDone","syncChar","logChar","logInfo","expHist","session","goal","recaps","recapFrom","goalLink"];
+  "atlasHashes","atlasManual","strat","mapsDone","syncChar","logChar","logInfo","expHist","session","goal","recaps","recapFrom","goalLink","loot"];
 function charList(){const c=store.get("chars",null);return c&&Array.isArray(c.list)&&c.list.length?c:null}
 function charGuessName(){return (S.logChar)||(C&&!exC&&C.name)||(G&&!exG&&(G.ascend||G.className))||"Main character"}
 function charSummary(){const lv=(S.logInfo&&S.logInfo.level)||(C&&!exC&&C.level)||null,cls=(S.logInfo&&S.logInfo.cls)||(C&&!exC&&(C.ascend||C.className))||(G&&!exG&&(G.ascend||G.className))||"";
@@ -292,7 +292,7 @@ function renderNewLeague(){
 }
 
 function renderSession(){
-  renderGoal();
+  renderGoal();if(typeof renderLootCard==="function")renderLootCard();
   const s=S.session, ms=elapsed();
   const total=s.maps.reduce((a,m)=>a+(+m.profit||0),0);
   const mapMs=s.maps.reduce((a,m)=>a+(m.dur||0),0), basis=Math.max(ms,mapMs);
