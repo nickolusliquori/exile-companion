@@ -3,10 +3,14 @@
 --   luajit pob-calc.lua <build.xml> [<item.txt> <slot name>]
 -- Prints one line of JSON.
 local xmlPath, itemPath, slotName = arg[1], arg[2], arg[3]
+-- run with Path of Building's folder as the working directory; files it doesn't ship (HeadlessWrapper.lua,
+-- _SimpleGraphic.def.lua) are taken from this script's own folder
+local here = (arg[0] or ""):match("^(.*)[/\\][^/\\]*$") or "."
 -- Path of Building's files can start with a UTF-8 BOM and a "#@" line that its own launcher strips: do the same
 -- for everything it loads (keeps line numbers: the line becomes a comment)
 local function loadClean(p)
-  local f = io.open(p, "rb"); if not f then return nil, "cannot open " .. tostring(p) end
+  local f = io.open(p, "rb"); if not f then f = io.open(here .. "/" .. p, "rb") end
+  if not f then return nil, "cannot open " .. tostring(p) end
   local s = f:read("*a"); f:close()
   s = s:gsub("^\239\187\191", ""); if s:sub(1, 1) == "#" then s = "--" .. s end
   return loadstring(s, "@" .. p)

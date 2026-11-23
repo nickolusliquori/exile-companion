@@ -1,4 +1,5 @@
-# Experiment: can Path of Building run headless on Windows and compare an item? (Not part of the app yet.)
+# Experiment: Path of Building headless against its portable release (same layout as an install), with the
+# app's own files (LuaJIT, pob-calc.lua, PoB's two headless helper files) in a separate folder. Not part of the app yet.
 name: PoB feasibility
 
 on:
@@ -15,16 +16,24 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - name: Get Path of Building (latest release source)
+      - name: Get Path of Building's portable release and the two headless helper files
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          $tag = gh api repos/PathOfBuildingCommunity/PathOfBuilding/releases/latest --jq .tag_name
-          Write-Host "Path of Building $tag"
-          git clone --depth 1 --branch $tag https://github.com/PathOfBuildingCommunity/PathOfBuilding.git pob
-          Get-ChildItem pob\runtime | Select-Object Name, Length | Format-Table -AutoSize | Out-String -Width 200 | Write-Host
-          Get-ChildItem pob\spec -Recurse -Filter *.xml | Select-Object -First 5 FullName | Out-String -Width 300 | Write-Host
+          $rel = gh api repos/PathOfBuildingCommunity/PathOfBuilding/releases/latest | ConvertFrom-Json
+          Write-Host "Path of Building $($rel.tag_name)"; $rel.assets | ForEach-Object { Write-Host "  asset: $($_.name) $($_.size)" }
+          $zip = $rel.assets | Where-Object { $_.name -match "Portable.*\.zip$" } | Select-Object -First 1
+          Invoke-WebRequest $zip.browser_download_url -OutFile pob.zip
+          Expand-Archive pob.zip -DestinationPath pobinst
+          $launch = Get-ChildItem pobinst -Recurse -Filter Launch.lua | Select-Object -First 1
+          Write-Host "Launch.lua at: $($launch.FullName)"
+          Get-ChildItem $launch.Directory | Select-Object -First 60 Name | ForEach-Object { Write-Host "  $($_.Name)" }
+          foreach ($f in "HeadlessWrapper.lua","_SimpleGraphic.def.lua") { Write-Host "$f shipped: $(Test-Path (Join-Path $launch.Directory $f))" }
+          "$($launch.Directory)" | Set-Content pobdir.txt
+          New-Item -ItemType Directory app-pob | Out-Null
+          foreach ($f in "HeadlessWrapper.lua","_SimpleGraphic.def.lua") { Invoke-WebRequest "https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding/$($rel.tag_name)/src/$f" -OutFile "app-pob\$f" }
+          Copy-Item scripts\pob\pob-calc.lua app-pob\
       - name: Build LuaJIT (MIT)
         shell: cmd
         run: |
@@ -33,25 +42,15 @@ jobs:
           call "%VS%\VC\Auxiliary\Build\vcvars64.bat"
           cd luajit\src
           call msvcbuild.bat
-          dir luajit.exe lua51.dll
-      - name: Run Path of Building headless
+          copy luajit.exe ..\..\app-pob\
+          copy lua51.dll ..\..\app-pob\
+      - name: Run against the portable install
         shell: pwsh
         run: |
           $ErrorActionPreference = "Continue"
-          Copy-Item luajit\src\luajit.exe pob\src\
-          Copy-Item luajit\src\lua51.dll pob\src\
-          Copy-Item scripts\pob\pob-calc.lua pob\src\
-          Write-Host "HeadlessWrapper first bytes:"; [System.IO.File]::ReadAllBytes("$PWD\pob\src\HeadlessWrapper.lua")[0..12] -join " " | Write-Host
-          $env:LUA_PATH = "..\runtime\lua\?.lua;..\runtime\lua\?\init.lua;.\?.lua"
-          $env:LUA_CPATH = "..\runtime\?.dll"
-          $env:PATH = "$PWD\pob\runtime;$env:PATH"
+          $pob = (Get-Content pobdir.txt).Trim(); $app = (Resolve-Path app-pob).Path
           node -e "const s=require('fs').readFileSync('app/js/01-core.js','utf8');const m=s.match(/const EXAMPLE_XML=\x60([\s\S]*?)\x60;/);require('fs').writeFileSync('example.xml',m[1])"
-          $xml = Get-Item example.xml
-          Write-Host "Build: $($xml.FullName)"
-          Push-Location pob\src
-          Write-Host "--- build totals ---"
-          .\luajit.exe pob-calc.lua $xml.FullName 2>&1 | Where-Object { $_ -notmatch "^(Loading|Unicode|Removing|Processing|Startup|Uniques|Rares|Viscera)" } | Select-Object -Last 40 | ForEach-Object { Write-Host $_ }
-          Write-Host "exit: $LASTEXITCODE"
+          $xml = (Resolve-Path example.xml).Path
           @"
           Rarity: RARE
           Test Ring
@@ -64,13 +63,14 @@ jobs:
           +80 to maximum Life
           +45% to Lightning Resistance
           +35% to Cold Resistance
-          Adds 10 to 20 Physical Damage to Attacks
           "@ -replace "(?m)^\s+", "" | Set-Content -Path item.txt -Encoding utf8
-          Write-Host "--- item compare (Ring 1) ---"
-          .\luajit.exe pob-calc.lua $xml.FullName item.txt "Ring 1" 2>&1 | Where-Object { $_ -notmatch "^(Loading|Unicode|Removing|Processing|Startup|Uniques|Rares|Viscera)" } | Select-Object -Last 40 | ForEach-Object { Write-Host $_ }
-          Write-Host "exit: $LASTEXITCODE"
-          Pop-Location
-          Write-Host "--- two more test builds ---"
-          Push-Location pob\src
-          Get-ChildItem ..\spec -Recurse -Filter *.xml | Select-Object -Skip 1 -First 2 | ForEach-Object { Write-Host $_.Name; .\luajit.exe pob-calc.lua $_.FullName ..\src\item.txt "Ring 1" 2>&1 | Where-Object { $_ -notmatch "^(Loading|Unicode|Removing|Processing|Startup|Uniques|Rares|Viscera)" } | Select-Object -Last 20 | ForEach-Object { Write-Host $_ }; Write-Host "exit: $LASTEXITCODE" }
+          $item = (Resolve-Path item.txt).Path
+          $luaDir = if (Test-Path "$pob\lua") { "$pob\lua" } else { (Get-ChildItem $pob -Recurse -Filter dkjson.lua | Select-Object -First 1).Directory.FullName }
+          Write-Host "lua dir: $luaDir"
+          $env:LUA_PATH = "$luaDir\?.lua;$luaDir\?\init.lua;$pob\?.lua"
+          $env:LUA_CPATH = "$pob\?.dll"
+          Push-Location $pob
+          $sw = [Diagnostics.Stopwatch]::StartNew()
+          & "$app\luajit.exe" "$app\pob-calc.lua" $xml $item "Ring 1" 2>&1 | Where-Object { $_ -notmatch "^(Loading|Unicode|Removing|Processing|Startup|Uniques|Rares|Viscera)" } | Select-Object -Last 30 | ForEach-Object { Write-Host $_ }
+          Write-Host "exit: $LASTEXITCODE  time: $($sw.ElapsedMilliseconds) ms"
           Pop-Location
