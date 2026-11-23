@@ -128,7 +128,7 @@ function renderSupports(){
     ${!ok?`<p class="small muted" style="margin:0">Needs the desktop app with Path of Building Community found (Desktop tools → Path of Building numbers).</p>`
     :`<div class="row"><button class="btn ${r?"ghost":"primary"} small" id="supGo"${SUP_BUSY?" disabled":""}>${SUP_BUSY?"Calculating… (can take up to a minute)":r?"Calculate again":"Compare supports"}</button></div>`}
     ${r&&!r.ok?`<p class="small err" style="margin:0">${esc(r.error||(r.missing?"Path of Building wasn't found.":"Couldn't compare."))}</p>`:""}
-    ${r&&r.ok?`<div class="grid">
+    ${r&&r.ok?`<div class="cols2">
       <div><h3>${esc(r.skill||"Main skill")}: what each support adds</h3><div class="tw"><table><tbody>
         ${r.current.map(c=>`<tr><td>${esc(c.name)} <span class="muted small">${c.level}/${c.quality||0}</span></td><td class="num"><b>${sgn(c.worth)}</b> more damage</td></tr>`).join("")||`<tr><td class="muted">No supports found in the main skill.</td></tr>`}
         ${r.levelUp?`<tr><td>${esc(r.levelUp.name)} level ${r.levelUp.level} → ${r.levelUp.level+1}</td><td class="num"><b>${sgn(r.levelUp.gain)}</b></td></tr>`:""}

@@ -2,6 +2,13 @@
 
 What changed in each release, newest first. Installed copies update themselves; see the [Releases page](https://github.com/nickolusliquori/exile-companion/releases) for the installers. Planned releases are on the [roadmap](README.md#roadmap).
 
+## [1.41.0] - 2026-11-23
+
+### Added
+- **Upgrade finder ranked by Path of Building** (Character → Build tools): the top trade results for a slot now go through your own Path of Building and are ranked by real value per divine (DPS% + 0.7 × EHP%), with DPS, EHP, life and resistance changes for each item compared with what you wear. Items that don't beat your gear are left out. Turn it off to rank by stat weights as before.
+- **Support gems by Path of Building** (Build tools → Support gems): what each support in your main skill really adds, what one more level of the skill gem is worth, and every compatible support tried in place of your weakest one, with poe.ninja prices. "Total" and "Hits" are shown separately, and supports whose gain comes mostly from an added damage-over-time effect (like Decay) are flagged so they don't mislead.
+- The Windows test run checks both with the real Path of Building: trade items read exactly like Ctrl+C text, and the build is restored after the gem comparison.
+
 ## [1.40.0] - 2026-11-23
 
 ### Changed

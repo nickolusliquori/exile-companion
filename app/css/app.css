@@ -235,6 +235,7 @@ section.tab .card{scroll-margin-top:140px}
 .rep-list{display:grid;gap:4px;margin:6px 0}
 .appfoot{max-width:1200px;margin:0 auto;padding:8px 16px 24px;text-align:center;font-size:.75rem}
 .starter-hide{display:none!important}
+.cols2{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px;align-items:start}
 .secnav{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 4px}
 .secnav button{background:none;border:1px solid var(--line);color:var(--muted);border-radius:99px;padding:4px 12px;font:inherit;font-size:.85rem;cursor:pointer}
 .secnav button:hover,.secnav button:focus-visible{color:var(--text);border-color:var(--gold)}
