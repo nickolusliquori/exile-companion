@@ -64,6 +64,10 @@ jobs:
 
       # electron-builder only builds; the upload is done below with GitHub's CLI
       # (electron-builder 26 runs its GitHub publisher twice in parallel and the second one fails)
+      - name: Build the Path of Building helper (LuaJIT + pob/*.lua)
+        shell: cmd
+        run: scripts\pob\build-pob-runtime.cmd
+
       - name: Build installer
         run: npx electron-builder --win nsis --publish never
 

@@ -11,7 +11,7 @@ const pending = [];
 const fail = (msg) => { console.error("✗ " + msg); failures++; };
 const ok = (msg) => console.log("✓ " + msg);
 
-for (const f of ["main.js", "preload.js", "lib/logtail.js", "lib/ggg.js", "lib/discord.js", "lib/clip.js", "lib/diag.js", "lib/files.js", "lib/webhosts.js", "lib/crashlog.js", "lib/qr.js", "lib/twitch.js"]) {
+for (const f of ["main.js", "preload.js", "lib/logtail.js", "lib/ggg.js", "lib/discord.js", "lib/clip.js", "lib/diag.js", "lib/files.js", "lib/webhosts.js", "lib/crashlog.js", "lib/qr.js", "lib/twitch.js", "lib/pob.js"]) {
   try { new vm.Script(fs.readFileSync(path.join(root, f), "utf8"), { filename: f }); ok(`${f} parses`); }
   catch (e) { fail(`${f}: ${e.message}`); }
 }
@@ -681,7 +681,8 @@ try {
   const k = h.indexOf("async function check(text){"), e = h.indexOf('$("close").onclick', k), body = h.slice(k, e);
   assert(/const g=\+\+GEN,live=\(\)=>g===GEN,R=st=>renderIf\(g,st\)/.test(body), "check() numbers itself");
   const bare = [...body.matchAll(/(?<![\w.])render\(/g)].map((m) => body.slice(m.index - 40, m.index + 20));
-  assert(bare.length <= 2 && bare.every((x) => /parseItem\(text\)\}catch|if\(LAST_STATE\)render/.test(x)), "unguarded render in check(): " + bare.join(" | "));
+  assert(bare.every((x) => /parseItem\(text\)\}catch|if\(LAST_STATE\)render/.test(x)), "unguarded render in check(): " + bare.join(" | "));
+  assert(/PBX=r&&!r\.skip&&!r\.off\?r:null;if\(LAST_STATE\)render/.test(body) && /if\(!live\(\)\)return;PBX=/.test(body), "Path of Building result only lands on the current check");
   assert(/if\(g!==GEN\)throw new Error\(STALE\)/.test(h) && /reused/.test(h), "stale trade requests stop; re-shown items aren't searched again");
   assert(/ipcMain\.handle\("trade:wait"/.test(fs.readFileSync(path.join(root, "main.js"), "utf8")), "rate-limit wait is reported");
   ok("price popup: newer checks win, stale ones stop, no repeat search without a new item");
@@ -728,6 +729,42 @@ try {
   assert.strictEqual(T.handleMessage(msg("!unknown"), d, {}, {}, now), null);
   ok("Twitch: chat parsing, replies, switches, mods-only, cooldowns");
 } catch (e) { fail("Twitch: " + e.message); }
+
+// Path of Building numbers: slots by item class, finding the install, the background-process protocol, summaries
+pending.push((async () => {
+  try {
+    const os = require("os"), L = require(path.join(root, "lib", "pob.js"));
+    const sl = (c) => L.slotsFor(`Item Class: ${c}\nRarity: Rare\nX`).join(",");
+    assert.strictEqual(sl("Rings"), "Ring 1,Ring 2"); assert.strictEqual(sl("Body Armours"), "Body Armour"); assert.strictEqual(sl("Bows"), "Weapon 1");
+    assert.strictEqual(sl("Quivers"), "Weapon 2"); assert.strictEqual(sl("Jewels"), ""); assert.strictEqual(sl("Stackable Currency"), "");
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "ec-pob-")), inst = path.join(tmp, "Roaming", "Path of Building Community");
+    fs.mkdirSync(path.join(inst, "Modules"), { recursive: true }); fs.writeFileSync(path.join(inst, "Launch.lua"), "");
+    assert.strictEqual(L.findPob({ APPDATA: path.join(tmp, "Roaming") }), inst, "finds the usual install folder");
+    assert.strictEqual(L.findPob({ APPDATA: path.join(tmp, "nope") }), null);
+    assert.strictEqual(L.findPob({}, inst), inst, "a picked folder");
+    // a stand-in for pob-server.lua: same line protocol, with Path of Building-style noise on stdout
+    const bundle = path.join(tmp, "bundle"); fs.mkdirSync(bundle);
+    fs.writeFileSync(path.join(bundle, "pob-server.lua"), `
+      process.stdout.write("Loading main script...\\n@@EC {\\"ok\\":true,\\"ready\\":true}\\n");
+      let buf = ""; process.stdin.on("data", (d) => { buf += d; const ls = buf.split("\\n"); buf = ls.pop();
+        for (const l of ls) { const r = JSON.parse(l); let o;
+          if (r.op === "load") o = { ok: true, skill: "Lightning Arrow", now: { dps: 100 } };
+          else if (r.op === "compare") o = { ok: true, skill: "Lightning Arrow", now: { dps: 100, life: 1000, ehp: 2000, fire: 75 }, slots: r.slots.map((s, i) => ({ slot: s, current: "Old " + s, with: { dps: 100 + i * 20, life: 950 + i * 100, ehp: 2100, fire: 75 } })) };
+          else if (r.op === "slow") continue;
+          process.stdout.write("Processing tree...\\n@@EC " + JSON.stringify({ ...o, id: r.id }) + "\\n"); } });`);
+    const run = new L.PobRunner({ luajit: process.execPath, scriptDir: bundle, pobDir: inst });
+    const lb = await run.ensureBuild("<PathOfBuilding/>"); assert(lb.ok && run.skill === "Lightning Arrow", "loads the build");
+    assert((await run.ensureBuild("<PathOfBuilding/>")).ok, "same build isn't loaded twice");
+    const cmp = await run.request({ op: "compare", item: "x", slots: ["Ring 1", "Ring 2"] });
+    const sum = L.summarize(cmp);
+    assert(sum.best.slot === "Ring 2" && Math.abs(sum.best.dpsPct - 20) < 1e-9 && sum.best.d.life === 50 && sum.best.current === "Old Ring 2", "best slot first: " + JSON.stringify(sum.best));
+    const slow = await run.request({ op: "slow" }, 300); assert(!slow.ok && /in time/.test(slow.error), "a request that never answers times out");
+    run.stop();
+    assert.strictEqual(L.summarize({ ok: false }), null);
+    fs.rmSync(tmp, { recursive: true, force: true });
+    ok("Path of Building numbers: slots, finding the install, background process protocol, summaries");
+  } catch (e) { fail("Path of Building numbers: " + e.message); }
+})());
 
 Promise.all(pending).then(() => {
   if (failures) { console.error(`\n${failures} check(s) failed`); process.exit(1); }

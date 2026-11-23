@@ -25,8 +25,24 @@ jobs:
         run: npm ci
       - name: Run checks
         run: npm run check
+      - name: Build the Path of Building helper (LuaJIT + pob/*.lua)
+        shell: cmd
+        run: scripts\pob\build-pob-runtime.cmd
+
       - name: Build the app (no installer)
         run: npx electron-builder --win dir --publish never
+      - name: Get Path of Building (portable release) for the item comparison test
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $rel = gh api repos/PathOfBuildingCommunity/PathOfBuilding/releases/latest | ConvertFrom-Json
+          $zip = $rel.assets | Where-Object { $_.name -match "Portable.*\.zip$" } | Select-Object -First 1
+          Invoke-WebRequest $zip.browser_download_url -OutFile "$env:RUNNER_TEMP\pob.zip"
+          Expand-Archive "$env:RUNNER_TEMP\pob.zip" -DestinationPath "$env:RUNNER_TEMP\pob"
+          "EC_SMOKE_POB=$env:RUNNER_TEMP\pob" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          Write-Host "Path of Building $($rel.tag_name)"
+
       - name: Open the app in test mode
         shell: pwsh
         run: ./scripts/smoke-windows.ps1

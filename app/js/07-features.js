@@ -286,6 +286,22 @@ function renderPhoneCard(){
   const c=$("phCopy");if(c)c.onclick=()=>{DESK.copy(p.urls[0]);c.textContent="Copied"};
   const n=$("phNew");if(n)n.onclick=()=>{DESK.phoneSet({newKey:true});toast("New phone link made: scan the new QR code. The old link no longer works.")};
 }
+/* ---------- Path of Building numbers (price check) ---------- */
+function renderPobCard(){
+  const el=$("deskPob");if(!el||!DESK||!DESK.pobStatus)return;const p=LIVE.pob||{};
+  el.innerHTML=`<h2>Path of Building numbers</h2>
+    <p class="small" style="margin:0">When you price check gear, the popup also shows what it would do to your build: DPS, life, energy shield, EHP and resistances, calculated by your own Path of Building against your imported build.</p>
+    ${!p.available?`<p class="small muted" style="margin:0">Not included in this version (Windows desktop only).</p>`
+    :`<label class="row small"><input type="checkbox" id="pbOn"${p.enabled?" checked":""}> Show Path of Building numbers in the price check</label>
+      <div class="row small"><span class="pill ${p.dir?"good":"warn"}">${p.dir?"Path of Building found":"Path of Building not found"}</span>${p.dir?`<code class="small" style="word-break:break-all">${esc(p.dir)}</code>`:""}</div>
+      ${p.dir?"":`<p class="small" style="margin:0">Install <b>Path of Building Community</b> (free, from pathofbuilding.community), or point to its folder if it's somewhere unusual.</p>`}
+      <div class="row"><button class="btn ghost small" id="pbPick">${p.dir?"Use a different folder":"Choose its folder"}</button>${p.running?`<span class="small muted">Running${p.skill?` · main skill: ${esc(p.skill)}`:""}</span>`:""}</div>
+      ${p.message?`<p class="small err" style="margin:0">${esc(p.message)}</p>`:""}
+      <p class="small muted" style="margin:0">It compares against your current character if you've imported it, otherwise your goal build. Path of Building runs in the background while you play (it stops after 30 minutes without a price check) and uses a few hundred MB of memory.${p.hasBuild?"":" Import your build on the Build page first."}</p>`}`;
+  const on=(id,f)=>{const x=$(id);if(x)f(x)};
+  on("pbOn",b=>b.onchange=e=>{DESK.pobSet({enabled:e.target.checked});LIVE.pob={...p,enabled:e.target.checked};renderPobCard()});
+  on("pbPick",b=>b.onclick=async()=>{LIVE.pob=await DESK.pobPick();renderPobCard()});
+}
 /* ---------- Twitch chat commands ---------- */
 const TW_CMDS=[["build","!build","your class, main skill and guide link"],["level","!level","character level and time to the next one"],["map","!map","the map or zone you're in"],["deaths","!deaths","deaths this session"],["profit","!profit","maps, divine/hour and net worth"],["league","!league","the league you're playing"],["commands","!commands","lists the commands"]];
 function renderTwitchCard(){

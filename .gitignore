@@ -4,3 +4,7 @@ dist/
 .env
 .env.*
 __pycache__/
+
+# Path of Building helper (built in CI)
+pobbuild/
+luajit-src/

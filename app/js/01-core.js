@@ -382,8 +382,11 @@ async function loadSlot(slot,xml,example,noRender){
   else{G=b;exG=!!example;if(!example)store.set("xml.goal",xml);selectedItem=null;selectedSlot=null}
   reanalyze();
   if(!noRender) renderAll();
+  pobPushBuild();
 }
-function clearSlot(slot){if(slot==="current"){C=null;TC=null;try{localStorage.removeItem("ec330.xml.current")}catch(e){}}renderAll()}
+// Path of Building numbers compare items against what you wear: your current character, else your goal build
+function pobPushBuild(){try{if(typeof DESK==="undefined"||!DESK||!DESK.pobBuild)return;const x=(C&&!exC&&store.get("xml.current",null))||(G&&!exG&&store.get("xml.goal",null))||"";DESK.pobBuild(x)}catch(e){}}
+function clearSlot(slot){if(slot==="current"){C=null;TC=null;try{localStorage.removeItem("ec330.xml.current")}catch(e){}}renderAll();pobPushBuild()}
 function withBuild(b,fn){const pB=B,pT=T,pE=isExample;if(b){B=b;T=b===C?TC:TG;isExample=b===C?exC:exG}try{return fn()}finally{B=pB;T=pT;isExample=pE}}
 const liveB=()=>C||G;
 const viewB=()=>S.view==="current"&&C?C:G;

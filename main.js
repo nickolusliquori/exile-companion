@@ -94,6 +94,8 @@ const DEFAULTS = {
   twitchCustom: [],               // [{ name, text }] your own text commands
   twitchCooldown: 20,             // seconds before the same command answers again
   twitchModsOnly: false,          // only the broadcaster and moderators can use commands
+  pobEnabled: true,               // Path of Building numbers in the price check (needs Path of Building Community installed)
+  pobPath: "",                    // Path of Building's folder, if it isn't in a usual place
   overlayVisible: true,
   overlayOpacity: 0.92,
   overlayBounds: null,
@@ -458,6 +460,55 @@ ipcMain.on("twitch:set", (e, o) => {
   if ("modsOnly" in o) cfg.twitchModsOnly = !!o.modsOnly;
   saveCfg(); if (reconnect) twitchConnect(); else twitchSend(twitchState);
 });
+
+/* ---------------- Path of Building numbers ----------------
+   Runs the user's own Path of Building headless (bundled LuaJIT + pob/pob-server.lua, shipped as resources/pob)
+   to answer "what does this item do to my build?" for the price check. One process, started when first needed
+   (or warmed up shortly after start), stopped after 30 idle minutes. */
+const pobLib = require("./lib/pob");
+const POB_BUNDLE = app.isPackaged ? path.join(process.resourcesPath, "pob") : path.join(__dirname, "pobbuild");
+let pobRunner = null, pobXml = null, pobIdle = null, pobWarm = null;
+const pobAvailable = () => process.platform === "win32" && fs.existsSync(path.join(POB_BUNDLE, "luajit.exe")) && fs.existsSync(path.join(POB_BUNDLE, "pob-server.lua"));
+const pobDir = () => pobLib.findPob(process.env, cfg.pobPath || null);
+function pobGetRunner() {
+  const dir = pobDir(); if (!dir || !pobAvailable()) return null;
+  if (pobRunner && pobRunner.pobDir !== dir) { pobRunner.stop(); pobRunner = null; }
+  if (!pobRunner) pobRunner = new pobLib.PobRunner({ luajit: path.join(POB_BUNDLE, "luajit.exe"), scriptDir: POB_BUNDLE, pobDir: dir, log: (m) => LOG.info("pob", m) });
+  return pobRunner;
+}
+function pobTouch() { clearTimeout(pobIdle); pobIdle = setTimeout(() => { if (pobRunner) { pobRunner.stop(); LOG.info("pob", "stopped after 30 idle minutes"); } }, 30 * 60e3); }
+function pobStatus() {
+  return { available: pobAvailable(), enabled: cfg.pobEnabled !== false, dir: pobDir(), picked: cfg.pobPath || "", running: !!(pobRunner && pobRunner.proc), skill: pobRunner ? pobRunner.skill : "", hasBuild: !!pobXml };
+}
+async function pobCompare(text) {
+  if (cfg.pobEnabled === false) return { ok: false, off: true };
+  const slots = pobLib.slotsFor(text); if (!slots.length) return { ok: false, skip: true };
+  if (!pobAvailable()) return { ok: false, unavailable: true };
+  const r0 = pobGetRunner(); if (!r0) return { ok: false, missing: true };
+  if (!pobXml) return { ok: false, error: "Import your build first (Build page)." };
+  pobTouch();
+  try {
+    const lb = await r0.ensureBuild(pobXml); if (!lb.ok) return { ok: false, error: "Path of Building couldn't load your build: " + (lb.error || "") };
+    const r = await r0.request({ op: "compare", item: String(text).slice(0, 20000), slots });
+    if (!r.ok) return { ok: false, error: r.error || "Path of Building couldn't compare this item" };
+    return { ok: true, summary: pobLib.summarize(r) };
+  } catch (e) { LOG.warn("pob", e.message); return { ok: false, error: e.message }; }
+}
+ipcMain.on("pob:build", (e, xml) => {
+  const x = typeof xml === "string" && xml.length < 4e6 && /<PathOfBuilding/i.test(xml) ? xml : null;
+  if (x === pobXml) return; pobXml = x;
+  clearTimeout(pobWarm);
+  if (x && cfg.pobEnabled !== false && !SAFE) pobWarm = setTimeout(() => { const r = pobGetRunner(); if (r) { pobTouch(); r.ensureBuild(pobXml).catch(() => {}); } }, 20000);
+});
+ipcMain.handle("pob:compare", (e, text) => pobCompare(text));
+ipcMain.handle("pob:status", () => pobStatus());
+ipcMain.handle("pob:pick", async () => {
+  const r = await dialog.showOpenDialog(mainWin, { title: "Choose your Path of Building folder (the one with Path of Building.exe)", properties: ["openDirectory"] });
+  if (r.canceled || !r.filePaths[0]) return { ...pobStatus(), message: "" };
+  if (!pobLib.isPobDir(r.filePaths[0])) return { ...pobStatus(), message: "That folder doesn't look like Path of Building (no Launch.lua)." };
+  cfg.pobPath = r.filePaths[0]; saveCfg(); if (pobRunner) { pobRunner.stop(); pobRunner = null; } return pobStatus();
+});
+ipcMain.on("pob:set", (e, o) => { if (o && typeof o.enabled === "boolean") { cfg.pobEnabled = o.enabled; saveCfg(); if (!o.enabled && pobRunner) { pobRunner.stop(); pobRunner = null; } } });
 
 /* ---------------- clipboard helpers ----------------
    Electron 44+ made clipboard reads/writes return Promises; older versions return values directly.
@@ -1367,6 +1418,18 @@ async function runSmoke() {
       const r = await twitchForm("https://id.twitch.tv/oauth2/device", { client_id: twitchClient(), scopes: "chat:read chat:edit" });
       return { ok: r.status === 200 && !!(r.data && r.data.user_code && r.data.device_code), info: r.status === 200 ? "Twitch gave a sign-in code" : `${r.status} ${(r.data && r.data.message) || ""}` };
     });
+    await run("Path of Building numbers: compares a ring against the example build", async () => {
+      if (!pobAvailable()) return { ok: false, info: "the Path of Building helper isn't in this build" };
+      if (!process.env.EC_SMOKE_POB) return { info: "skipped (no Path of Building on this machine)" };
+      cfg.pobPath = process.env.EC_SMOKE_POB; cfg.pobEnabled = true;
+      pobXml = await js(mainWin.webContents, "EXAMPLE_XML");
+      const ring = "Item Class: Rings\nRarity: Rare\nTest Ring\nTwo-Stone Ring\n--------\nItem Level: 84\n--------\n+16% to Fire and Cold Resistances (implicit)\n--------\n+80 to maximum Life\n+45% to Lightning Resistance\n+35% to Cold Resistance\n";
+      const t0 = Date.now(), r = await pobCompare(ring), first = Date.now() - t0;
+      const t1 = Date.now(), r2 = await pobCompare(ring), second = Date.now() - t1;
+      if (pobRunner) { pobRunner.stop(); pobRunner = null; }
+      const b = r.ok && r.summary && r.summary.best;
+      return { ok: !!b && r2.ok && /^Ring [12]$/.test(b.slot), info: b ? `${b.slot}: DPS ${b.dpsPct.toFixed(1)}%, life ${Math.round(b.d.life)}, EHP ${b.ehpPct.toFixed(1)}% · first ${first} ms, then ${second} ms` : JSON.stringify(r).slice(0, 200) };
+    });
     await run("safe-mode state answers", () => ({ info: JSON.stringify({ safe: SAFE }) }));
   } catch (e) { step("test run", false, (e && e.stack) || e); }
   clearTimeout(guard);
@@ -1423,6 +1486,6 @@ else {
       startDiscord(); startStream(); startPhone(); twitchConnect();
     });
   });
-  app.on("will-quit", () => { LOG.info("app", "quit"); if (GUARD) GUARD.started(); /* a normal quit (or an update restart) is not a failed start */ globalShortcut.unregisterAll(); clearInterval(clipTimer); if (tail) tail.stop(); if (discord) discord.close(); if (streamServer) streamServer.close(); if (phoneServer) phoneServer.close(); twitchClose(); });
+  app.on("will-quit", () => { LOG.info("app", "quit"); if (GUARD) GUARD.started(); /* a normal quit (or an update restart) is not a failed start */ globalShortcut.unregisterAll(); clearInterval(clipTimer); if (tail) tail.stop(); if (discord) discord.close(); if (streamServer) streamServer.close(); if (phoneServer) phoneServer.close(); twitchClose(); if (pobRunner) pobRunner.stop(); });
   app.on("window-all-closed", () => app.quit());
 }

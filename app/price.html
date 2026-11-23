@@ -77,6 +77,8 @@ button.b{background:linear-gradient(#3c2d1a,#211810);border-color:#6e5430;color:
 button.b.p{background:linear-gradient(#ecca80,#b08540);color:#1d1408;border-color:#f2d99c}
 h3{color:#c8a96c;letter-spacing:.08em}
 .trend{font-size:12px}.trend.up{color:var(--good)}.trend.down{color:var(--bad)}
+.pob{background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--gold,#c9a45c);border-radius:4px;padding:6px 8px;display:grid;gap:3px}
+.pobrow{display:flex;flex-wrap:wrap;gap:4px 10px;font-weight:600}.pbg{color:var(--good)}.pbl{color:var(--bad)}
 .wiki .flavour{margin:0;color:#af6025;font-style:italic;font-size:12px;white-space:pre-line}
 footer{background:#0b0806;border-top-color:#3a2d1f}
 /* accessibility options (Settings → Look and feel): higher contrast and colorblind-friendly colors */
@@ -387,7 +389,7 @@ function summarize(listings){
 const divTxt=c=>rates&&rates.divine?` · ${(c/rates.divine).toFixed(2)} div`:"";
 const ago=t=>{if(!t)return"";const m=Math.round((Date.now()-new Date(t).getTime())/60000);return m<60?m+"m":m<1440?Math.round(m/60)+"h":Math.round(m/1440)+"d"};
 
-let UPG=null,EXTRA="",WIKI="",TREND=null,LAST_STATE=null;
+let UPG=null,EXTRA="",WIKI="",TREND=null,LAST_STATE=null,PBX=null;
 const trendTxt=ch=>ch==null?"":`<span class="trend ${ch>=0?"up":"down"}">${ch>=0?"▲":"▼"} ${Math.abs(ch).toFixed(1)}% in 7 days</span>`;
 const wikiText=s=>String(s||"").replace(/<br\s*\/?>/gi,"\n").replace(/<[^>]+>/g,"").replace(/\[\[(?:[^|\]]*\|)?([^\]]+)\]\]/g,"$1").replace(/&lt;/g,"<").replace(/&gt;/g,">").replace(/&amp;/g,"&").replace(/&#39;/g,"'").replace(/&quot;/g,'"').trim();
 async function loadWiki(it){
@@ -410,6 +412,7 @@ function render(state){
   LAST_STATE=state;
   const m=$("main");let h="";
   if(EXTRA) h+=EXTRA;
+  if(PBX) h+=pobHtml(PBX);
   if(UPG) h+=upgradeHtml(UPG);
   if(state.status)h+=`<p class="status ${state.statusCls||""}">${esc(state.status)}</p>`;
   if(state.ninja!=null)h+=`<div class="est"><div class="stat"><div class="k">poe.ninja value</div><div class="v">${fmt(state.ninja*(item.stack||1))}c</div></div><div class="stat"><div class="k">${item.stack>1?"Each":"In divines"}</div><div class="v">${item.stack>1?fmt(state.ninja)+"c":(rates&&rates.divine?(state.ninja/rates.divine).toFixed(2):"–")}</div></div></div>`;
@@ -453,6 +456,19 @@ function render(state){
 }
 
 // "similar mods": how many of the ticked mods a listing must have
+// Path of Building's numbers for this item in its best slot (what it changes vs what you wear)
+function pobHtml(p){
+  if(p.loading)return `<div class="pob muted small">Path of Building is calculating…</div>`;
+  if(p.missing)return `<div class="pob muted small">Path of Building numbers: install Path of Building Community, or pick its folder in the companion (Desktop tools).</div>`;
+  if(p.unavailable||!p.ok)return p.error?`<div class="pob muted small">Path of Building: ${esc(p.error)}</div>`:"";
+  const s=p.summary;if(!s||!s.best)return "";const b=s.best,d=b.d;
+  const pct=(v,k)=>{if(!isFinite(v)||Math.abs(v)<0.05)return "";const good=v>0;return `<span class="${good?"pbg":"pbl"}">${k} ${good?"+":""}${v.toFixed(Math.abs(v)<10?1:0)}%</span>`};
+  const abs=(v,k,suf="")=>{if(!v||Math.abs(v)<0.5)return "";return `<span class="${v>0?"pbg":"pbl"}">${k} ${v>0?"+":""}${Math.round(v)}${suf}</span>`};
+  const parts=[pct(b.dpsPct,"DPS"),abs(d.life,"Life"),abs(d.es,"ES"),pct(b.ehpPct,"EHP"),abs(d.fire,"Fire","%"),abs(d.cold,"Cold","%"),abs(d.lightning,"Light.","%"),abs(d.chaos,"Chaos","%"),abs(d.speed,"Speed","%")].filter(Boolean);
+  return `<div class="pob"><div class="small muted">Path of Building${s.skill?` · ${esc(s.skill)}`:""} · in ${esc(b.slot)}${b.current?` instead of ${esc(b.current)}`:""}</div>
+    <div class="pobrow">${parts.length?parts.join(""):`<span class="muted">No change to your main numbers.</span>`}</div>
+    ${s.all.length>1?`<div class="small muted">${s.all.slice(1).map(x=>`${esc(x.slot)}: DPS ${x.dpsPct>=0?"+":""}${x.dpsPct.toFixed(1)}%, EHP ${x.ehpPct>=0?"+":""}${x.ehpPct.toFixed(1)}%`).join(" · ")}</div>`:""}</div>`;
+}
 function needFor(n){return n<=2?n:Math.max(2,Math.ceil(n*0.6))}
 /* Each price check gets a number. A newer check (the next Ctrl+D) makes older ones stale: they stop sending
    trade requests and never draw over the new item. */
@@ -506,7 +522,7 @@ async function check(text){
   setWait(0);
   try{item=parseItem(text)}catch(e){render({status:"This doesn't look like an item. Hover it in game, press Ctrl+C, then Ctrl+D.",statusCls:"err"});return}
   CUR_TEXT=text;CUR_AT=Date.now();
-  rates=null;lastSearchId=null;UPG=null;EXTRA="";WIKI="";TREND=null;LAST_STATE=null;
+  rates=null;lastSearchId=null;UPG=null;EXTRA="";WIKI="";TREND=null;LAST_STATE=null;PBX=null;
   loadWiki(item).catch(()=>{});
   const cls="r-"+(item.rarity==="divination card"?"divination":item.rarity);
   $("nm").className="nm "+cls;$("hdr").className="h-"+(item.rarity==="divination card"?"divination":item.rarity);$("nm").textContent=item.name||"Unknown item";
@@ -516,6 +532,8 @@ async function check(text){
   // map marks, crafting links and the upgrade check run alongside, not in front of, the price
   const side=Promise.all([mapHtml(item).then(h=>h+craftHtml(item)).catch(()=>""),
     (item.rarity==="rare"||item.rarity==="unique"||item.rarity==="magic")?upgradeCheck(item).catch(()=>null):null]).then(([ex,up])=>{if(!live())return;EXTRA=ex;UPG=up;if(LAST_STATE)render(LAST_STATE)});
+  if(D&&D.pobCompare&&(item.rarity==="rare"||item.rarity==="unique"||item.rarity==="magic")){PBX={loading:true};
+    D.pobCompare(text).then(r=>{if(!live())return;PBX=r&&!r.skip&&!r.off?r:null;if(LAST_STATE)render(LAST_STATE)}).catch(()=>{if(live()){PBX=null;if(LAST_STATE)render(LAST_STATE)}})}
   if(!league){const l=await D.detectLeague();if(!live())return;league=l;$("foot").textContent=`League: ${league||"unknown"} · Esc closes`}
   if(!league){R({status:"Couldn't detect the league. Set it on the Desktop tab of the companion.",statusCls:"err"});return}
   try{await loadRates()}catch(e){}
