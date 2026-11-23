@@ -147,7 +147,7 @@ contextBridge.exposeInMainWorld("exileDesktop", {
   onTwitchStatus: on("twitch:status"),
   onTwitchReply: on("twitch:reply"),
   pobBuild: (xml) => ipcRenderer.send("pob:build", xml),
-  pobCompare: (text) => ipcRenderer.invoke("pob:compare", text),
+  pobCompare: (text, slots) => ipcRenderer.invoke("pob:compare", text, slots),
   pobStatus: () => ipcRenderer.invoke("pob:status"),
   pobPick: () => ipcRenderer.invoke("pob:pick"),
   pobSet: (o) => ipcRenderer.send("pob:set", o),

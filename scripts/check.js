@@ -380,7 +380,7 @@ try {
 } catch (e) { fail("look and feel: " + e.message); }
 
 // trade rate limiter and upgrade finder
-try {
+pending.push((async () => { try {
   const { createLimiter, parseRules, groupOf } = require(path.join(root, "lib", "ratelimit.js"));
   assert.deepStrictEqual(parseRules("8:10:60,15:60:120"), [{ max: 8, period: 10 }, { max: 15, period: 60 }]);
   assert.strictEqual(groupOf("https://www.pathofexile.com/api/trade/search/Standard"), "trade-search");
@@ -418,8 +418,23 @@ try {
   const ranked = U.rank([{ item: { name: "A", typeLine: "Ring", explicitMods: ["+80 to maximum Life"] }, listing: { price: { amount: 1, currency: "divine" } } }, { item: { name: "B", typeLine: "Ring", explicitMods: ["+60 to maximum Life"] }, listing: { price: { amount: 20, currency: "chaos" } } }, { item: { name: "C", typeLine: "Ring", explicitMods: ["+10 to maximum Life"] }, listing: { price: { amount: 1, currency: "chaos" } } }], { life: 1 }, "Ring 1", 40, P);
   assert.deepStrictEqual(ranked.map((r) => r.name), ["B Ring", "A Ring"], "ranked by gain per divine; worse items dropped");
   assert.strictEqual(U.toChaos({ amount: 3, currency: "exalted" }, P), 30);
-  ok("trade requests are paced by GGG's rules; upgrade finder scores, searches and ranks correctly");
-} catch (e) { fail("upgrade finder: " + e.message); }
+  // trade item JSON -> Ctrl+C-style text for Path of Building
+  const txt = U.apiItemText({ frameType: 2, name: "Doom Loop", typeLine: "Two-Stone Ring", ilvl: 84, influences: { shaper: true }, fractured: true,
+    properties: [{ name: "Quality", values: [["+20%", 1]] }], sockets: [{ group: 0, sColour: "R" }, { group: 0, sColour: "G" }, { group: 1, sColour: "B" }],
+    enchantMods: ["Enchanted thing"], implicitMods: ["+16% to Fire and Cold Resistances"], fracturedMods: ["+80 to maximum Life"], explicitMods: ["+45% to Lightning Resistance"], craftedMods: ["+20 to Strength"], corrupted: true }, "Ring 1");
+  assert.strictEqual(txt, ["Item Class: Rings", "Rarity: Rare", "Doom Loop", "Two-Stone Ring", "--------", "Quality: +20%", "Item Level: 84", "Sockets: R-G B", "Shaper Item", "Fractured Item",
+    "--------", "Enchanted thing (enchant)", "+16% to Fire and Cold Resistances (implicit)", "--------", "+80 to maximum Life (fractured)", "+45% to Lightning Resistance", "+20 to Strength (crafted)", "--------", "Corrupted"].join("\n"), "item text:\n" + txt);
+  assert(/^Item Class: Belts\nRarity: Unique\nHeadhunter\nLeather Belt/.test(U.apiItemText({ frameType: 3, name: "Headhunter", typeLine: "Leather Belt" }, "Belt")), "unique");
+  // ranking by Path of Building: value = DPS% + 0.7 EHP% per divine; worse items dropped
+  ctx.DESK = { pobCompare: async (text) => { const life = /\+(\d+) to maximum Life/.exec(text); const v = life ? +life[1] : 0;
+    return { ok: true, summary: { skill: "LA", best: { slot: "Ring 1", dpsPct: v / 10 - 3, ehpPct: v / 20, d: { life: v } } } }; } };
+  const L2 = (life, amount) => ({ id: "i" + life, item: { frameType: 2, name: "R", typeLine: "Two-Stone Ring", explicitMods: [`+${life} to maximum Life`] }, listing: { price: { amount, currency: "divine" }, whisper: "@x hi" } });
+  const pr = await U.pobRank([L2(80, 4), L2(60, 1), L2(10, 1)], "Ring 1", { div: 200, cur: { "Divine Orb": 200 } });
+  assert.strictEqual(pr.list.map((r) => r.id).join(","), "i60,i80", "sorted by value per divine, worse item dropped: " + JSON.stringify(pr.list.map((r) => [r.id, r.gain, r.perDiv])));
+  assert(pr.checked === 3 && pr.skill === "LA" && Math.abs(pr.list[1].gain - (5 + 0.7 * 4)) < 1e-9, "values");
+  ctx.DESK = null;
+  ok("trade requests are paced by GGG's rules; upgrade finder scores, searches and ranks correctly (also by Path of Building)");
+} catch (e) { fail("upgrade finder: " + e.message); } })());
 
 // media: mini player sites and the Windows "now playing" bridge (with a stand-in for PowerShell)
 try {

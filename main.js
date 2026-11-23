@@ -480,9 +480,11 @@ function pobTouch() { clearTimeout(pobIdle); pobIdle = setTimeout(() => { if (po
 function pobStatus() {
   return { available: pobAvailable(), enabled: cfg.pobEnabled !== false, dir: pobDir(), picked: cfg.pobPath || "", running: !!(pobRunner && pobRunner.proc), skill: pobRunner ? pobRunner.skill : "", hasBuild: !!pobXml };
 }
-async function pobCompare(text) {
+const POB_SLOTS = ["Helmet", "Body Armour", "Gloves", "Boots", "Belt", "Amulet", "Ring 1", "Ring 2", "Weapon 1", "Weapon 2"];
+async function pobCompare(text, want) {
   if (cfg.pobEnabled === false) return { ok: false, off: true };
-  const slots = pobLib.slotsFor(text); if (!slots.length) return { ok: false, skip: true };
+  const slots = Array.isArray(want) && want.length ? want.filter((x) => POB_SLOTS.includes(x)).slice(0, 2) : pobLib.slotsFor(text);
+  if (!slots.length) return { ok: false, skip: true };
   if (!pobAvailable()) return { ok: false, unavailable: true };
   const r0 = pobGetRunner(); if (!r0) return { ok: false, missing: true };
   if (!pobXml) return { ok: false, error: "Import your build first (Build page)." };
@@ -500,7 +502,7 @@ ipcMain.on("pob:build", (e, xml) => {
   clearTimeout(pobWarm);
   if (x && cfg.pobEnabled !== false && !SAFE) pobWarm = setTimeout(() => { const r = pobGetRunner(); if (r) { pobTouch(); r.ensureBuild(pobXml).catch(() => {}); } }, 20000);
 });
-ipcMain.handle("pob:compare", (e, text) => pobCompare(text));
+ipcMain.handle("pob:compare", (e, text, slots) => pobCompare(text, slots));
 ipcMain.handle("pob:status", () => pobStatus());
 ipcMain.handle("pob:pick", async () => {
   const r = await dialog.showOpenDialog(mainWin, { title: "Choose your Path of Building folder (the one with Path of Building.exe)", properties: ["openDirectory"] });
@@ -1426,9 +1428,13 @@ async function runSmoke() {
       const ring = "Item Class: Rings\nRarity: Rare\nTest Ring\nTwo-Stone Ring\n--------\nItem Level: 84\n--------\n+16% to Fire and Cold Resistances (implicit)\n--------\n+80 to maximum Life\n+45% to Lightning Resistance\n+35% to Cold Resistance\n";
       const t0 = Date.now(), r = await pobCompare(ring), first = Date.now() - t0;
       const t1 = Date.now(), r2 = await pobCompare(ring), second = Date.now() - t1;
+      // a trade-site item (JSON) converted by the upgrade finder must read the same way
+      const tradeText = await js(mainWin.webContents, "loadScriptOnce('upgrades.js','Upgrades').then(()=>Upgrades._test.apiItemText({frameType:2,name:'Smoke Loop',typeLine:'Two-Stone Ring',ilvl:84,implicitMods:['+16% to Fire and Cold Resistances'],explicitMods:['+80 to maximum Life','+45% to Lightning Resistance','+35% to Cold Resistance']},'Ring 1'))");
+      const r3 = await pobCompare(tradeText, ["Ring 1"]);
       if (pobRunner) { pobRunner.stop(); pobRunner = null; }
-      const b = r.ok && r.summary && r.summary.best;
-      return { ok: !!b && r2.ok && /^Ring [12]$/.test(b.slot), info: b ? `${b.slot}: DPS ${b.dpsPct.toFixed(1)}%, life ${Math.round(b.d.life)}, EHP ${b.ehpPct.toFixed(1)}% · first ${first} ms, then ${second} ms` : JSON.stringify(r).slice(0, 200) };
+      const b = r.ok && r.summary && r.summary.best, b3 = r3.ok && r3.summary && r3.summary.best;
+      const same = b3 && Math.abs((b3.d.life || 0) - ((r.summary.all.find((x) => x.slot === "Ring 1") || {}).d || {}).life) < 0.5;
+      return { ok: !!b && r2.ok && /^Ring [12]$/.test(b.slot) && !!same, info: b ? `${b.slot}: DPS ${b.dpsPct.toFixed(1)}%, life ${Math.round(b.d.life)}, EHP ${b.ehpPct.toFixed(1)}% · first ${first} ms, then ${second} ms · trade item ${same ? "reads the same" : "DIFFERS: " + JSON.stringify(r3).slice(0, 160)}` : JSON.stringify(r).slice(0, 200) };
     });
     await run("safe-mode state answers", () => ({ info: JSON.stringify({ safe: SAFE }) }));
   } catch (e) { step("test run", false, (e && e.stack) || e); }
