@@ -109,17 +109,48 @@ async function seedSearch(T,name,socket,want,onlyIds){
 }
 
 /* ---------- UI ---------- */
+/* ---------- support gems by Path of Building ----------
+   Asks the user's Path of Building what each support in the main skill adds, what +1 level to the skill gem adds,
+   and which compatible supports would beat the weakest one (Desktop tools → Path of Building numbers). */
+let SUP=null,SUP_BUSY=false;
+function gemPriceFor(name,level){
+  const lines=P&&P.items&&P.items[name];if(!lines||!lines.length)return null;
+  const exact=lines.filter(l=>new RegExp(`^${level}(/|$)`).test(String(l.variant||l.gemLevel||"")));
+  const pool=(exact.length?exact:lines).map(l=>l.chaosValue).filter(v=>v!=null);return pool.length?Math.min(...pool):null;
+}
+const sgn=v=>`${v>=0?"+":""}${v.toFixed(Math.abs(v)<10?1:0)}%`;
+function renderSupports(){
+  const el=$("btSupports");if(!el)return;
+  const ok=typeof DESK!=="undefined"&&DESK&&DESK.pobGems&&LIVE.pob&&LIVE.pob.available&&LIVE.pob.enabled&&LIVE.pob.dir;
+  const r=SUP,chaos=c=>c==null?"":P&&P.div&&c>=P.div*0.9?`${(c/P.div).toFixed(1)} div`:`${Math.round(c)}c`;
+  el.innerHTML=`<h2>Support gems (Path of Building)</h2>
+    <p class="small" style="margin:0">What each support in your main skill really adds, what one more level of the skill gem is worth, and which supports would beat your weakest one, all calculated by your own Path of Building on your imported build.</p>
+    ${!ok?`<p class="small muted" style="margin:0">Needs the desktop app with Path of Building Community found (Desktop tools → Path of Building numbers).</p>`
+    :`<div class="row"><button class="btn ${r?"ghost":"primary"} small" id="supGo"${SUP_BUSY?" disabled":""}>${SUP_BUSY?"Calculating… (can take up to a minute)":r?"Calculate again":"Compare supports"}</button></div>`}
+    ${r&&!r.ok?`<p class="small err" style="margin:0">${esc(r.error||(r.missing?"Path of Building wasn't found.":"Couldn't compare."))}</p>`:""}
+    ${r&&r.ok?`<div class="grid">
+      <div><h3>${esc(r.skill||"Main skill")}: what each support adds</h3><div class="tw"><table><tbody>
+        ${r.current.map(c=>`<tr><td>${esc(c.name)} <span class="muted small">${c.level}/${c.quality||0}</span></td><td class="num"><b>${sgn(c.worth)}</b> more damage</td></tr>`).join("")||`<tr><td class="muted">No supports found in the main skill.</td></tr>`}
+        ${r.levelUp?`<tr><td>${esc(r.levelUp.name)} level ${r.levelUp.level} → ${r.levelUp.level+1}</td><td class="num"><b>${sgn(r.levelUp.gain)}</b></td></tr>`:""}
+      </tbody></table></div></div>
+      ${r.replace?`<div><h3>Instead of ${esc(r.replace.name)} (${sgn(r.replace.worth)})</h3><div class="tw"><table><thead><tr><th>Support</th><th class="num">vs now</th><th class="num">Price</th></tr></thead><tbody>
+        ${r.candidates.slice(0,12).map(c=>{const pr=gemPriceFor(c.name,c.level);return `<tr><td>${esc(c.name)} <span class="muted small">${c.level}/20</span></td><td class="num"><b class="${c.gain>0?"good":"bad"}">${sgn(c.gain)}</b></td><td class="num muted">${chaos(pr)}</td></tr>`}).join("")}
+      </tbody></table></div><p class="small muted" style="margin:0">${r.tried} compatible supports tried at max level, 20% quality.</p></div>`:""}
+    </div>`:""}`;
+  const b=$("supGo");if(b)b.onclick=async()=>{SUP_BUSY=true;renderSupports();try{SUP=await DESK.pobGems()}catch(e){SUP={ok:false,error:e.message}}SUP_BUSY=false;renderSupports()};
+}
 async function render(){
   const root=$("buildTools");if(!root)return;
   root.innerHTML=`<div class="card hl" id="btUpg"></div>
+    <div class="card" id="btSupports"></div>
     <div class="card" id="btTimeless"></div>
     <div class="grid"><div class="card" id="btCluster"></div><div class="card" id="btMeta"></div></div>
     <div class="card" id="btGems"></div>`;
-  renderMeta();renderTimeless();
+  renderMeta();renderTimeless();renderSupports();
   loadScriptOnce("upgrades.js","Upgrades").then(()=>Upgrades.render()).catch(e=>{const u=$("btUpg");if(u)u.innerHTML=`<h2>Upgrade finder</h2>${emptyBox("Couldn't load: "+(e.message||e))}`});
   if(!window.CLUSTERDATA){try{await loadScriptOnce("clusterdata.js","CLUSTERDATA")}catch(e){}}
   renderCluster();renderGems();
-  if(typeof DESK!=="undefined"&&DESK&&typeof ninjaPrices==="function"){try{P=await ninjaPrices(false)}catch(e){P=null}renderGems()}
+  if(typeof DESK!=="undefined"&&DESK&&typeof ninjaPrices==="function"){try{P=await ninjaPrices(false)}catch(e){P=null}renderGems();renderSupports()}
 }
 
 function renderGems(){

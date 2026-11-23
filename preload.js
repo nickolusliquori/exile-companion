@@ -149,6 +149,7 @@ contextBridge.exposeInMainWorld("exileDesktop", {
   pobBuild: (xml) => ipcRenderer.send("pob:build", xml),
   pobCompare: (text, slots) => ipcRenderer.invoke("pob:compare", text, slots),
   pobStatus: () => ipcRenderer.invoke("pob:status"),
+  pobGems: () => ipcRenderer.invoke("pob:gems"),
   pobPick: () => ipcRenderer.invoke("pob:pick"),
   pobSet: (o) => ipcRenderer.send("pob:set", o),
   // updates

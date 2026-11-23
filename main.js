@@ -503,6 +503,19 @@ ipcMain.on("pob:build", (e, xml) => {
   if (x && cfg.pobEnabled !== false && !SAFE) pobWarm = setTimeout(() => { const r = pobGetRunner(); if (r) { pobTouch(); r.ensureBuild(pobXml).catch(() => {}); } }, 20000);
 });
 ipcMain.handle("pob:compare", (e, text, slots) => pobCompare(text, slots));
+// gem comparisons for the main skill (what each support adds, +1 level, best replacements for the weakest support)
+async function pobGems() {
+  if (cfg.pobEnabled === false) return { ok: false, off: true };
+  if (!pobAvailable()) return { ok: false, unavailable: true };
+  const r0 = pobGetRunner(); if (!r0) return { ok: false, missing: true };
+  if (!pobXml) return { ok: false, error: "Import your build first (Build page)." };
+  pobTouch();
+  try {
+    const lb = await r0.ensureBuild(pobXml); if (!lb.ok) return { ok: false, error: "Path of Building couldn't load your build: " + (lb.error || "") };
+    return await r0.request({ op: "gems", max: 150 }, 180000);
+  } catch (e) { return { ok: false, error: e.message }; }
+}
+ipcMain.handle("pob:gems", () => pobGems());
 ipcMain.handle("pob:status", () => pobStatus());
 ipcMain.handle("pob:pick", async () => {
   const r = await dialog.showOpenDialog(mainWin, { title: "Choose your Path of Building folder (the one with Path of Building.exe)", properties: ["openDirectory"] });
@@ -1431,9 +1444,14 @@ async function runSmoke() {
       // a trade-site item (JSON) converted by the upgrade finder must read the same way
       const tradeText = await js(mainWin.webContents, "loadScriptOnce('upgrades.js','Upgrades').then(()=>Upgrades._test.apiItemText({frameType:2,name:'Smoke Loop',typeLine:'Two-Stone Ring',ilvl:84,implicitMods:['+16% to Fire and Cold Resistances'],explicitMods:['+80 to maximum Life','+45% to Lightning Resistance','+35% to Cold Resistance']},'Ring 1'))");
       const r3 = await pobCompare(tradeText, ["Ring 1"]);
+      const tg = Date.now(), g = await pobGems(), gms = Date.now() - tg;
+      rep.pobGems = g && g.ok ? { skill: g.skill, current: g.current, levelUp: g.levelUp, replace: g.replace, top: (g.candidates || []).slice(0, 5), tried: g.tried, ms: gms, restored: Math.abs((g.check || 0) - (g.base || 0)) < 0.01 } : g;
       if (pobRunner) { pobRunner.stop(); pobRunner = null; }
       const b = r.ok && r.summary && r.summary.best, b3 = r3.ok && r3.summary && r3.summary.best;
       const same = b3 && Math.abs((b3.d.life || 0) - ((r.summary.all.find((x) => x.slot === "Ring 1") || {}).d || {}).life) < 0.5;
+      const gOk = rep.pobGems && rep.pobGems.current && rep.pobGems.restored;
+      if (!gOk) step("Path of Building gem comparison", false, JSON.stringify(rep.pobGems).slice(0, 300));
+      else step("Path of Building gem comparison", true, `${rep.pobGems.skill}: ${rep.pobGems.current.length} supports valued, ${rep.pobGems.tried || 0} replacements tried in ${rep.pobGems.ms} ms; best ${(rep.pobGems.top[0] || {}).name || "–"} ${(((rep.pobGems.top[0] || {}).gain) || 0).toFixed(1)}%; build restored`);
       return { ok: !!b && r2.ok && /^Ring [12]$/.test(b.slot) && !!same, info: b ? `${b.slot}: DPS ${b.dpsPct.toFixed(1)}%, life ${Math.round(b.d.life)}, EHP ${b.ehpPct.toFixed(1)}% · first ${first} ms, then ${second} ms · trade item ${same ? "reads the same" : "DIFFERS: " + JSON.stringify(r3).slice(0, 160)}` : JSON.stringify(r).slice(0, 200) };
     });
     await run("safe-mode state answers", () => ({ info: JSON.stringify({ safe: SAFE }) }));

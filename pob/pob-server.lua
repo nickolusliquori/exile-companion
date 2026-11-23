@@ -67,6 +67,65 @@ function handlers.compare(req)
   return out
 end
 
+-- gem comparisons for the main skill: what each support adds, what +1 level to the skill gem adds, and the best
+-- compatible supports in place of the weakest one. Everything is put back afterwards.
+function handlers.gems(req)
+  if not loaded then return { ok = false, error = "no build loaded" } end
+  local grp = build.skillsTab.socketGroupList[build.mainSocketGroup]
+  if not grp then return { ok = false, error = "no main skill group" } end
+  local function recalc() build.skillsTab:ProcessSocketGroup(grp); build.calcsTab:BuildOutput() end
+  local function dps() return pick(build.calcsTab:GetMiscCalculator()({}, true)).dps end
+  local base = dps()
+  local more = function(withDps, withoutDps) if withoutDps and withoutDps > 0 then return (withDps / withoutDps - 1) * 100 end return 0 end
+  local out = { ok = true, skill = mainSkillName(), base = base, current = {}, candidates = {} }
+  -- each support's share: the DPS lost without it
+  for i, g in ipairs(grp.gemList) do
+    local ge = g.gemData and g.gemData.grantedEffect
+    if g.enabled ~= false and ge and ge.support then
+      g.enabled = false; recalc(); local without = dps(); g.enabled = true; recalc()
+      out.current[#out.current + 1] = { name = g.nameSpec, level = g.level, quality = g.quality, worth = more(base, without), idx = i }
+    end
+  end
+  -- +1 level to the active skill gem
+  for _, g in ipairs(grp.gemList) do
+    local ge = g.gemData and g.gemData.grantedEffect
+    if g.enabled ~= false and ge and not ge.support then
+      local lv = g.level; g.level = lv + 1; recalc(); out.levelUp = { name = g.nameSpec, level = lv, gain = more(dps(), base) }; g.level = lv; recalc()
+      break
+    end
+  end
+  -- every compatible support in the weakest support's socket
+  local weakest = nil
+  for _, c in ipairs(out.current) do if not weakest or c.worth < weakest.worth then weakest = c end end
+  if weakest then
+    out.replace = { name = weakest.name, worth = weakest.worth }
+    local g = grp.gemList[weakest.idx]
+    local saved = { gemId = g.gemId, nameSpec = g.nameSpec, skillId = g.skillId, level = g.level, quality = g.quality }
+    local have = {}
+    for _, x in ipairs(grp.gemList) do if x.gemData then have[x.gemData.name] = true end end
+    local active = build.calcsTab.mainEnv and build.calcsTab.mainEnv.player and build.calcsTab.mainEnv.player.mainSkill
+    local tried, maxTry = 0, tonumber(req.max) or 150
+    for id, gem in pairs(build.data.gems) do
+      local ge = gem.grantedEffect
+      if tried < maxTry and ge and ge.support and not ge.unsupported and not have[gem.name] and active
+        and pcall(calcLib.canGrantedEffectSupportActiveSkill, ge, active) and calcLib.canGrantedEffectSupportActiveSkill(ge, active) then
+        tried = tried + 1
+        g.gemId = id; g.nameSpec = gem.name; g.skillId = nil; g.level = gem.naturalMaxLevel or 20; g.quality = 20
+        if pcall(recalc) then out.candidates[#out.candidates + 1] = { name = gem.name, level = g.level, gain = more(dps(), base) } end
+      end
+    end
+    g.gemId, g.nameSpec, g.skillId, g.level, g.quality = saved.gemId, saved.nameSpec, saved.skillId, saved.level, saved.quality
+    recalc()
+    out.tried = tried
+    table.sort(out.candidates, function(a, b) return a.gain > b.gain end)
+    for i = #out.candidates, 16, -1 do out.candidates[i] = nil end
+  end
+  for _, c in ipairs(out.current) do c.idx = nil end
+  table.sort(out.current, function(a, b) return a.worth > b.worth end)
+  out.check = dps()   -- should equal base again: everything was put back
+  return out
+end
+
 send('{"ok":true,"ready":true}')
 for line in io.lines() do
   local req = json.decode(line)
